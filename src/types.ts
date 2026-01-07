@@ -12,6 +12,7 @@ export type AgentConfig = {
   agentName: string;
   enableAutoEdit: boolean;
   enableValidation: boolean;
+  remoteDriveUrl?: string;
 };
 
 export type ReactorInstance = {

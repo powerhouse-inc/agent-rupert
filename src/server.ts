@@ -15,12 +15,14 @@ app.use(cors());
 app.use(express.json());
 
 app.get('/health', async (req, res) => {
+  const drives = reactorInstance ? await reactorInstance.driveServer.getDrives() : [];
   res.json({
     status: 'ok',
     message: 'Powerhouse Agent is running',
     timestamp: new Date().toISOString(),
     reactor: reactorInstance ? 'initialized' : 'not initialized',
-    drives: reactorInstance ? (await reactorInstance.driveServer.getDrives()).length : 0,
+    drives: drives.length,
+    remoteDrives: drives.filter((drive: any) => drive.state?.remote).length,
     models: reactorInstance ? reactorInstance.driveServer.getDocumentModelModules().length : 0
   });
 });
@@ -32,6 +34,7 @@ app.get('/', (req, res) => {
     endpoints: [
       'GET /health - Health check',
       'GET /models - List available document models',
+      'GET /drives - List connected drives',
       'GET /stats - Agent statistics (coming soon)',
       'GET /events - Recent events (coming soon)'
     ]
@@ -39,7 +42,6 @@ app.get('/', (req, res) => {
 });
 
 app.get('/models', (req, res) => {
-  console.log("getting models");
   if (!reactorInstance) {
     return res.status(503).json({
       error: 'Reactor not initialized'
@@ -58,6 +60,42 @@ app.get('/models', (req, res) => {
     count: models.length,
     models
   });
+});
+
+app.get('/drives', async (req, res) => {
+  if (!reactorInstance) {
+    return res.status(503).json({
+      error: 'Reactor not initialized'
+    });
+  }
+
+  try {
+    const driveIds = await reactorInstance.driveServer.getDrives();
+    const driveDetails = await Promise.all(
+      driveIds.map(async (driveId: string) => {
+        try {
+          const drive = await reactorInstance!.driveServer.getDrive(driveId);
+          return drive;
+        } catch (error) {
+          return {
+            id: driveId,
+            name: 'Error loading drive',
+            error: error instanceof Error ? error.message : 'Unknown error'
+          };
+        }
+      })
+    );
+
+    res.json({
+      count: driveIds.length,
+      drives: driveDetails
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: 'Failed to retrieve drives',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
 });
 
 async function start() {

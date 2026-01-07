@@ -10,5 +10,6 @@ export const config: AgentConfig = {
   dbPath: process.env.DB_PATH || path.join(process.cwd(), '.ph/read-model.db'),
   agentName: process.env.AGENT_NAME || 'powerhouse-agent',
   enableAutoEdit: process.env.ENABLE_AUTO_EDIT === 'true',
-  enableValidation: process.env.ENABLE_VALIDATION === 'true'
+  enableValidation: process.env.ENABLE_VALIDATION === 'true',
+  remoteDriveUrl: process.env.REMOTE_DRIVE_URL
 };
