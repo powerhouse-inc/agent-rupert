@@ -28,10 +28,12 @@ export interface RunningProject {
     logs: string[];
 }
 
-export interface RunProjectsResult {
+export interface RunProjectResult {
     success: boolean;
-    started: string[];
-    failed: Array<{ name: string; error: string }>;
+    projectName?: string;
+    error?: string;
+    studioPort?: number;
+    reactorPort?: number;
 }
 
 export class PowerhouseProjectsManager {
@@ -39,7 +41,8 @@ export class PowerhouseProjectsManager {
     private readonly basePort: number;
     private readonly portIncrement: number;
     private readonly cliExecutor: CLIExecutor;
-    private runningProjects: Map<string, RunningProject> = new Map();
+    private runningProject: RunningProject | null = null;
+    private runningProcessPromise: Promise<any> | null = null;
 
     constructor(
         projectsDir: string = '../projects',
@@ -211,140 +214,180 @@ export class PowerhouseProjectsManager {
     }
 
     /**
-     * Run all Powerhouse projects with ph dev command
-     * Each project gets unique ports based on basePort and portIncrement
+     * Run a single Powerhouse project with ph dev command
+     * @param projectName - Name of the project to run
+     * @param studioPort - Optional studio port (defaults to basePort)
+     * @param reactorPort - Optional reactor port (defaults to studioPort + 1)
      * @returns Result of the run operation
      */
-    async runProjects(): Promise<RunProjectsResult> {
-        const result: RunProjectsResult = {
-            success: true,
-            started: [],
-            failed: []
-        };
-
-        // Get all projects
-        const projects = await this.listProjects();
-        
-        if (projects.length === 0) {
+    async runProject(projectName: string, studioPort?: number, reactorPort?: number): Promise<RunProjectResult> {
+        // Check if a project is already running
+        if (this.runningProject) {
             return {
-                success: true,
-                started: [],
-                failed: []
+                success: false,
+                error: `A project is already running: ${this.runningProject.name}. Please shutdown the current project first.`
             };
         }
 
-        // Start each project
-        for (let i = 0; i < projects.length; i++) {
-            const project = projects[i];
-            
-            // Skip if already running
-            if (this.runningProjects.has(project.name)) {
-                console.log(`Project '${project.name}' is already running`);
-                result.started.push(project.name);
-                continue;
-            }
-
-            // Calculate ports for this project
-            const studioPort = this.basePort + (i * this.portIncrement);
-            const reactorPort = studioPort + 1;
-
-            try {
-                // Create CLI task for ph dev
-                const runTask: CLITask = createCLITask({
-                    title: `Run Powerhouse project: ${project.name}`,
-                    instructions: `Start Powerhouse development server for ${project.name}`,
-                    command: 'ph',
-                    args: ['dev'],
-                    workingDirectory: project.path,
-                    environment: {
-                        PORT: String(studioPort),
-                        REACTOR_PORT: String(reactorPort),
-                        NODE_ENV: 'development'
-                    }
-                });
-
-                // Execute with streaming to keep the process running
-                const executePromise = this.cliExecutor.executeWithStream(runTask, {
-                    onStdout: (data) => {
-                        const runningProject = this.runningProjects.get(project.name);
-                        if (runningProject) {
-                            runningProject.logs.push(`[stdout] ${data}`);
-                            // Keep only last 100 logs
-                            if (runningProject.logs.length > 100) {
-                                runningProject.logs = runningProject.logs.slice(-100);
-                            }
-                        }
-                    },
-                    onStderr: (data) => {
-                        const runningProject = this.runningProjects.get(project.name);
-                        if (runningProject) {
-                            runningProject.logs.push(`[stderr] ${data}`);
-                            // Keep only last 100 logs
-                            if (runningProject.logs.length > 100) {
-                                runningProject.logs = runningProject.logs.slice(-100);
-                            }
-                        }
-                    }
-                });
-
-                // Store the running project info
-                const runningProject: RunningProject = {
-                    name: project.name,
-                    path: project.path,
-                    studioPort,
-                    reactorPort,
-                    startedAt: new Date(),
-                    logs: []
-                };
-
-                // Get the child process from the executor if available
-                if ('process' in this.cliExecutor) {
-                    const executor = this.cliExecutor as any;
-                    if (executor.currentProcess) {
-                        runningProject.process = executor.currentProcess;
-                    }
-                }
-
-                this.runningProjects.set(project.name, runningProject);
-                result.started.push(project.name);
-
-                // Store the promise for cleanup later
-                executePromise.catch((error) => {
-                    console.error(`Project '${project.name}' stopped with error:`, error);
-                    this.runningProjects.delete(project.name);
-                });
-
-            } catch (error) {
-                result.success = false;
-                result.failed.push({
-                    name: project.name,
-                    error: error instanceof Error ? error.message : String(error)
-                });
-            }
+        // Validate project name
+        if (!projectName || projectName.trim() === '') {
+            return {
+                success: false,
+                error: 'Project name cannot be empty'
+            };
         }
 
-        return result;
+        // Find the project
+        const projects = await this.listProjects();
+        const project = projects.find(p => p.name === projectName);
+        
+        if (!project) {
+            return {
+                success: false,
+                error: `Project '${projectName}' not found in ${this.projectsDir}`
+            };
+        }
+
+        // Use provided ports or defaults
+        const actualStudioPort = studioPort || this.basePort;
+        const actualReactorPort = reactorPort || actualStudioPort + 1;
+
+        try {
+            // Create CLI task for ph dev
+            const runTask: CLITask = createCLITask({
+                title: `Run Powerhouse project: ${project.name}`,
+                instructions: `Start Powerhouse development server for ${project.name}`,
+                command: 'ph',
+                args: ['dev'],
+                workingDirectory: project.path,
+                environment: {
+                    PORT: String(actualStudioPort),
+                    REACTOR_PORT: String(actualReactorPort),
+                    NODE_ENV: 'development'
+                }
+            });
+
+            // Store the running project info
+            this.runningProject = {
+                name: project.name,
+                path: project.path,
+                studioPort: actualStudioPort,
+                reactorPort: actualReactorPort,
+                startedAt: new Date(),
+                logs: []
+            };
+
+            // Execute with streaming to keep the process running
+            this.runningProcessPromise = this.cliExecutor.executeWithStream(runTask, {
+                onStdout: (data) => {
+                    if (this.runningProject) {
+                        this.runningProject.logs.push(`[stdout] ${data}`);
+                        // Keep only last 100 logs
+                        if (this.runningProject.logs.length > 100) {
+                            this.runningProject.logs = this.runningProject.logs.slice(-100);
+                        }
+                    }
+                },
+                onStderr: (data) => {
+                    if (this.runningProject) {
+                        this.runningProject.logs.push(`[stderr] ${data}`);
+                        // Keep only last 100 logs
+                        if (this.runningProject.logs.length > 100) {
+                            this.runningProject.logs = this.runningProject.logs.slice(-100);
+                        }
+                    }
+                }
+            });
+
+            // Get the child process from the executor if available
+            if ('currentProcess' in this.cliExecutor) {
+                const executor = this.cliExecutor as any;
+                if (executor.currentProcess) {
+                    this.runningProject.process = executor.currentProcess;
+                }
+            }
+
+            // Handle process termination
+            this.runningProcessPromise.catch((error) => {
+                console.error(`Project '${project.name}' stopped with error:`, error);
+                this.runningProject = null;
+                this.runningProcessPromise = null;
+            });
+
+            return {
+                success: true,
+                projectName: project.name,
+                studioPort: actualStudioPort,
+                reactorPort: actualReactorPort
+            };
+
+        } catch (error) {
+            this.runningProject = null;
+            this.runningProcessPromise = null;
+            return {
+                success: false,
+                projectName: project.name,
+                error: error instanceof Error ? error.message : String(error)
+            };
+        }
     }
 
     /**
-     * Get information about running projects
-     * @returns Array of running project information
+     * Get information about the currently running project
+     * @returns Running project information or null if no project is running
      */
-    getRunningProjects(): RunningProject[] {
-        return Array.from(this.runningProjects.values());
+    getRunningProject(): RunningProject | null {
+        return this.runningProject;
     }
 
     /**
-     * Get logs for a specific running project
-     * @param projectName - Name of the project
-     * @returns Logs array or undefined if project not running
+     * Get logs for the currently running project
+     * @returns Logs array or undefined if no project is running
      */
-    getProjectLogs(projectName: string): string[] | undefined {
-        const project = this.runningProjects.get(projectName);
-        return project?.logs;
+    getProjectLogs(): string[] | undefined {
+        return this.runningProject?.logs;
     }
 
-    async shutdownProjects(): Promise<void> {
-        throw new Error('Not implemented yet');
+    /**
+     * Shutdown the currently running project
+     * @returns Promise that resolves when the project is shutdown
+     */
+    async shutdownProject(): Promise<{ success: boolean; error?: string }> {
+        if (!this.runningProject) {
+            return {
+                success: false,
+                error: 'No project is currently running'
+            };
+        }
+
+        const projectName = this.runningProject.name;
+        
+        try {
+            // If we have a process reference, send SIGINT
+            if (this.runningProject.process && !this.runningProject.process.killed) {
+                this.runningProject.process.kill('SIGINT');
+                
+                // Wait a bit for graceful shutdown
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                // Force kill if still running
+                if (!this.runningProject.process.killed) {
+                    this.runningProject.process.kill('SIGTERM');
+                }
+            }
+
+            // Clear the running project
+            this.runningProject = null;
+            this.runningProcessPromise = null;
+            
+            return {
+                success: true
+            };
+        } catch (error) {
+            return {
+                success: false,
+                error: `Failed to shutdown project '${projectName}': ${error instanceof Error ? error.message : String(error)}`
+            };
+        }
     }
 }
