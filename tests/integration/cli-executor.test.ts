@@ -1,7 +1,7 @@
 import { describe, it, expect } from '@jest/globals';
-import { CLIExecutor } from '../executors/cli-executor.js';
-import { createCLITask } from '../types.js';
-import { TaskProcessError, TaskValidationError } from '../executors/errors.js';
+import { CLIExecutor } from '../../src/tasks/executors/cli-executor.js';
+import { createCLITask } from '../../src/tasks/types.js';
+import { TaskProcessError, TaskValidationError } from '../../src/tasks/executors/errors.js';
 
 describe('CLIExecutor Integration Tests', () => {
     describe('CLIExecutor', () => {

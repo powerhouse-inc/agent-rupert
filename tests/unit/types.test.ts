@@ -5,7 +5,7 @@ import {
     createClaudeCodeTask,
     isClaudeCodeTask,
     type BaseTask
-} from '../types.js';
+} from '../../src/tasks/types.js';
 
 describe('CLITask Types', () => {
     describe('createCLITask', () => {

@@ -167,8 +167,8 @@ driveServer.on('documentAdded', async (document) => {
 - [x] Write unit tests for CLITask and CLIExecutor
 
 ### Phase 2a: Powerhouse Projects Management Infrastructure
-- [ ] Implement PowerhouseProjectsManager class that lists Powerhouse projects in ../projects folder
 - [ ] Using Phase 1 CLI Tasks, implement PowerhouseProjectsManager.init to initialize new projects
+- [ ] Implement PowerhouseProjectsManager class that lists Powerhouse projects in ../projects folder
 - [ ] Implement PowerhouseProjectsManager.runProjects to start ph vetra --watch with unique ports
 - [ ] Implement PowerhouseProjectsManager.shutdownProjects to stop processes with SIGINT signals
 - [ ] Write unit tests for PowerhouseProjectsManager

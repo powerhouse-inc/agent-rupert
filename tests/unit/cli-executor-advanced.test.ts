@@ -1,12 +1,12 @@
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
-import { CLIExecutor } from '../executors/cli-executor.js';
-import { createCLITask } from '../types.js';
+import { CLIExecutor } from '../../src/tasks/executors/cli-executor.js';
+import { createCLITask } from '../../src/tasks/types.js';
 import { 
     TaskProcessError, 
     TaskTimeoutError, 
     TaskExecutionError,
     TaskValidationError 
-} from '../executors/errors.js';
+} from '../../src/tasks/executors/errors.js';
 import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
