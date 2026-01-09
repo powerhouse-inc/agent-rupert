@@ -144,60 +144,31 @@ describe('PowerhouseProjectsManager Integration Tests', () => {
                     expect(secondRunResult.success).toBe(false);
                     expect(secondRunResult.error).toContain('already running');
                     
-                    process.stderr.write("📍 Step 9: Get project logs and check for Drive URL\n");
+                    process.stderr.write("📍 Step 9: Verify Drive URL was captured automatically\n");
                     
-                    // Wait for Drive URL to appear, checking periodically
-                    let driveUrlFound = false;
-                    let attempts = 0;
-                    const maxAttempts = 10; // 10x3 seconds total
-                    
-                    while (!driveUrlFound && attempts < maxAttempts) {
-                        attempts++;
-                        process.stderr.write(`  ⏳ Checking for Drive URL (attempt ${attempts}/${maxAttempts})...\n`);
-                        await new Promise(resolve => setTimeout(resolve, 3000));
-                        
-                        const logs = manager.getProjectLogs();
-                        if (logs && logs.length > 0) {
-                            // Look for Drive URL in the logs
-                            const driveUrlLog = logs.find(log => log.includes('Drive URL:'));
-                            if (driveUrlLog) {
-                                driveUrlFound = true;
-                                process.stderr.write(`  ✓ Found Drive URL in logs: ${driveUrlLog.trim()}\n`);
-                                
-                                // Extract the URL value if present
-                                const urlMatch = driveUrlLog.match(/.*Drive URL:\s*(.+)/);
-                                if (urlMatch && urlMatch[1]) {
-                                    process.stderr.write(`  ✓ Extracted URL: ${urlMatch[1].trim()}\n`);
-                                }
-                                
-                                // Verify logs structure
-                                expect(logs).toBeDefined();
-                                expect(Array.isArray(logs)).toBe(true);
-                                expect(driveUrlLog).toContain('Drive URL:');
-                            }
-                        }
+                    // The Drive URL should have been captured automatically during runProject
+                    if (runResult.driveUrl) {
+                        process.stderr.write(`  ✓ Drive URL captured automatically: ${runResult.driveUrl}\n`);
+                        expect(runResult.driveUrl).toMatch(/^http:\/\/localhost:\d+\/d\/vetra-.+/);
+                    } else {
+                        process.stderr.write(`  ⚠️ Drive URL not captured (may timeout in test environment)\n`);
+                        // This is acceptable in test environments where vetra might not fully start
                     }
                     
-                    // Final check and log status
-                    const finalLogs = manager.getProjectLogs();
-                    process.stderr.write(`  ℹ️ Total log entries after ${attempts} attempts: ${finalLogs?.length || 0}\n`);
-                    
-                    if (!driveUrlFound) {
-                        // Print ALL logs for debugging if Drive URL not found
-                        if (finalLogs && finalLogs.length > 0) {
-                            process.stderr.write(`  ℹ️ All captured logs:\n`);
-                            finalLogs.forEach((log, i) => {
-                                // Show full log lines to see what we're actually capturing
-                                process.stderr.write(`    ${i + 1}. ${log}\n`);
-                            });
-                        }
-                        process.stderr.write(`  ⚠️ Drive URL not found after ${attempts} seconds\n`);
-                        
-                        // Note: Drive URL appears in child process output that may not be captured by our stream
-                        // The 'ph vetra' command spawns multiple child processes and the Drive URL is output
-                        // by one of those child processes, not the main process we're capturing
-                        process.stderr.write(`  ℹ️ Note: Drive URL is output by vetra child process, may not be captured in stream\n`);
+                    // Verify through getRunningProject as well
+                    const runningProjectInfo = manager.getRunningProject();
+                    if (runningProjectInfo?.driveUrl) {
+                        process.stderr.write(`  ✓ Drive URL available in running project: ${runningProjectInfo.driveUrl}\n`);
+                        expect(runningProjectInfo.driveUrl).toBe(runResult.driveUrl);
+                        expect(runningProjectInfo.isFullyStarted).toBe(true);
+                    } else if (runningProjectInfo) {
+                        process.stderr.write(`  ℹ️ Project running but Drive URL not yet available\n`);
+                        expect(runningProjectInfo.isFullyStarted).toBe(false);
                     }
+                    
+                    // Check logs for debugging
+                    const logs = manager.getProjectLogs();
+                    process.stderr.write(`  ℹ️ Total log entries captured: ${logs?.length || 0}\n`);
                     
                     process.stderr.write("📍 Step 10: Shutdown the project\n");
                     const shutdownResult = await manager.shutdownProject();
