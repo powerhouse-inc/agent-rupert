@@ -167,7 +167,7 @@ driveServer.on('documentAdded', async (document) => {
 - [x] Write unit tests for CLITask and CLIExecutor
 
 ### Phase 2: Claude Code Task Implementation
-- [ ] Create ClaudeCodeTask class extending BaseTask
+- [x] Create ClaudeCodeTask class extending BaseTask
 - [ ] Implement ClaudeCodeExecutor with claude CLI wrapper
 - [ ] Handle prompt formatting and response parsing
 - [ ] Implement rate limiting and API error handling

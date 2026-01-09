@@ -25,10 +25,27 @@ export interface CLITask extends BaseTask {
 }
 
 /**
+ * Task that runs Claude Code commands with prompts and project context
+ */
+export interface ClaudeCodeTask extends BaseTask {
+    type: 'claude-code';
+    prompt: string;
+    projectPath?: string;
+    additionalFlags?: string[];
+}
+
+/**
  * Type guard to check if a task is a CLITask
  */
 export function isCLITask(task: BaseTask): task is CLITask {
     return task.type === 'cli';
+}
+
+/**
+ * Type guard to check if a task is a ClaudeCodeTask
+ */
+export function isClaudeCodeTask(task: BaseTask): task is ClaudeCodeTask {
+    return task.type === 'claude-code';
 }
 
 /**
@@ -41,6 +58,22 @@ export function createCLITask(
         ...params,
         id: generateTaskId(),
         type: 'cli',
+        status: 'pending',
+        createdAt: new Date(),
+        updatedAt: new Date()
+    };
+}
+
+/**
+ * Factory function to create a new ClaudeCodeTask
+ */
+export function createClaudeCodeTask(
+    params: Omit<ClaudeCodeTask, 'id' | 'status' | 'createdAt' | 'updatedAt' | 'type'>
+): ClaudeCodeTask {
+    return {
+        ...params,
+        id: generateTaskId(),
+        type: 'claude-code',
         status: 'pending',
         createdAt: new Date(),
         updatedAt: new Date()
