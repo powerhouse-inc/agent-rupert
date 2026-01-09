@@ -29,7 +29,7 @@ describe('PowerhouseProjectsManager', () => {
         };
         
         // Create manager instance with temp directory and mock executor
-        manager = new PowerhouseProjectsManager(tempDir, 5000, 10, mockExecutor);
+        manager = new PowerhouseProjectsManager(tempDir, mockExecutor);
     });
 
     afterEach(async () => {
@@ -107,7 +107,7 @@ describe('PowerhouseProjectsManager', () => {
             await fs.mkdir(projectPath, { recursive: true });
             await fs.writeFile(
                 path.join(projectPath, 'powerhouse.config.json'),
-                JSON.stringify({ studio: { port: 3000 }, reactor: { port: 4001 } })
+                JSON.stringify({ connect: { port: 3000 }, switchboard: { port: 4001 } })
             );
         });
 
@@ -123,18 +123,22 @@ describe('PowerhouseProjectsManager', () => {
 
             expect(result.success).toBe(true);
             expect(result.projectName).toBe('test-project');
-            expect(result.studioPort).toBe(5000);
-            expect(result.reactorPort).toBe(5001);
+            expect(result.connectPort).toBe(3000);
+            expect(result.switchboardPort).toBe(4001);
             expect(result.error).toBeUndefined();
 
             // Verify CLI task was created correctly
             expect(mockExecuteWithStream).toHaveBeenCalledTimes(1);
             const task = mockExecuteWithStream.mock.calls[0][0];
             expect(task.command).toBe('ph');
-            expect(task.args).toEqual(['dev']);
+            expect(task.args).toEqual([
+                'vetra', 
+                '--watch',
+                '--connect-port', '3000',
+                '--switchboard-port', '4001'
+            ]);
             expect(task.workingDirectory).toContain('test-project');
-            expect(task.environment.PORT).toBe('5000');
-            expect(task.environment.REACTOR_PORT).toBe('5001');
+            expect(task.environment.NODE_ENV).toBe('development');
         });
 
         it('should use custom ports when provided', async () => {
@@ -147,12 +151,16 @@ describe('PowerhouseProjectsManager', () => {
             const result = await manager.runProject('test-project', 8080, 8081);
 
             expect(result.success).toBe(true);
-            expect(result.studioPort).toBe(8080);
-            expect(result.reactorPort).toBe(8081);
+            expect(result.connectPort).toBe(8080);
+            expect(result.switchboardPort).toBe(8081);
 
             const task = mockExecuteWithStream.mock.calls[0][0];
-            expect(task.environment.PORT).toBe('8080');
-            expect(task.environment.REACTOR_PORT).toBe('8081');
+            expect(task.args).toEqual([
+                'vetra',
+                '--watch',
+                '--connect-port', '8080',
+                '--switchboard-port', '8081'
+            ]);
         });
 
         it('should fail if project does not exist', async () => {
@@ -292,8 +300,8 @@ describe('PowerhouseProjectsManager', () => {
             expect(running).not.toBeNull();
             expect(running!.name).toBe('test-project');
             expect(running!.path).toBe(projectPath);
-            expect(running!.studioPort).toBe(5000);
-            expect(running!.reactorPort).toBe(5001);
+            expect(running!.connectPort).toBe(3000);
+            expect(running!.switchboardPort).toBe(4001);
             expect(running!.startedAt).toBeInstanceOf(Date);
         });
     });
@@ -392,8 +400,8 @@ describe('PowerhouseProjectsManager', () => {
             await fs.writeFile(
                 path.join(projectPath, 'powerhouse.config.json'),
                 JSON.stringify({
-                    studio: { port: 3000 },
-                    reactor: { port: 4001 }
+                    connect: { port: 3000 },
+                    switchboard: { port: 4001 }
                 })
             );
 
@@ -407,8 +415,8 @@ describe('PowerhouseProjectsManager', () => {
             expect(projects[0]).toEqual({
                 name: 'valid-project',
                 path: projectPath,
-                studioPort: 3000,
-                reactorPort: 4001
+                connectPort: 3000,
+                switchboardPort: 4001
             });
         });
     });

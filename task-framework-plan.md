@@ -169,9 +169,9 @@ driveServer.on('documentAdded', async (document) => {
 ### Phase 2a: Powerhouse Projects Management Infrastructure
 - [x] Using Phase 1 CLI Tasks, implement PowerhouseProjectsManager.init to initialize new projects
 - [x] Implement PowerhouseProjectsManager class that lists Powerhouse projects in ../projects folder
-- [ ] Implement PowerhouseProjectsManager.runProject() to start ph vetra --watch of one of the projects
-- [ ] Implement PowerhouseProjectsManager.shutdownProject to stop the running project with SIGINT signals
-- [ ] Write unit tests for PowerhouseProjectsManager
+- [x] Implement PowerhouseProjectsManager.runProject() to start ph vetra --watch of one of the projects
+- [x] Implement PowerhouseProjectsManager.shutdownProject to stop the running project with SIGINT signals
+- [x] Write unit tests for PowerhouseProjectsManager
 
 ### Phase 2b: Claude Code Task Implementation
 - [x] Create ClaudeCodeTask class extending BaseTask
@@ -180,6 +180,7 @@ driveServer.on('documentAdded', async (document) => {
 - [ ] Implement rate limiting and API error handling
 - [ ] Integrate with PowerhouseProjectsManager for project context
 - [ ] Write unit tests for ClaudeCodeTask and ClaudeCodeExecutor
+- [ ] Write integration tests for ClaudeCodeExecutor
 
 ### Phase 3: Claude Agent MCP Task Implementation
 - [ ] Create ClaudeAgentTask class extending BaseTask
@@ -187,6 +188,7 @@ driveServer.on('documentAdded', async (document) => {
 - [ ] Handle MCP connection establishment and authentication
 - [ ] Implement prompt execution with Powerhouse context
 - [ ] Write unit tests for ClaudeAgentTask and ClaudeAgentExecutor
+- [ ] Write integration tests for ClaudeCodeExecutor
 
 ### Phase 4: Task Queue Implementation
 - [ ] Create TaskManager class with priority queue

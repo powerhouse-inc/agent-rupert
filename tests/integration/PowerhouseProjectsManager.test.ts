@@ -16,7 +16,6 @@ describe('PowerhouseProjectsManager Integration Tests', () => {
         
         // Ensure the directory exists
         await fs.mkdir(testProjectsDir, { recursive: true });
-        console.log(`\nTest projects directory: ${testProjectsDir}`);
         
         // Create manager instance with real CLI executor
         const cliExecutor = new CLIExecutor({
@@ -24,22 +23,18 @@ describe('PowerhouseProjectsManager Integration Tests', () => {
             retryAttempts: 0 // No retries for integration tests
         });
         
-        manager = new PowerhouseProjectsManager(testProjectsDir, 5000, 10, cliExecutor);
+        manager = new PowerhouseProjectsManager(testProjectsDir, cliExecutor);
     });
 
     afterAll(async () => {
         // Note: Not cleaning up automatically to allow inspection
-        // The directory path is logged so it can be manually cleaned if needed
-        console.log(`\nTest artifacts preserved at: ${testProjectsDir}`);
-        console.log('You can inspect the created project or manually clean up when done.');
+        // The test artifacts are preserved at: ../test-projects/integration-{timestamp}
     });
 
     describe('Real ph init integration', () => {
         it('should initialize a real Powerhouse project and confirm it exists', async () => {
             const projectName = 'test-powerhouse-project';
             const projectPath = path.join(testProjectsDir, projectName);
-
-            console.log(`Initializing Powerhouse project: ${projectName}`);
             
             // Initialize the project using PowerhouseProjectsManager
             const result = await manager.init(projectName);
@@ -84,9 +79,6 @@ describe('PowerhouseProjectsManager Integration Tests', () => {
             expect(projects).toHaveLength(1);
             expect(projects[0].name).toBe(projectName);
             expect(projects[0].path).toBe(projectPath);
-            
-            console.log(`✓ Project successfully created at: ${projectPath}`);
-            console.log(`✓ Project structure verified with package.json and powerhouse.config.json`);
         }, 120000); // 2 minute timeout for this test
     });
 });

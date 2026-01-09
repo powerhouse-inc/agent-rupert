@@ -8,8 +8,8 @@ import type { ChildProcess } from 'node:child_process';
 export interface PowerhouseProjectConfig {
     name: string;
     path: string;
-    studioPort?: number;
-    reactorPort?: number;
+    connectPort?: number;      // Connect Studio port (default: 3000)
+    switchboardPort?: number;   // Vetra Switchboard port (default: 4001)
 }
 
 export interface InitProjectResult {
@@ -22,8 +22,8 @@ export interface RunningProject {
     name: string;
     path: string;
     process?: ChildProcess;
-    studioPort: number;
-    reactorPort: number;
+    connectPort: number;
+    switchboardPort: number;
     startedAt: Date;
     logs: string[];
 }
@@ -32,28 +32,22 @@ export interface RunProjectResult {
     success: boolean;
     projectName?: string;
     error?: string;
-    studioPort?: number;
-    reactorPort?: number;
+    connectPort?: number;
+    switchboardPort?: number;
 }
 
 export class PowerhouseProjectsManager {
     private readonly projectsDir: string;
-    private readonly basePort: number;
-    private readonly portIncrement: number;
     private readonly cliExecutor: CLIExecutor;
     private runningProject: RunningProject | null = null;
     private runningProcessPromise: Promise<any> | null = null;
 
     constructor(
         projectsDir: string = '../projects',
-        basePort: number = 5000,
-        portIncrement: number = 10,
         cliExecutor?: CLIExecutor
     ) {
         // Resolve the projects directory relative to the current working directory
         this.projectsDir = path.resolve(process.cwd(), projectsDir);
-        this.basePort = basePort;
-        this.portIncrement = portIncrement;
         this.cliExecutor = cliExecutor || new CLIExecutor({
             timeout: 60000, // 1 minute timeout for ph init
             retryAttempts: 1
@@ -197,8 +191,8 @@ export class PowerhouseProjectsManager {
                         projects.push({
                             name: entry.name,
                             path: projectPath,
-                            studioPort: config.studio?.port,
-                            reactorPort: config.reactor?.port
+                            connectPort: config.studio?.port || config.connect?.port,
+                            switchboardPort: config.reactor?.port || config.switchboard?.port
                         });
                     } catch {
                         // Not a Powerhouse project or invalid config, skip
@@ -214,13 +208,13 @@ export class PowerhouseProjectsManager {
     }
 
     /**
-     * Run a single Powerhouse project with ph dev command
+     * Run a single Powerhouse project with ph vetra --watch command
      * @param projectName - Name of the project to run
-     * @param studioPort - Optional studio port (defaults to basePort)
-     * @param reactorPort - Optional reactor port (defaults to studioPort + 1)
+     * @param connectPort - Optional Connect Studio port (defaults to 3000)
+     * @param switchboardPort - Optional Switchboard port (defaults to 4001)
      * @returns Result of the run operation
      */
-    async runProject(projectName: string, studioPort?: number, reactorPort?: number): Promise<RunProjectResult> {
+    async runProject(projectName: string, connectPort?: number, switchboardPort?: number): Promise<RunProjectResult> {
         // Check if a project is already running
         if (this.runningProject) {
             return {
@@ -248,21 +242,24 @@ export class PowerhouseProjectsManager {
             };
         }
 
-        // Use provided ports or defaults
-        const actualStudioPort = studioPort || this.basePort;
-        const actualReactorPort = reactorPort || actualStudioPort + 1;
+        // Use provided ports or defaults (ph vetra defaults: connect=3000, switchboard=4001)
+        const actualConnectPort = connectPort || 3000;
+        const actualSwitchboardPort = switchboardPort || 4001;
 
         try {
-            // Create CLI task for ph dev
+            // Create CLI task for ph vetra --watch with port options
             const runTask: CLITask = createCLITask({
                 title: `Run Powerhouse project: ${project.name}`,
-                instructions: `Start Powerhouse development server for ${project.name}`,
+                instructions: `Start Powerhouse Vetra development server for ${project.name}`,
                 command: 'ph',
-                args: ['dev'],
+                args: [
+                    'vetra',
+                    '--watch',
+                    '--connect-port', String(actualConnectPort),
+                    '--switchboard-port', String(actualSwitchboardPort)
+                ],
                 workingDirectory: project.path,
                 environment: {
-                    PORT: String(actualStudioPort),
-                    REACTOR_PORT: String(actualReactorPort),
                     NODE_ENV: 'development'
                 }
             });
@@ -271,8 +268,8 @@ export class PowerhouseProjectsManager {
             this.runningProject = {
                 name: project.name,
                 path: project.path,
-                studioPort: actualStudioPort,
-                reactorPort: actualReactorPort,
+                connectPort: actualConnectPort,
+                switchboardPort: actualSwitchboardPort,
                 startedAt: new Date(),
                 logs: []
             };
@@ -317,8 +314,8 @@ export class PowerhouseProjectsManager {
             return {
                 success: true,
                 projectName: project.name,
-                studioPort: actualStudioPort,
-                reactorPort: actualReactorPort
+                connectPort: actualConnectPort,
+                switchboardPort: actualSwitchboardPort
             };
 
         } catch (error) {
