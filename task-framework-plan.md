@@ -166,11 +166,19 @@ driveServer.on('documentAdded', async (document) => {
 - [x] Implement timeout and error handling
 - [x] Write unit tests for CLITask and CLIExecutor
 
-### Phase 2: Claude Code Task Implementation
+### Phase 2a: Powerhouse Projects Management Infrastructure
+- [ ] Implement PowerhouseProjectsManager class that lists Powerhouse projects in ../projects folder
+- [ ] Using Phase 1 CLI Tasks, implement PowerhouseProjectsManager.init to initialize new projects
+- [ ] Implement PowerhouseProjectsManager.runProjects to start ph vetra --watch with unique ports
+- [ ] Implement PowerhouseProjectsManager.shutdownProjects to stop processes with SIGINT signals
+- [ ] Write unit tests for PowerhouseProjectsManager
+
+### Phase 2b: Claude Code Task Implementation
 - [x] Create ClaudeCodeTask class extending BaseTask
 - [ ] Implement ClaudeCodeExecutor with claude CLI wrapper
-- [ ] Handle prompt formatting and response parsing
+- [ ] Handle prompt formatting and response parsing for Powerhouse projects
 - [ ] Implement rate limiting and API error handling
+- [ ] Integrate with PowerhouseProjectsManager for project context
 - [ ] Write unit tests for ClaudeCodeTask and ClaudeCodeExecutor
 
 ### Phase 3: Claude Agent MCP Task Implementation
@@ -196,6 +204,13 @@ Environment variables for task framework:
 TASK_MAX_CONCURRENT=5
 TASK_TIMEOUT_MS=300000
 TASK_RETRY_ATTEMPTS=3
+
+# Powerhouse Projects Manager Configuration
+POWERHOUSE_PROJECTS_DIR=../projects
+POWERHOUSE_BASE_PORT=5000
+POWERHOUSE_PORT_INCREMENT=10
+
+# Claude Integration Configuration
 CLAUDE_CLI_PATH=/usr/local/bin/claude
 MCP_SERVER_URL=http://localhost:4001
 ```
