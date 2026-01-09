@@ -11,7 +11,6 @@ export default {
       'ts-jest',
       {
         useESM: true,
-        isolatedModules: true,
         diagnostics: {
           ignoreCodes: [151002]
         }
@@ -19,8 +18,13 @@ export default {
     ],
   },
   testMatch: [
-    '**/__tests__/**/*.ts',
-    '**/?(*.)+(spec|test).ts'
+    '<rootDir>/src/**/__tests__/**/*.test.ts',
+    '<rootDir>/src/**/*.spec.ts',
+    '<rootDir>/src/**/*.test.ts'
+  ],
+  testPathIgnorePatterns: [
+    '/node_modules/',
+    '/dist/'
   ],
   collectCoverageFrom: [
     'src/**/*.ts',
@@ -28,6 +32,6 @@ export default {
     '!src/**/*.test.ts',
     '!src/**/*.spec.ts'
   ],
-  coverageDirectory: 'coverage',
+  coverageDirectory: 'tmp/coverage',
   coverageReporters: ['text', 'lcov', 'html']
 };

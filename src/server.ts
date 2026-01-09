@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
 import { initializeReactor } from './reactor-setup.js';
 import type { ReactorInstance } from './types.js';
 import { createCLITask } from './tasks/types.js';
-import { CLIExecutorEnhanced } from './tasks/executors/cli-executor-enhanced.js';
+import { CLIExecutor } from './tasks/executors/cli-executor.js';
 
 dotenv.config();
 
@@ -107,7 +107,7 @@ async function start() {
     
     // Demo: Execute a CLI task on startup
     console.log('\n🔧 Demonstrating CLI Task Execution...');
-    const cliExecutor = new CLIExecutorEnhanced({
+    const cliExecutor = new CLIExecutor({
       timeout: 5000,
       retryAttempts: 1
     });

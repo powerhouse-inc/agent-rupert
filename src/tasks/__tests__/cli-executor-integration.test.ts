@@ -1,6 +1,5 @@
 import { describe, it, expect } from '@jest/globals';
 import { CLIExecutor } from '../executors/cli-executor.js';
-import { CLIExecutorEnhanced } from '../executors/cli-executor-enhanced.js';
 import { createCLITask } from '../types.js';
 import { TaskProcessError, TaskValidationError } from '../executors/errors.js';
 
@@ -48,7 +47,7 @@ describe('CLIExecutor Integration Tests', () => {
                 args: ['/nonexistent-directory-12345']
             });
 
-            await expect(executor.execute(task)).rejects.toThrow('Process exited with code');
+            await expect(executor.execute(task)).rejects.toThrow(TaskProcessError);
         });
 
         it('should respect working directory', async () => {
@@ -85,7 +84,7 @@ describe('CLIExecutor Integration Tests', () => {
             expect(result.stdout).toContain(testValue);
         });
 
-        it('should validate empty command', () => {
+        it('should validate empty command', async () => {
             const executor = new CLIExecutor();
             const task = createCLITask({
                 title: 'Empty Command',
@@ -94,13 +93,13 @@ describe('CLIExecutor Integration Tests', () => {
                 args: []
             });
 
-            expect(() => executor.validateTask(task)).toThrow('Task command cannot be empty');
+            await expect(executor.execute(task)).rejects.toThrow(TaskValidationError);
         });
     });
 
-    describe('CLIExecutorEnhanced', () => {
+    describe('CLIExecutor Enhanced Features', () => {
         it('should execute command with enhanced features', async () => {
-            const executor = new CLIExecutorEnhanced({
+            const executor = new CLIExecutor({
                 timeout: 5000,
                 retryAttempts: 1
             });
@@ -120,7 +119,7 @@ describe('CLIExecutor Integration Tests', () => {
         });
 
         it('should validate dangerous commands', async () => {
-            const executor = new CLIExecutorEnhanced();
+            const executor = new CLIExecutor();
             const task = createCLITask({
                 title: 'Dangerous Command',
                 instructions: 'Should be blocked',
@@ -132,7 +131,7 @@ describe('CLIExecutor Integration Tests', () => {
         });
 
         it('should handle non-zero exit with proper error', async () => {
-            const executor = new CLIExecutorEnhanced({
+            const executor = new CLIExecutor({
                 retryAttempts: 1
             });
 
@@ -147,7 +146,7 @@ describe('CLIExecutor Integration Tests', () => {
         });
 
         it('should emit events during execution', async () => {
-            const executor = new CLIExecutorEnhanced();
+            const executor = new CLIExecutor();
             const events: string[] = [];
 
             executor.on('attempt', () => events.push('attempt'));
@@ -171,7 +170,7 @@ describe('CLIExecutor Integration Tests', () => {
         });
 
         it('should allow dangerous commands with permission', async () => {
-            const executor = new CLIExecutorEnhanced();
+            const executor = new CLIExecutor();
             const task = createCLITask({
                 title: 'Allowed Dangerous',
                 instructions: 'Allowed with flag',
@@ -189,7 +188,10 @@ describe('CLIExecutor Integration Tests', () => {
 
     describe('Timeout Handling', () => {
         it('should timeout long running commands', async () => {
-            const executor = new CLIExecutor({ timeout: 100 });
+            const executor = new CLIExecutor({ 
+                timeout: 100,
+                retryAttempts: 1  // Disable retries for this test
+            });
             const task = createCLITask({
                 title: 'Timeout Test',
                 instructions: 'Should timeout',
