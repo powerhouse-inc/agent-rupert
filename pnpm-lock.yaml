@@ -29,6 +29,12 @@ importers:
       express:
         specifier: ^5.2.1
         version: 5.2.1
+      graphql:
+        specifier: ^16.12.0
+        version: 16.12.0
+      graphql-tag:
+        specifier: ^2.12.6
+        version: 2.12.6(graphql@16.12.0)
       powerhouse-agent:
         specifier: file:../library
         version: file:../library(91439b045c35ccc588add39956e6dd26)

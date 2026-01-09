@@ -54,6 +54,13 @@ export const config: AgentConfig = {
     connectPort: parsePort(process.env.POWERHOUSE_CONNECT_PORT),
     switchboardPort: parsePort(process.env.POWERHOUSE_SWITCHBOARD_PORT),
     startupTimeout: parseTimeout(process.env.POWERHOUSE_STARTUP_TIMEOUT, 60000)
+  },
+  graphql: {
+    endpoint: process.env.GRAPHQL_ENDPOINT || 'http://localhost:4001/graphql',
+    authToken: process.env.GRAPHQL_AUTH_TOKEN,
+    retryAttempts: parseTimeout(process.env.GRAPHQL_RETRY_ATTEMPTS, 3),
+    retryDelay: parseTimeout(process.env.GRAPHQL_RETRY_DELAY, 1000),
+    timeout: parseTimeout(process.env.GRAPHQL_TIMEOUT, 30000)
   }
 };
 

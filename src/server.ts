@@ -10,6 +10,7 @@ import type { ReactorInstance } from './types.js';
 import { createCLITask } from './tasks/types.js';
 import { CLIExecutor } from './tasks/executors/cli-executor.js';
 import { PowerhouseProjectsManager } from './powerhouse/PowerhouseProjectsManager.js';
+import { AgentProjectsClient } from './graphql/AgentProjectsClient.js';
 import { config } from './config.js';
 
 const app: express.Application = express();
@@ -23,11 +24,27 @@ const cliExecutor = new CLIExecutor({
   retryAttempts: 0 // No retries by default
 });
 
-// Initialize PowerhouseProjectsManager with configured directory
+// Initialize PowerhouseProjectsManager with configured directory and GraphQL config
 const projectsManager = new PowerhouseProjectsManager(
   config.powerhouse.projectsDir,
-  cliExecutor
+  cliExecutor,
+  config.graphql
 );
+
+// Create GraphQL client instance for reactor sync
+const graphqlClient = config.graphql ? new AgentProjectsClient({
+  endpoint: config.graphql.endpoint,
+  headers: config.graphql.authToken ? { Authorization: `Bearer ${config.graphql.authToken}` } : {},
+  retryAttempts: config.graphql.retryAttempts,
+  retryDelay: config.graphql.retryDelay,
+  timeout: config.graphql.timeout
+}) : null;
+
+if (graphqlClient) {
+  console.log(`📊 GraphQL client configured for endpoint: ${config.graphql.endpoint}`);
+} else {
+  console.log('📊 GraphQL client not configured - project sync disabled');
+}
 
 // Track auto-start status
 let autoStartStatus: 'idle' | 'starting' | 'running' | 'failed' = 'idle';
@@ -416,8 +433,8 @@ app.get('/projects/running/drive-url', (_req, res) => {
 
 async function start() {
   try {
-    // Initialize reactor
-    reactorInstance = await initializeReactor();
+    // Initialize reactor with project manager and GraphQL client for sync
+    reactorInstance = await initializeReactor(projectsManager, graphqlClient || undefined);
     
     // Demo: Execute a CLI task on startup
     console.log('\n🔧 Demonstrating CLI Task Execution...');

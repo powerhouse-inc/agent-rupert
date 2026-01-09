@@ -18,6 +18,14 @@ export type PowerhouseProjectConfig = {
   startupTimeout: number;
 };
 
+export type GraphQLConfig = {
+  endpoint: string;
+  authToken?: string;
+  retryAttempts: number;
+  retryDelay: number;
+  timeout: number;
+};
+
 export type AgentConfig = {
   port: number;
   storage: StorageOptions;
@@ -27,6 +35,7 @@ export type AgentConfig = {
   enableValidation: boolean;
   remoteDriveUrl?: string;
   powerhouse: PowerhouseProjectConfig;
+  graphql: GraphQLConfig;
 };
 
 export type ReactorInstance = {
