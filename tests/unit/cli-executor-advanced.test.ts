@@ -158,7 +158,8 @@ describe('CLIExecutor Advanced Features', () => {
             executor = new CLIExecutor({ 
                 timeout: 100,
                 retryAttempts: 2,
-                retryDelay: 10
+                retryDelay: 10,
+                gracefulShutdownTimeout: 100 // Reduce grace period for faster test
             });
 
             let timeoutEvents = 0;
@@ -176,6 +177,9 @@ describe('CLIExecutor Advanced Features', () => {
 
             await expect(executor.execute(task)).rejects.toThrow(TaskTimeoutError);
             expect(timeoutEvents).toBe(2); // One for each attempt
+            
+            // Wait a bit to ensure processes are fully cleaned up
+            await new Promise(resolve => setTimeout(resolve, 200));
         });
 
         it('should not retry on validation errors', async () => {

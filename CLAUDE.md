@@ -23,16 +23,34 @@ pnpm start
 
 # Clean build artifacts
 pnpm clean
+
+# Testing commands
+pnpm test              # Run unit tests only (fast)
+pnpm test:unit         # Explicitly run unit tests
+pnpm test:integration  # Run integration tests (slower, uses real CLI tools)
+pnpm test:coverage     # Run tests with coverage report
 ```
 
 ## Architecture
 
 The application follows a modular architecture with these key components:
 
+### Core Application
 - **src/server.ts**: Express server with REST API endpoints (/health, /models, /drives)
 - **src/reactor-setup.ts**: Initializes the Reactor, handles remote drive connections and document operations
 - **src/config.ts**: Configuration management using environment variables
 - **src/types.ts**: TypeScript type definitions
+
+### Task Framework
+- **src/tasks/types.ts**: Task type definitions (BaseTask, CLITask, ClaudeCodeTask)
+- **src/tasks/executors/cli-executor.ts**: Executes CLI commands with streaming, retry logic, and error handling
+- **src/tasks/executors/errors.ts**: Custom error types for task execution
+
+### Powerhouse Integration
+- **src/powerhouse/PowerhouseProjectsManager.ts**: Manages Powerhouse projects (init, run, shutdown)
+  - Supports single project execution with `ph dev`
+  - Handles project initialization with `ph init`
+  - Manages project lifecycle and logs
 
 The system uses the Reactor pattern from @powerhousedao/reactor for managing document drives and operations. Documents are stored in `.ph/file-storage/` by default.
 
@@ -60,7 +78,27 @@ The agent uses the Powerhouse document model system. When adding new document ty
 
 ## Testing Approach
 
-Currently, the project doesn't have a test suite configured. When implementing tests, consider:
-- Unit tests for individual components
-- Integration tests for API endpoints
-- Testing document operations through the Reactor
+The project uses Jest for testing with a clear separation between unit and integration tests:
+
+### Test Organization
+- **tests/unit/**: Fast unit tests with mocked dependencies
+  - Run with `pnpm test` or `pnpm test:unit`
+  - Includes test helper scripts in `tests/unit/test-scripts/`
+- **tests/integration/**: Slower integration tests using real CLI tools and services
+  - Run with `pnpm test:integration`
+  - Creates test artifacts in `../test-projects/` for easy inspection
+
+### Test Coverage
+- Task framework components have comprehensive unit tests
+- PowerhouseProjectsManager has both unit tests (mocked) and integration tests (real `ph` CLI)
+- Use `pnpm test:coverage` to generate coverage reports in `tmp/coverage/`
+
+### Writing Tests
+- Unit tests should mock all external dependencies
+- Integration tests can use real tools but should clean up after themselves
+- Test files should be named `*.test.ts` and placed in the appropriate directory
+- **IMPORTANT**: Always run `pnpm test --detectOpenHandles` to identify and fix any handle leaks
+  - All timers must be properly cleared
+  - Child processes must be fully terminated
+  - No "worker process failed to exit gracefully" warnings should appear
+  - Tests should exit cleanly without forcing Jest to terminate

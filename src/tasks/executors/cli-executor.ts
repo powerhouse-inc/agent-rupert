@@ -166,6 +166,7 @@ export class CLIExecutor extends EventEmitter {
             }
 
             // Handle timeout
+            let forceKillHandle: NodeJS.Timeout | null = null;
             if (timeout > 0) {
                 timeoutHandle = setTimeout(() => {
                     timedOut = true;
@@ -177,7 +178,7 @@ export class CLIExecutor extends EventEmitter {
                     child.kill(this.config.killSignal);
                     
                     // Force kill after grace period
-                    setTimeout(() => {
+                    forceKillHandle = setTimeout(() => {
                         if (!child.killed) {
                             child.kill('SIGKILL');
                         }
@@ -259,6 +260,9 @@ export class CLIExecutor extends EventEmitter {
             child.on('exit', (code: number | null, signal: string | null) => {
                 if (timeoutHandle) {
                     clearTimeout(timeoutHandle);
+                }
+                if (forceKillHandle) {
+                    clearTimeout(forceKillHandle);
                 }
 
                 const completedAt = new Date();
