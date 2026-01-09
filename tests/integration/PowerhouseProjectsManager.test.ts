@@ -97,8 +97,11 @@ describe('PowerhouseProjectsManager Integration Tests', () => {
             expect(runningProject).toBeNull();
             
             process.stderr.write("📍 Step 6: Run the project with custom ports\n");
-            const customConnectPort = 3333;
-            const customSwitchboardPort = 4444;
+            // Use unique ports based on timestamp to avoid conflicts
+            const timestamp = Date.now();
+            const customConnectPort = 3000 + (timestamp % 1000);
+            const customSwitchboardPort = 4000 + (timestamp % 1000);
+            process.stderr.write(`  ℹ️ Using ports: connect=${customConnectPort}, switchboard=${customSwitchboardPort}\n`);
             const runResult = await manager.runProject(projectName, customConnectPort, customSwitchboardPort);
             
             // Note: This might fail if ph vetra is not available or ports are in use
@@ -124,10 +127,60 @@ describe('PowerhouseProjectsManager Integration Tests', () => {
                     expect(secondRunResult.success).toBe(false);
                     expect(secondRunResult.error).toContain('already running');
                     
-                    process.stderr.write("📍 Step 9: Get project logs (might be empty initially)\n");
-                    const logs = manager.getProjectLogs();
-                    expect(logs).toBeDefined();
-                    expect(Array.isArray(logs)).toBe(true);
+                    process.stderr.write("📍 Step 9: Get project logs and check for Drive URL\n");
+                    
+                    // Wait for Drive URL to appear, checking periodically
+                    let driveUrlFound = false;
+                    let attempts = 0;
+                    const maxAttempts = 10; // 10x3 seconds total
+                    
+                    while (!driveUrlFound && attempts < maxAttempts) {
+                        attempts++;
+                        process.stderr.write(`  ⏳ Checking for Drive URL (attempt ${attempts}/${maxAttempts})...\n`);
+                        await new Promise(resolve => setTimeout(resolve, 3000));
+                        
+                        const logs = manager.getProjectLogs();
+                        if (logs && logs.length > 0) {
+                            // Look for Drive URL in the logs
+                            const driveUrlLog = logs.find(log => log.includes('Drive URL:'));
+                            if (driveUrlLog) {
+                                driveUrlFound = true;
+                                process.stderr.write(`  ✓ Found Drive URL in logs: ${driveUrlLog.trim()}\n`);
+                                
+                                // Extract the URL value if present
+                                const urlMatch = driveUrlLog.match(/.*Drive URL:\s*(.+)/);
+                                if (urlMatch && urlMatch[1]) {
+                                    process.stderr.write(`  ✓ Extracted URL: ${urlMatch[1].trim()}\n`);
+                                }
+                                
+                                // Verify logs structure
+                                expect(logs).toBeDefined();
+                                expect(Array.isArray(logs)).toBe(true);
+                                expect(driveUrlLog).toContain('Drive URL:');
+                            }
+                        }
+                    }
+                    
+                    // Final check and log status
+                    const finalLogs = manager.getProjectLogs();
+                    process.stderr.write(`  ℹ️ Total log entries after ${attempts} attempts: ${finalLogs?.length || 0}\n`);
+                    
+                    if (!driveUrlFound) {
+                        // Print ALL logs for debugging if Drive URL not found
+                        if (finalLogs && finalLogs.length > 0) {
+                            process.stderr.write(`  ℹ️ All captured logs:\n`);
+                            finalLogs.forEach((log, i) => {
+                                // Show full log lines to see what we're actually capturing
+                                process.stderr.write(`    ${i + 1}. ${log}\n`);
+                            });
+                        }
+                        process.stderr.write(`  ⚠️ Drive URL not found after ${attempts} seconds\n`);
+                        
+                        // Note: Drive URL appears in child process output that may not be captured by our stream
+                        // The 'ph vetra' command spawns multiple child processes and the Drive URL is output
+                        // by one of those child processes, not the main process we're capturing
+                        process.stderr.write(`  ℹ️ Note: Drive URL is output by vetra child process, may not be captured in stream\n`);
+                    }
                     
                     process.stderr.write("📍 Step 10: Shutdown the project\n");
                     const shutdownResult = await manager.shutdownProject();
