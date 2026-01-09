@@ -18,22 +18,58 @@ export interface InitProjectResult {
     error?: string;
 }
 
+/**
+ * Represents a currently running Powerhouse project
+ */
 export interface RunningProject {
+    /** Project name */
     name: string;
+    /** Absolute path to the project directory */
     path: string;
+    /** Child process instance if available */
     process?: ChildProcess;
+    /** Connect Studio port */
     connectPort: number;
+    /** Vetra Switchboard port */
     switchboardPort: number;
+    /** Timestamp when the project was started */
     startedAt: Date;
+    /** Captured stdout/stderr logs from the running process */
     logs: string[];
+    /** The Drive URL once vetra has fully started (e.g., http://localhost:4001/drives/xyz) */
+    driveUrl?: string;
+    /** Indicates whether vetra has fully started and is ready to accept connections */
+    isFullyStarted: boolean;
 }
 
+/**
+ * Options for running a Powerhouse project
+ */
+export interface RunProjectOptions {
+    /** Connect Studio port (default: 3000) */
+    connectPort: number;
+    /** Vetra Switchboard port (default: 4001) */
+    switchboardPort: number;
+    /** Timeout in milliseconds to wait for vetra to fully start (default: 60000) */
+    startupTimeout: number;
+}
+
+/**
+ * Result of running a Powerhouse project
+ */
 export interface RunProjectResult {
+    /** Whether the project started successfully */
     success: boolean;
+    /** Name of the project */
     projectName?: string;
+    /** Error message if the operation failed */
     error?: string;
+    /** Connect Studio port the project is running on */
     connectPort?: number;
+    /** Vetra Switchboard port the project is running on */
     switchboardPort?: number;
+    /** The Drive URL if captured during startup (e.g., http://localhost:4001/drives/xyz) */
+    driveUrl?: string;
 }
 
 export class PowerhouseProjectsManager {
@@ -210,11 +246,16 @@ export class PowerhouseProjectsManager {
     /**
      * Run a single Powerhouse project with ph vetra --watch command
      * @param projectName - Name of the project to run
-     * @param connectPort - Optional Connect Studio port (defaults to 3000)
-     * @param switchboardPort - Optional Switchboard port (defaults to 4001)
-     * @returns Result of the run operation
+     * @param options - Optional configuration for running the project
+     * @returns Result of the run operation including Drive URL if captured
      */
-    async runProject(projectName: string, connectPort?: number, switchboardPort?: number): Promise<RunProjectResult> {
+    async runProject(projectName: string, options?: RunProjectOptions): Promise<RunProjectResult> {
+        // Set defaults for options
+        const effectiveOptions: RunProjectOptions = {
+            connectPort: options?.connectPort || 3000,
+            switchboardPort: options?.switchboardPort || 4001,
+            startupTimeout: options?.startupTimeout || 60000 // Default 60 seconds
+        };
         // Check if a project is already running
         if (this.runningProject) {
             return {
@@ -242,9 +283,9 @@ export class PowerhouseProjectsManager {
             };
         }
 
-        // Use provided ports or defaults (ph vetra defaults: connect=3000, switchboard=4001)
-        const actualConnectPort = connectPort || 3000;
-        const actualSwitchboardPort = switchboardPort || 4001;
+        // Use provided ports from effectiveOptions (with guaranteed defaults)
+        const actualConnectPort = effectiveOptions.connectPort;
+        const actualSwitchboardPort = effectiveOptions.switchboardPort;
 
         try {
             // Create CLI task for ph vetra --watch with port options
@@ -271,7 +312,8 @@ export class PowerhouseProjectsManager {
                 connectPort: actualConnectPort,
                 switchboardPort: actualSwitchboardPort,
                 startedAt: new Date(),
-                logs: []
+                logs: [],
+                isFullyStarted: false  // Will be set to true when Drive URL is captured
             };
 
             // Execute with streaming to keep the process running
@@ -281,25 +323,45 @@ export class PowerhouseProjectsManager {
                 onStdout: (data) => {
                     if (this.runningProject) {
                         this.runningProject.logs.push(`[stdout] ${data}`);
-                        // Keep only last 100 logs
-                        if (this.runningProject.logs.length > 100) {
-                            this.runningProject.logs = this.runningProject.logs.slice(-100);
+                        
+                        // Check for Drive URL in the output
+                        if (!this.runningProject.driveUrl && data.includes('Drive URL:')) {
+                            const urlMatch = data.match(/Drive URL:\s*(https?:\/\/[^\s]+)/);
+                            if (urlMatch && urlMatch[1]) {
+                                this.runningProject.driveUrl = urlMatch[1].trim();
+                                this.runningProject.isFullyStarted = true;
+                            }
+                        }
+                        
+                        const maxLogs = 500;
+                        if (this.runningProject.logs.length > maxLogs) {
+                            this.runningProject.logs = this.runningProject.logs.slice(-maxLogs);
                         }
                     }
                 },
                 onStderr: (data) => {
                     if (this.runningProject) {
                         this.runningProject.logs.push(`[stderr] ${data}`);
-                        // Keep only last 100 logs
-                        if (this.runningProject.logs.length > 100) {
-                            this.runningProject.logs = this.runningProject.logs.slice(-100);
+                        
+                        // Also check stderr for Drive URL (vetra might output it there)
+                        if (!this.runningProject.driveUrl && data.includes('Drive URL:')) {
+                            const urlMatch = data.match(/Drive URL:\s*(https?:\/\/[^\s]+)/);
+                            if (urlMatch && urlMatch[1]) {
+                                this.runningProject.driveUrl = urlMatch[1].trim();
+                                this.runningProject.isFullyStarted = true;
+                            }
+                        }
+                        
+                        const maxLogs = 500;
+                        if (this.runningProject.logs.length > maxLogs) {
+                            this.runningProject.logs = this.runningProject.logs.slice(-maxLogs);
                         }
                     }
                 }
             });
 
             // Get the child process from the executor if available
-            if ('currentProcess' in this.cliExecutor) {
+            if ('currentProcess' in this.cliExecutor && this.runningProject) {
                 const executor = this.cliExecutor as any;
                 if (executor.currentProcess) {
                     this.runningProject.process = executor.currentProcess;
@@ -313,11 +375,23 @@ export class PowerhouseProjectsManager {
                 this.runningProcessPromise = null;
             });
 
+            // Wait for Drive URL to be captured (indicates vetra is fully started)
+            const driveUrl = await this.waitForDriveUrl(effectiveOptions.startupTimeout!);
+            
+            if (!driveUrl) {
+                // Log warning but don't fail - project might still be starting
+                console.warn(
+                    `Warning: Drive URL not captured within ${effectiveOptions.startupTimeout!}ms. ` +
+                    `Project may still be starting up. Check logs with getProjectLogs() for details.`
+                );
+            }
+
             return {
                 success: true,
                 projectName: project.name,
                 connectPort: actualConnectPort,
-                switchboardPort: actualSwitchboardPort
+                switchboardPort: actualSwitchboardPort,
+                driveUrl: driveUrl || undefined
             };
 
         } catch (error) {
@@ -345,6 +419,51 @@ export class PowerhouseProjectsManager {
      */
     getProjectLogs(): string[] | undefined {
         return this.runningProject?.logs;
+    }
+
+    /**
+     * Wait for the Drive URL to be captured during project startup
+     * @param timeout - Maximum time to wait in milliseconds (default: 60000)
+     * @returns The Drive URL if captured, null if timeout reached
+     */
+    async waitForDriveUrl(timeout: number = 60000): Promise<string | null> {
+        if (!this.runningProject) {
+            return null;
+        }
+
+        // If Drive URL is already captured, return it immediately
+        if (this.runningProject.driveUrl) {
+            return this.runningProject.driveUrl;
+        }
+
+        const startTime = Date.now();
+        const pollInterval = 1000; // Check every 1 second
+
+        while (Date.now() - startTime < timeout) {
+            // Check if project is still running
+            if (!this.runningProject) {
+                return null;
+            }
+
+            // Check if Drive URL has been captured
+            if (this.runningProject.driveUrl) {
+                return this.runningProject.driveUrl;
+            }
+
+            // Wait before checking again
+            await new Promise(resolve => setTimeout(resolve, pollInterval));
+        }
+
+        // Timeout reached
+        return null;
+    }
+
+    /**
+     * Check if the project is fully started and ready
+     * @returns true if project is running and Drive URL has been captured
+     */
+    isProjectReady(): boolean {
+        return this.runningProject?.isFullyStarted === true;
     }
 
     /**

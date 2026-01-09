@@ -55,7 +55,10 @@ describe('ClaudeCodeExecutor Integration Tests', () => {
         
         process.stderr.write(`  ℹ️ Using ports: connect=${customConnectPort}, switchboard=${customSwitchboardPort}\n`);
         
-        const runResult = await manager.runProject(projectName, customConnectPort, customSwitchboardPort);
+        const runResult = await manager.runProject(projectName, {
+            connectPort: customConnectPort,
+            switchboardPort: customSwitchboardPort
+        });
         
         if (!runResult.success) {
             // If we can't run the project (e.g., ph vetra not available), skip the tests

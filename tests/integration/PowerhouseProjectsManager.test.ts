@@ -116,7 +116,10 @@ describe('PowerhouseProjectsManager Integration Tests', () => {
             const customConnectPort = 3000 + (timestamp % 1000);
             const customSwitchboardPort = 4000 + (timestamp % 1000);
             process.stderr.write(`  ℹ️ Using ports: connect=${customConnectPort}, switchboard=${customSwitchboardPort}\n`);
-            const runResult = await manager.runProject(projectName, customConnectPort, customSwitchboardPort);
+            const runResult = await manager.runProject(projectName, {
+                connectPort: customConnectPort,
+                switchboardPort: customSwitchboardPort
+            });
             
             // Note: This might fail if ph vetra is not available or ports are in use
             // But we still test the method execution
