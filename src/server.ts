@@ -3,6 +3,8 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { initializeReactor } from './reactor-setup.js';
 import type { ReactorInstance } from './types.js';
+import { createCLITask } from './tasks/types.js';
+import { CLIExecutorEnhanced } from './tasks/executors/cli-executor-enhanced.js';
 
 dotenv.config();
 
@@ -103,11 +105,63 @@ async function start() {
     // Initialize reactor
     reactorInstance = await initializeReactor();
     
+    // Demo: Execute a CLI task on startup
+    console.log('\n🔧 Demonstrating CLI Task Execution...');
+    const cliExecutor = new CLIExecutorEnhanced({
+      timeout: 5000,
+      retryAttempts: 1
+    });
+
+    // Set up event listeners to show task progress
+    cliExecutor.on('started', (event) => {
+      console.log(`   ▶ Task started (PID: ${event.pid})`);
+    });
+    
+    cliExecutor.on('stdout', (event) => {
+      console.log(`   📤 Output: ${event.data.trim()}`);
+    });
+    
+    cliExecutor.on('completed', (event) => {
+      console.log(`   ✅ Task completed in ${event.result.duration}ms`);
+    });
+
+    // Create and execute a demo task
+    const demoTask = createCLITask({
+      title: 'System Info Check',
+      instructions: 'Get system information on startup',
+      command: process.platform === 'win32' ? 'echo' : 'uname',
+      args: process.platform === 'win32' ? 
+        ['System:', process.platform, '| Node:', process.version] : 
+        ['-a'],
+      environment: {
+        TASK_CONTEXT: 'server_startup'
+      }
+    });
+
+    try {
+      console.log(`   📋 Executing task: "${demoTask.title}"`);
+      console.log(`   📝 Instructions: ${demoTask.instructions}`);
+      console.log(`   💻 Command: ${demoTask.command} ${demoTask.args.join(' ')}`);
+      
+      const result = await cliExecutor.execute(demoTask);
+      
+      if (result.stdout) {
+        console.log(`   📊 Result: ${result.stdout.trim()}`);
+      }
+      
+      console.log(`   ⏱️ Execution time: ${result.duration}ms`);
+      console.log('   ✨ CLI Task framework is operational!\n');
+    } catch (error) {
+      console.error('   ❌ Demo task failed:', error instanceof Error ? error.message : error);
+      console.log('   ⚠️ CLI Task framework encountered an error but server will continue\n');
+    }
+    
     // Start Express server
     app.listen(PORT, () => {
       console.log(`🚀 Powerhouse Agent server listening on port ${PORT}`);
       console.log(`📍 Health check: http://localhost:${PORT}/health`);
       console.log(`⚡ Reactor status: initialized`);
+      console.log(`🔨 Task framework: ready`);
     });
   } catch (error) {
     console.error('Failed to start server:', error);
