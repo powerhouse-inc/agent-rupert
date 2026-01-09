@@ -164,7 +164,7 @@ driveServer.on('documentAdded', async (document) => {
 - [x] Implement CLIExecutor with child process spawning
 - [x] Handle stdout/stderr capture and streaming
 - [x] Implement timeout and error handling
-- [ ] Write unit tests for CLITask and CLIExecutor
+- [x] Write unit tests for CLITask and CLIExecutor
 
 ### Phase 2: Claude Code Task Implementation
 - [ ] Create ClaudeCodeTask class extending BaseTask

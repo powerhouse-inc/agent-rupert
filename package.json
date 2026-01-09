@@ -8,7 +8,10 @@
     "dev": "nodemon --exec tsx src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "clean": "rm -rf dist .ph"
+    "clean": "rm -rf dist .ph",
+    "test": "NODE_OPTIONS=\"--experimental-vm-modules\" jest",
+    "test:watch": "NODE_OPTIONS=\"--experimental-vm-modules\" jest --watch",
+    "test:coverage": "NODE_OPTIONS=\"--experimental-vm-modules\" jest --coverage"
   },
   "keywords": [],
   "author": "",
@@ -25,11 +28,15 @@
     "powerhouse-agent": "file:../library"
   },
   "devDependencies": {
+    "@jest/globals": "^30.2.0",
     "@powerhousedao/config": "^5.1.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
+    "@types/jest": "^30.0.0",
     "@types/node": "^25.0.3",
+    "jest": "^30.2.0",
     "nodemon": "^3.1.11",
+    "ts-jest": "^29.4.6",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   }
