@@ -21,6 +21,7 @@ export interface StreamOptions {
     onStdout?: (data: string) => void;
     onStderr?: (data: string) => void;
     bufferOutput?: boolean;
+    detached?: boolean; // Whether to run in detached mode for process group management
 }
 
 export interface CLIExecutorResult {
@@ -48,6 +49,7 @@ export interface CLIStreamEvent {
  */
 export class CLIExecutor extends EventEmitter {
     private readonly config: Required<CLIExecutorOptions>;
+    public currentProcess: ChildProcess | null = null;
 
     constructor(options: CLIExecutorOptions = {}) {
         super();
@@ -152,13 +154,21 @@ export class CLIExecutor extends EventEmitter {
             let timeoutHandle: NodeJS.Timeout | undefined;
             let processKilled = false;
 
-            const options = {
+            const options: any = {
                 cwd: task.workingDirectory || process.cwd(),
                 env: { ...process.env, ...task.environment },
                 shell: true
             };
+            
+            // Only use detached mode if explicitly requested (for long-running processes)
+            if (streamOptions?.detached && process.platform !== 'win32') {
+                options.detached = true;
+            }
 
             const child: ChildProcess = spawn(task.command, task.args, options);
+            
+            // Store reference to current process for cleanup
+            this.currentProcess = child;
             
             // Store PID for monitoring
             if (child.pid) {
@@ -258,6 +268,9 @@ export class CLIExecutor extends EventEmitter {
 
             // Handle process exit
             child.on('exit', (code: number | null, signal: string | null) => {
+                // Clear the current process reference
+                this.currentProcess = null;
+                
                 if (timeoutHandle) {
                     clearTimeout(timeoutHandle);
                 }

@@ -275,7 +275,9 @@ export class PowerhouseProjectsManager {
             };
 
             // Execute with streaming to keep the process running
+            // Use detached mode so we can kill the entire process group later
             this.runningProcessPromise = this.cliExecutor.executeWithStream(runTask, {
+                detached: true,  // Run in its own process group for proper cleanup
                 onStdout: (data) => {
                     if (this.runningProject) {
                         this.runningProject.logs.push(`[stdout] ${data}`);
@@ -360,17 +362,50 @@ export class PowerhouseProjectsManager {
         const projectName = this.runningProject.name;
         
         try {
-            // If we have a process reference, send SIGINT
+            // If we have a process reference, kill the entire process tree
             if (this.runningProject.process && !this.runningProject.process.killed) {
-                this.runningProject.process.kill('SIGINT');
+                const pid = this.runningProject.process.pid;
                 
-                // Wait a bit for graceful shutdown
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                
-                // Force kill if still running
-                if (!this.runningProject.process.killed) {
+                if (pid) {
+                    // Kill the entire process tree using process group
+                    // The negative PID kills all processes in the process group
+                    try {
+                        process.kill(-pid, 'SIGTERM');
+                    } catch (e) {
+                        // If process group kill fails, try regular kill
+                        this.runningProject.process.kill('SIGTERM');
+                    }
+                    
+                    // Wait a bit for graceful shutdown
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    
+                    // Force kill if still running
+                    if (!this.runningProject.process.killed) {
+                        try {
+                            process.kill(-pid, 'SIGKILL');
+                        } catch (e) {
+                            this.runningProject.process.kill('SIGKILL');
+                        }
+                    }
+                } else {
+                    // Fallback to regular kill if no PID
                     this.runningProject.process.kill('SIGTERM');
                 }
+            }
+            
+            // Also check if CLIExecutor has a current process and kill it
+            if (this.cliExecutor.currentProcess && !this.cliExecutor.currentProcess.killed) {
+                const pid = this.cliExecutor.currentProcess.pid;
+                if (pid) {
+                    try {
+                        // Kill process group
+                        process.kill(-pid, 'SIGKILL');
+                    } catch {
+                        // Try regular kill
+                        this.cliExecutor.currentProcess.kill('SIGKILL');
+                    }
+                }
+                this.cliExecutor.currentProcess = null;
             }
 
             // Clear the running project

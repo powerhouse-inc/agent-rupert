@@ -1,8 +1,12 @@
 import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { exec } from 'node:child_process';
+import { promisify } from 'node:util';
 import { PowerhouseProjectsManager } from '../../src/powerhouse/PowerhouseProjectsManager.js';
 import { CLIExecutor } from '../../src/tasks/executors/cli-executor.js';
+
+const execAsync = promisify(exec);
 
 describe('PowerhouseProjectsManager Integration Tests', () => {
     let testProjectsDir: string;
@@ -30,7 +34,17 @@ describe('PowerhouseProjectsManager Integration Tests', () => {
     });
 
     afterAll(async () => {
-        // Note: Not cleaning up automatically to allow inspection
+        // Ensure any running project is shut down
+        if (manager) {
+            const runningProject = manager.getRunningProject();
+            if (runningProject) {
+                await manager.shutdownProject();
+                // Wait for processes to fully terminate
+                await new Promise(resolve => setTimeout(resolve, 2000));
+            }
+        }
+        
+        // Note: Not cleaning up test artifacts automatically to allow inspection
         // The test artifacts are preserved at: ../test-projects/integration-{timestamp}
     });
 
@@ -187,9 +201,41 @@ describe('PowerhouseProjectsManager Integration Tests', () => {
                     expect(shutdownResult.success).toBe(true);
                     expect(shutdownResult.error).toBeUndefined();
                     
+                    // Wait a bit for processes to fully terminate
+                    process.stderr.write("  ⏳ Waiting for processes to terminate...\n");
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    
                     process.stderr.write("📍 Step 11: Verify project is no longer running\n");
                     runningProject = manager.getRunningProject();
                     expect(runningProject).toBeNull();
+                    
+                    // Verify that the ports are actually freed
+                    process.stderr.write("📍 Step 11b: Verify ports are released\n");
+                    
+                    try {
+                        const { stdout: netstatOutput } = await execAsync(
+                            `netstat -tuln | grep -E ':(${customConnectPort}|${customSwitchboardPort})' || echo "Ports are free"`
+                        );
+                        const netstatResult = netstatOutput.trim();
+                        
+                        if (netstatResult === "Ports are free") {
+                            process.stderr.write(`  ✓ Ports ${customConnectPort} and ${customSwitchboardPort} are successfully released\n`);
+                        } else {
+                            process.stderr.write(`  ⚠️ Ports still in use:\n${netstatResult}\n`);
+                            
+                            // Try to find any remaining ph vetra processes
+                            try {
+                                const { stdout: psOutput } = await execAsync(
+                                    `ps aux | grep -E 'ph.*vetra|vetra.*--watch' | grep -v grep`
+                                );
+                                process.stderr.write(`  ℹ️ Remaining vetra processes:\n${psOutput}\n`);
+                            } catch {
+                                process.stderr.write(`  ℹ️ No remaining vetra processes found\n`);
+                            }
+                        }
+                    } catch (error) {
+                        process.stderr.write(`  ⚠️ Could not check port status: ${error}\n`);
+                    }
                     
                     process.stderr.write("📍 Step 12: Try to shutdown when no project is running\n");
                     const secondShutdownResult = await manager.shutdownProject();

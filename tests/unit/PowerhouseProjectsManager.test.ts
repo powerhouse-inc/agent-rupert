@@ -333,7 +333,7 @@ describe('PowerhouseProjectsManager', () => {
 
             expect(result.success).toBe(true);
             expect(result.error).toBeUndefined();
-            expect(mockProcess.kill).toHaveBeenCalledWith('SIGINT');
+            expect(mockProcess.kill).toHaveBeenCalledWith('SIGTERM');
 
             // Should clear running project
             const running = manager.getRunningProject();
@@ -382,7 +382,7 @@ describe('PowerhouseProjectsManager', () => {
             jest.useRealTimers();
 
             expect(result.success).toBe(true);
-            expect(mockProcess.kill).toHaveBeenCalledWith('SIGINT');
+            expect(mockProcess.kill).toHaveBeenCalledWith('SIGTERM');
             expect(mockProcess.kill).toHaveBeenCalledWith('SIGTERM');
         });
     });
