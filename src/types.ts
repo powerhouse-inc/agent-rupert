@@ -5,6 +5,19 @@ export type StorageOptions = {
   filesystemPath?: string;
 };
 
+export type PowerhouseProjectConfig = {
+  /** Name of the Powerhouse project to auto-start on server startup */
+  project?: string;
+  /** Directory containing all Powerhouse projects (default: ../projects) */
+  projectsDir: string;
+  /** Optional override for Connect Studio port */
+  connectPort?: number;
+  /** Optional override for Vetra Switchboard port */
+  switchboardPort?: number;
+  /** Timeout for waiting for project startup in milliseconds (default: 60000) */
+  startupTimeout: number;
+};
+
 export type AgentConfig = {
   port: number;
   storage: StorageOptions;
@@ -13,6 +26,7 @@ export type AgentConfig = {
   enableAutoEdit: boolean;
   enableValidation: boolean;
   remoteDriveUrl?: string;
+  powerhouse: PowerhouseProjectConfig;
 };
 
 export type ReactorInstance = {

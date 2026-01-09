@@ -249,11 +249,76 @@ export class PowerhouseProjectsManager {
      * @param options - Optional configuration for running the project
      * @returns Result of the run operation including Drive URL if captured
      */
+    /**
+     * Clean up any orphaned vetra processes
+     */
+    async cleanupOrphanedProcesses(): Promise<void> {
+        try {
+            const findVetraTask: CLITask = createCLITask({
+                title: 'Find orphaned vetra processes',
+                command: 'bash',
+                args: ['-c', 'ps aux | grep -E "ph.*vetra|vetra.*--watch" | grep -v grep || true'],
+                instructions: 'Looking for orphaned vetra processes'
+            });
+            
+            const result = await this.cliExecutor.execute(findVetraTask);
+            if (result.stdout && result.stdout.trim()) {
+                // Extract PIDs and kill them
+                const lines = result.stdout.trim().split('\n');
+                const pids = lines.map(line => {
+                    const parts = line.split(/\s+/);
+                    return parts[1]; // PID is the second column
+                }).filter(pid => pid && !isNaN(Number(pid)));
+                
+                if (pids.length > 0) {
+                    const killTask: CLITask = createCLITask({
+                        title: 'Kill orphaned processes',
+                        command: 'kill',
+                        args: ['-9', ...pids],
+                        instructions: `Killing orphaned processes: ${pids.join(', ')}`
+                    });
+                    
+                    try {
+                        await this.cliExecutor.execute(killTask);
+                    } catch (error) {
+                        console.warn('Failed to kill some orphaned processes:', error);
+                    }
+                }
+            }
+        } catch (error) {
+            // Non-critical, just log
+            console.warn('Could not check for orphaned processes:', error);
+        }
+    }
+
+    /**
+     * Check if a port is in use
+     * @param port Port number to check
+     * @returns true if port is in use, false otherwise
+     */
+    private async isPortInUse(port: number): Promise<boolean> {
+        try {
+            const checkPortTask: CLITask = createCLITask({
+                title: `Check port ${port}`,
+                command: 'lsof',
+                args: ['-i', `:${port}`],
+                instructions: `Checking if port ${port} is in use`
+            });
+            
+            const result = await this.cliExecutor.execute(checkPortTask);
+            // If lsof returns output, the port is in use
+            return !!result.stdout && result.stdout.trim().length > 0;
+        } catch (error) {
+            // If lsof fails (command not found, no results), assume port is free
+            return false;
+        }
+    }
+
     async runProject(projectName: string, options?: RunProjectOptions): Promise<RunProjectResult> {
         // Set defaults for options
         const effectiveOptions: RunProjectOptions = {
             connectPort: options?.connectPort || 3000,
-            switchboardPort: options?.switchboardPort || 4001,
+            switchboardPort: options?.switchboardPort || 4001,  // Safe default port
             startupTimeout: options?.startupTimeout || 60000 // Default 60 seconds
         };
         // Check if a project is already running
@@ -261,6 +326,27 @@ export class PowerhouseProjectsManager {
             return {
                 success: false,
                 error: `A project is already running: ${this.runningProject.name}. Please shutdown the current project first.`
+            };
+        }
+
+        // Check if ports are available before attempting to start
+        const connectPortInUse = await this.isPortInUse(effectiveOptions.connectPort);
+        if (connectPortInUse) {
+            return {
+                success: false,
+                error: `Port ${effectiveOptions.connectPort} (Connect Studio) is already in use. Try a different port or stop the process using it.`,
+                projectName,
+                ...effectiveOptions
+            };
+        }
+
+        const switchboardPortInUse = await this.isPortInUse(effectiveOptions.switchboardPort);
+        if (switchboardPortInUse) {
+            return {
+                success: false,
+                error: `Port ${effectiveOptions.switchboardPort} (Switchboard) is already in use. Try a different port or stop the process using it.`,
+                projectName,
+                ...effectiveOptions
             };
         }
 
