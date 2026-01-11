@@ -8,7 +8,8 @@ import {
     FIXTURE_PATTERN_INTERVAL,
     TEST_TIMING_BUFFER,
     DEFAULT_READINESS_TIMEOUT,
-    EXTENDED_READINESS_TIMEOUT
+    EXTENDED_READINESS_TIMEOUT,
+    EXTENDED_TEST_TIMEOUT
 } from './test-timing-constants.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -501,8 +502,15 @@ describe('ServiceExecutor Readiness Detection', () => {
 
             const timeoutEvent = await timeoutPromise;
             
+            // Verify the event has all properties that consumers like PowerhouseProjectsManager expect
+            expect(timeoutEvent).toBeDefined();
+            expect(timeoutEvent.handle).toBeDefined();
             expect(timeoutEvent.handle.id).toBe(handle.id);
             expect(timeoutEvent.timeout).toBe(DEFAULT_READINESS_TIMEOUT);
+            
+            // Verify that the service transitions to running after timeout
+            const serviceInfo = executor.getStatus(handle.id);
+            expect(serviceInfo?.handle.status).toBe('running');
         });
     });
 
@@ -568,6 +576,163 @@ describe('ServiceExecutor Readiness Detection', () => {
             await new Promise(resolve => setTimeout(resolve, 600));
             
             expect(timeoutFired).toBe(false);
+        });
+
+        it('should add log entry when boot timeout occurs', async () => {
+            const task = createServiceTask({
+                title: 'Test Timeout Log',
+                instructions: 'Test that timeout adds log entry',
+                command: 'node',
+                args: [getTestFixture('test-service-with-readiness.js'), 'boot-fail'],
+                readiness: {
+                    patterns: [{
+                        regex: 'Will never match this',
+                        name: 'never'
+                    }],
+                    timeout: DEFAULT_READINESS_TIMEOUT
+                }
+            });
+
+            const handle = await executor.start(task);
+            runningServices.push(handle);
+
+            // Wait for timeout to occur
+            await new Promise(resolve => setTimeout(resolve, DEFAULT_READINESS_TIMEOUT + 100));
+
+            const logs = executor.getLogs(handle.id);
+            const timeoutLog = logs.find(log => 
+                log.includes(`Boot timeout after ${DEFAULT_READINESS_TIMEOUT}ms`)
+            );
+            
+            expect(timeoutLog).toBeDefined();
+            expect(handle.status).toBe('running'); // Should be running after timeout
+        });
+
+        it('should handle multiple services with different boot timeouts', async () => {
+            const timeoutEvents: any[] = [];
+            executor.on('boot-timeout', (event) => {
+                timeoutEvents.push(event);
+            });
+
+            // First service with short timeout
+            const task1 = createServiceTask({
+                title: 'Service 1',
+                instructions: 'Service with short timeout',
+                command: 'node',
+                args: [getTestFixture('test-service-with-readiness.js'), 'boot-fail'],
+                readiness: {
+                    patterns: [{ regex: 'Never', name: 'never' }],
+                    timeout: DEFAULT_READINESS_TIMEOUT
+                }
+            });
+
+            // Second service with longer timeout  
+            const task2 = createServiceTask({
+                title: 'Service 2',
+                instructions: 'Service with longer timeout',
+                command: 'node',
+                args: [getTestFixture('test-service-with-readiness.js'), 'boot-fail'],
+                readiness: {
+                    patterns: [{ regex: 'Never', name: 'never' }],
+                    timeout: EXTENDED_READINESS_TIMEOUT
+                }
+            });
+
+            const handle1 = await executor.start(task1);
+            const handle2 = await executor.start(task2);
+            runningServices.push(handle1, handle2);
+
+            // Wait for first timeout
+            await new Promise(resolve => setTimeout(resolve, DEFAULT_READINESS_TIMEOUT + 100));
+            expect(timeoutEvents).toHaveLength(1);
+            expect(timeoutEvents[0].handle.id).toBe(handle1.id);
+
+            // Wait for second timeout
+            await new Promise(resolve => setTimeout(resolve, EXTENDED_READINESS_TIMEOUT));
+            expect(timeoutEvents).toHaveLength(2);
+            expect(timeoutEvents[1].handle.id).toBe(handle2.id);
+
+            executor.removeAllListeners('boot-timeout');
+        }, EXTENDED_TEST_TIMEOUT);
+
+
+        it('should emit boot-timeout event consumable by managers', async () => {
+            // This test verifies that the boot-timeout event can be properly consumed
+            // by managers like PowerhouseProjectsManager
+            
+            let bootTimeoutHandlerCalled = false;
+            let capturedEvent: any = null;
+            
+            // Simulate PowerhouseProjectsManager's bootTimeoutHandler
+            const bootTimeoutHandler = (event: any) => {
+                // This mimics what PowerhouseProjectsManager does
+                if (event.handle && event.handle.id) {
+                    bootTimeoutHandlerCalled = true;
+                    capturedEvent = event;
+                    // In real code, this would resolve a promise with null
+                    // (PowerhouseProjectsManager would log a warning here)
+                }
+            };
+            
+            executor.once('boot-timeout', bootTimeoutHandler);
+            
+            const task = createServiceTask({
+                title: 'Manager Timeout Test',
+                instructions: 'Test that managers can consume boot-timeout',
+                command: 'node', 
+                args: [getTestFixture('test-service-with-readiness.js'), 'boot-fail'],
+                readiness: {
+                    patterns: [{
+                        regex: 'Drive URL:\\s+(https?://[^\\s]+)',
+                        name: 'drive-url'
+                    }],
+                    timeout: DEFAULT_READINESS_TIMEOUT
+                }
+            });
+            
+            const handle = await executor.start(task);
+            runningServices.push(handle);
+            
+            // Wait for timeout to occur
+            await new Promise(resolve => setTimeout(resolve, DEFAULT_READINESS_TIMEOUT + 100));
+            
+            // Verify the handler was called
+            expect(bootTimeoutHandlerCalled).toBe(true);
+            expect(capturedEvent).toBeDefined();
+            expect(capturedEvent.handle.id).toBe(handle.id);
+            expect(capturedEvent.timeout).toBe(DEFAULT_READINESS_TIMEOUT);
+            
+            // Clean up
+            executor.removeListener('boot-timeout', bootTimeoutHandler);
+        });
+
+        it('should transition from booting to running on timeout', async () => {
+            const task = createServiceTask({
+                title: 'Timeout Transition Service',
+                instructions: 'Test state transition on timeout',
+                command: 'node',
+                args: [getTestFixture('test-service-with-readiness.js'), 'boot-fail'],
+                readiness: {
+                    patterns: [{
+                        regex: 'Will not match',
+                        name: 'never'
+                    }],
+                    timeout: DEFAULT_READINESS_TIMEOUT
+                }
+            });
+
+            const handle = await executor.start(task);
+            runningServices.push(handle);
+
+            // Initially should be booting
+            expect(handle.status).toBe('booting');
+
+            // Wait for timeout to occur
+            await new Promise(resolve => setTimeout(resolve, DEFAULT_READINESS_TIMEOUT + 100));
+
+            // Should transition to running after timeout
+            const serviceInfo = executor.getStatus(handle.id);
+            expect(serviceInfo?.handle.status).toBe('running');
         });
     });
 });

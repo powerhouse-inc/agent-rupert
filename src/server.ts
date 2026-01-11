@@ -34,9 +34,7 @@ const cliExecutor = new CLIExecutor({
 // Initialize PowerhouseProjectsManager with configured directory and GraphQL config
 const projectsManager = new PowerhouseProjectsManager(
   config.powerhouse.projectsDir,
-  cliExecutor,
-  undefined, // ServiceExecutor will be created internally
-  config.graphql
+  cliExecutor
 );
 
 // Create GraphQL client instance for reactor sync
@@ -85,9 +83,6 @@ async function startConfiguredProject(): Promise<void> {
   autoStartError = null;
   
   try {
-    // Clean up any orphaned processes from previous runs
-    await projectsManager.cleanupOrphanedProcesses();
-    
     // Check if project exists
     const projects = await projectsManager.listProjects();
     const projectExists = projects.some(p => p.name === project);

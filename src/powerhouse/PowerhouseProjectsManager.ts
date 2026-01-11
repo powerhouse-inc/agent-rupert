@@ -5,9 +5,6 @@ import { ServiceExecutor } from '../tasks/executors/service-executor.js';
 import { createCLITask, createServiceTask } from '../tasks/types.js';
 import type { CLITask, ServiceTask, ServiceHandle } from '../tasks/types.js';
 import type { ChildProcess } from 'node:child_process';
-import { AgentProjectsClient } from '../graphql/AgentProjectsClient.js';
-import { ProjectStatus, LogLevel, LogSource } from '../graphql/types.js';
-import type { GraphQLConfig } from '../types.js';
 
 export interface PowerhouseProjectConfig {
     name: string;
@@ -82,15 +79,12 @@ export class PowerhouseProjectsManager {
     private readonly projectsDir: string;
     private readonly cliExecutor: CLIExecutor;
     private readonly serviceExecutor: ServiceExecutor;
-    private readonly graphqlClient: AgentProjectsClient | null = null;
     private runningProject: RunningProject | null = null;
-    private runningProcessPromise: Promise<any> | null = null;
 
     constructor(
         projectsDir: string = '../projects',
         cliExecutor?: CLIExecutor,
-        serviceExecutor?: ServiceExecutor,
-        graphqlConfig?: GraphQLConfig
+        serviceExecutor?: ServiceExecutor
     ) {
         // Resolve the projects directory relative to the current working directory
         this.projectsDir = path.resolve(process.cwd(), projectsDir);
@@ -103,17 +97,6 @@ export class PowerhouseProjectsManager {
             maxLogSize: 500,
             defaultGracefulShutdownTimeout: 10000
         });
-        
-        // Initialize GraphQL client if config provided
-        if (graphqlConfig) {
-            this.graphqlClient = new AgentProjectsClient({
-                endpoint: graphqlConfig.endpoint,
-                headers: graphqlConfig.authToken ? { Authorization: `Bearer ${graphqlConfig.authToken}` } : {},
-                retryAttempts: graphqlConfig.retryAttempts,
-                retryDelay: graphqlConfig.retryDelay,
-                timeout: graphqlConfig.timeout
-            });
-        }
     }
 
     /**
@@ -185,26 +168,6 @@ export class PowerhouseProjectsManager {
                     
                     await fs.access(packageJsonPath);
                     await fs.access(configPath);
-
-                    // Sync with GraphQL if client is available
-                    if (this.graphqlClient) {
-                        try {
-                            await this.graphqlClient.createProject({
-                                name: projectName,
-                                path: projectPath,
-                                autoStart: false,
-                                commandTimeout: 60000
-                            });
-                            await this.graphqlClient.addLogEntry(
-                                projectName,
-                                LogLevel.INFO,
-                                `Project initialized successfully at ${projectPath}`,
-                                LogSource.SYSTEM
-                            );
-                        } catch (error) {
-                            console.warn('Failed to sync project creation to GraphQL:', error);
-                        }
-                    }
                     
                     return {
                         success: true,
@@ -222,20 +185,6 @@ export class PowerhouseProjectsManager {
                 const errorMessage = result.stderr || result.stdout || 'Unknown error during initialization';
                 const finalErrorMessage = `ph init failed: ${errorMessage}`;
                 
-                // Log error to GraphQL if client is available
-                if (this.graphqlClient) {
-                    try {
-                        await this.graphqlClient.addLogEntry(
-                            projectName,
-                            LogLevel.ERROR,
-                            finalErrorMessage,
-                            LogSource.SYSTEM
-                        );
-                    } catch (graphqlError) {
-                        console.warn('Failed to log error to GraphQL:', graphqlError);
-                    }
-                }
-                
                 return {
                     success: false,
                     projectPath,
@@ -244,20 +193,6 @@ export class PowerhouseProjectsManager {
             }
         } catch (error) {
             const errorMessage = `Failed to initialize project: ${error instanceof Error ? error.message : String(error)}`;
-            
-            // Log error to GraphQL if client is available
-            if (this.graphqlClient) {
-                try {
-                    await this.graphqlClient.addLogEntry(
-                        projectName,
-                        LogLevel.ERROR,
-                        errorMessage,
-                        LogSource.SYSTEM
-                    );
-                } catch (graphqlError) {
-                    console.warn('Failed to log error to GraphQL:', graphqlError);
-                }
-            }
             
             return {
                 success: false,
@@ -319,54 +254,6 @@ export class PowerhouseProjectsManager {
         }
 
         return projects;
-    }
-
-    /**
-     * Run a single Powerhouse project with ph vetra --watch command
-     * @param projectName - Name of the project to run
-     * @param options - Optional configuration for running the project
-     * @returns Result of the run operation including Drive URL if captured
-     */
-    /**
-     * Clean up any orphaned vetra processes
-     */
-    async cleanupOrphanedProcesses(): Promise<void> {
-        try {
-            const findVetraTask: CLITask = createCLITask({
-                title: 'Find orphaned vetra processes',
-                command: 'bash',
-                args: ['-c', 'ps aux | grep -E "ph.*vetra|vetra.*--watch" | grep -v grep || true'],
-                instructions: 'Looking for orphaned vetra processes'
-            });
-            
-            const result = await this.cliExecutor.execute(findVetraTask);
-            if (result.stdout && result.stdout.trim()) {
-                // Extract PIDs and kill them
-                const lines = result.stdout.trim().split('\n');
-                const pids = lines.map(line => {
-                    const parts = line.split(/\s+/);
-                    return parts[1]; // PID is the second column
-                }).filter(pid => pid && !isNaN(Number(pid)));
-                
-                if (pids.length > 0) {
-                    const killTask: CLITask = createCLITask({
-                        title: 'Kill orphaned processes',
-                        command: 'kill',
-                        args: ['-9', ...pids],
-                        instructions: `Killing orphaned processes: ${pids.join(', ')}`
-                    });
-                    
-                    try {
-                        await this.cliExecutor.execute(killTask);
-                    } catch (error) {
-                        console.warn('Failed to kill some orphaned processes:', error);
-                    }
-                }
-            }
-        } catch (error) {
-            // Non-critical, just log
-            console.warn('Could not check for orphaned processes:', error);
-        }
     }
 
     /**
@@ -511,25 +398,7 @@ export class PowerhouseProjectsManager {
                 logs: [],
                 isFullyStarted: false  // Will be set to true when Drive URL is captured
             };
-            
-            // Notify GraphQL that project is running
-            if (this.graphqlClient) {
-                try {
-                    await this.graphqlClient.updateProjectStatus(
-                        project.name,
-                        ProjectStatus.RUNNING
-                    );
-                    await this.graphqlClient.addLogEntry(
-                        project.name,
-                        LogLevel.INFO,
-                        `Starting project with Connect on port ${actualConnectPort} and Switchboard on port ${actualSwitchboardPort}`,
-                        LogSource.SYSTEM
-                    );
-                } catch (error) {
-                    console.warn('Failed to update project status in GraphQL:', error);
-                }
-            }
-
+        
             // Set up event listener for service output (for logging only, not for readiness detection)
             const outputHandler = (event: any) => {
                 if (!this.runningProject || event.serviceId !== this.runningProject.serviceHandle?.id) {
@@ -538,19 +407,7 @@ export class PowerhouseProjectsManager {
                 
                 const data = event.data;
                 const logPrefix = event.type === 'stdout' ? '[stdout]' : '[stderr]';
-                
                 this.runningProject.logs.push(`${logPrefix} ${data}`);
-                
-                // Send log to GraphQL (throttled)
-                const logLevel = event.type === 'stdout' ? LogLevel.INFO : LogLevel.WARNING;
-                if (this.graphqlClient && data.trim()) {
-                    this.graphqlClient.addLogEntry(
-                        this.runningProject.name,
-                        logLevel,
-                        data.trim(),
-                        LogSource.APPLICATION
-                    ).catch(() => {}); // Silently ignore log failures
-                }
                 
                 const maxLogs = 500;
                 if (this.runningProject.logs.length > maxLogs) {
@@ -577,25 +434,6 @@ export class PowerhouseProjectsManager {
                     if (driveUrl && this.runningProject) {
                         this.runningProject.driveUrl = driveUrl;
                         this.runningProject.isFullyStarted = true;
-                        
-                        // Update GraphQL with runtime info including Drive URL
-                        if (this.graphqlClient) {
-                            this.graphqlClient.updateProjectRuntime(
-                                this.runningProject.name,
-                                {
-                                    pid: this.runningProject.process?.pid,
-                                    startedAt: this.runningProject.startedAt.toISOString(),
-                                    driveUrl: this.runningProject.driveUrl
-                                }
-                            ).catch(error => console.warn('Failed to update runtime in GraphQL:', error));
-                            
-                            this.graphqlClient.addLogEntry(
-                                this.runningProject.name,
-                                LogLevel.INFO,
-                                `Project fully started. Drive URL: ${this.runningProject.driveUrl}`,
-                                LogSource.SYSTEM
-                            ).catch(error => console.warn('Failed to add log entry to GraphQL:', error));
-                        }
                     }
                     
                     // Resolve the promise with Drive URL (or null if not captured)
@@ -677,7 +515,6 @@ export class PowerhouseProjectsManager {
             }
             
             this.runningProject = null;
-            this.runningProcessPromise = null;
             return {
                 success: false,
                 projectName: project.name,
@@ -700,38 +537,6 @@ export class PowerhouseProjectsManager {
      */
     getProjectLogs(): string[] | undefined {
         return this.runningProject?.logs;
-    }
-
-    /**
-     * Wait for the Drive URL to be captured during project startup
-     * @deprecated This method is deprecated - Drive URL is now captured via readiness patterns in runProject()
-     * @param timeout - Maximum time to wait in milliseconds (default: 240000)
-     * @returns The Drive URL if captured, null if timeout reached
-     */
-    async waitForDriveUrl(timeout: number = 240000): Promise<string | null> {
-        console.warn('waitForDriveUrl() is deprecated. Drive URL is now captured automatically via readiness patterns.');
-        
-        if (!this.runningProject) {
-            return null;
-        }
-
-        // If Drive URL is already captured, return it immediately
-        if (this.runningProject.driveUrl) {
-            return this.runningProject.driveUrl;
-        }
-
-        // For backward compatibility, do a simple check with timeout
-        const startTime = Date.now();
-        const pollInterval = 100; // Quick check interval
-
-        while (Date.now() - startTime < timeout) {
-            if (!this.runningProject || this.runningProject.driveUrl) {
-                return this.runningProject?.driveUrl || null;
-            }
-            await new Promise(resolve => setTimeout(resolve, pollInterval));
-        }
-
-        return null;
     }
 
     /**
@@ -794,53 +599,15 @@ export class PowerhouseProjectsManager {
                     this.runningProject.process.kill('SIGTERM');
                 }
             }
-
-            // Update GraphQL on successful shutdown
-            if (this.graphqlClient) {
-                try {
-                    await this.graphqlClient.updateProjectStatus(
-                        projectName,
-                        ProjectStatus.STOPPED
-                    );
-                    await this.graphqlClient.updateProjectRuntime(
-                        projectName,
-                        {}
-                    );
-                    await this.graphqlClient.addLogEntry(
-                        projectName,
-                        LogLevel.INFO,
-                        'Project shutdown successfully',
-                        LogSource.SYSTEM
-                    );
-                } catch (error) {
-                    console.warn('Failed to update GraphQL on shutdown:', error);
-                }
-            }
             
             // Clear the running project
             this.runningProject = null;
-            this.runningProcessPromise = null;
             
             return {
                 success: true
             };
         } catch (error) {
             const errorMessage = `Failed to shutdown project '${projectName}': ${error instanceof Error ? error.message : String(error)}`;
-            
-            // Log shutdown error to GraphQL
-            if (this.graphqlClient) {
-                try {
-                    await this.graphqlClient.addLogEntry(
-                        projectName,
-                        LogLevel.ERROR,
-                        errorMessage,
-                        LogSource.SYSTEM
-                    );
-                } catch (graphqlError) {
-                    console.warn('Failed to log shutdown error to GraphQL:', graphqlError);
-                }
-            }
-            
             return {
                 success: false,
                 error: errorMessage
