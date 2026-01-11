@@ -286,15 +286,15 @@ describe('ServiceExecutor Readiness Detection', () => {
             const handle = await executor.start(task);
             runningServices.push(handle);
 
-            // Wait a bit for partial matches
-            await new Promise(resolve => setTimeout(resolve, 175));
+            // Wait a bit for partial matches (3 patterns at 20ms intervals)
+            await new Promise(resolve => setTimeout(resolve, FIXTURE_PATTERN_INTERVAL * 2));
             
             // Should still be booting after partial matches
             expect(handle.status).toBe('booting');
             expect(readyEventFired).toBe(false);
 
-            // Wait for all patterns - need more time for all 4 patterns to match
-            await new Promise(resolve => setTimeout(resolve, 100));
+            // Wait for the final pattern
+            await new Promise(resolve => setTimeout(resolve, FIXTURE_PATTERN_INTERVAL * 2 + TEST_TIMING_BUFFER));
             
             // Now should be ready
             expect(handle.status).toBe('running');

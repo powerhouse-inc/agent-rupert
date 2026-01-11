@@ -8,7 +8,7 @@
  * Modes:
  * - http-server: Creates an HTTP server on the specified port
  * - multiple-ports: Creates servers on multiple ports (base, base+1, base+2)
- * - delayed-release: Keeps port open for 500ms after SIGTERM
+ * - delayed-release: Keeps port open for 200ms after SIGTERM
  * - immediate-release: Closes port immediately on SIGTERM
  * - no-port: Doesn't bind to any port (for testing non-port services)
  * - port-with-url: Outputs port info with Drive URL format
@@ -18,6 +18,12 @@
 
 import http from 'http';
 import net from 'net';
+import {
+    FIXTURE_INITIAL_OUTPUT_DELAY as INITIAL_DELAY,
+    FIXTURE_PATTERN_INTERVAL as PATTERN_INTERVAL,
+    FIXTURE_DELAYED_PORT_RELEASE as PORT_RELEASE_DELAY,
+    FIXTURE_GRACEFUL_SHUTDOWN_TIME as GRACEFUL_SHUTDOWN_TIME
+} from '../integration/test-timing-constants.js';
 
 const mode = process.argv[2] || 'http-server';
 const basePort = parseInt(process.argv[3] || '9500', 10);
@@ -26,11 +32,7 @@ const servers = [];
 
 console.log(`Test service with ports started in ${mode} mode (PID: ${process.pid})`);
 
-// Timing constants matching test-timing-constants.ts
-const INITIAL_DELAY = 50;
-const PATTERN_INTERVAL = 50;
-const PORT_RELEASE_DELAY = 500;
-const GRACEFUL_SHUTDOWN_TIME = 100;
+// Additional constants not from shared file
 const FORCED_EXIT_TIMEOUT = 2000;
 
 function createHttpServer(port, name = 'HTTP') {
