@@ -4,7 +4,7 @@ import { createCLITask } from '../types.js';
 import type { ClaudeCodeTask, CLITask } from '../types.js';
 import type { CLIExecutorResult } from './cli-executor.js';
 import { TaskValidationError } from './errors.js';
-import { ReactorPackagesManager } from '../../agents/ReactorPackageAgent/ReactorPackagesManager.js';
+import { ReactorPackagesManager } from '../../agents/ReactorPackageDevAgent/ReactorPackagesManager.js';
 
 export interface ClaudeCodeExecutorConfig {
     timeout?: number;

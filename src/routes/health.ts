@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import type { ReactorInstance } from '../types.js';
 import { config } from '../config.js';
-import { ReactorPackagesManager } from '../agents/ReactorPackageAgent/ReactorPackagesManager.js';
+import { ReactorPackagesManager } from '../agents/ReactorPackageDevAgent/ReactorPackagesManager.js';
 
 export function createHealthRouter(
   getReactorInstance: () => ReactorInstance | null,

@@ -6,7 +6,7 @@ import { ServiceExecutor } from "../../tasks/executors/service-executor.js";
 /**
  *  The ReactorPackageAgent uses ReactorPackagesManager with a number of associated tools
  */
-export class ReactorPackageAgent extends AgentBase {
+export class ReactorPackageDevAgent extends AgentBase {
     private packagesManager?: ReactorPackagesManager;
     private cliExecutor: CLIExecutor;
     private serviceExecutor: ServiceExecutor;

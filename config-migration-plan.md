@@ -1,0 +1,60 @@
+# Config Migration Plan
+
+## Overview
+Migrating from flat global config to hierarchical agent-specific configuration structure.
+
+## Progress Tracker
+
+### Phase 1: Config Infrastructure ✅
+- [x] Replace config.ts imports with defaultConfig.ts
+- [x] Update type references from AgentConfig to ServerConfig
+- [x] Update server.ts to use defaultConfig
+- [x] Test build and runtime
+
+### Phase 2: Update Agent Initialization ⏳
+- [ ] Update AgentInitializer.ts to accept ServerConfig
+- [ ] Pass agent-specific configs to AgentsManager
+- [ ] Update AgentsManager config interface
+- [ ] Test initialization flow
+
+### Phase 3: Update Agent Classes ⏳
+- [ ] Update AgentBase.ts ReactorConfig
+- [ ] Rename ReactorPackageAgent to ReactorPackageDevAgent
+- [ ] Update PowerhouseArchitectAgent config
+- [ ] Test agent instantiation
+
+### Phase 4: Update Server & Routes ⏳
+- [ ] Update server.ts config usage
+- [ ] Update health.ts route
+- [ ] Update projects.ts route
+- [ ] Update info.ts route
+- [ ] Test all API endpoints
+
+### Phase 5: Project Auto-start Logic ⏳
+- [ ] Update startConfiguredProject() in AgentInitializer
+- [ ] Use new vetraConfig for ports
+- [ ] Check autoStartDefaultProject flag
+- [ ] Test project auto-start
+
+### Phase 6: Cleanup ⏳
+- [ ] Remove old config.ts file
+- [ ] Remove deprecated env vars from .env
+- [ ] Final testing and validation
+- [ ] Update documentation if needed
+
+## Implementation Notes
+
+### Key Changes
+1. **Config Structure**: Flat → Hierarchical agent-specific
+2. **Agent Naming**: ReactorPackageAgent → ReactorPackageDevAgent
+3. **Env Variables**: Renamed to match new structure
+4. **Work Drives**: Each agent has its own drive config
+5. **Document Management**: Inbox/WBS document support
+
+### Testing Checklist
+- [ ] TypeScript compilation (`pnpm build`)
+- [ ] Dev server startup (`pnpm dev`)
+- [ ] Agent initialization
+- [ ] Project auto-start
+- [ ] API endpoints
+- [ ] Graceful shutdown

@@ -3,6 +3,7 @@ import type { IDocumentDriveServer } from 'document-drive';
 export type StorageOptions = {
   type: 'filesystem' | 'memory';
   filesystemPath?: string;
+  filesystemDbPath?: string;
 };
 
 export type ReactorPackageConfig = {
@@ -39,42 +40,44 @@ export type AgentConfig = {
 };
 
 export type ServerConfig = {
+  serverPort: number;
   agents: {
-    reactorPackageAgents: {
-
-    },
-    powerhouseArchitectAgents: {
-
-    }
+    reactorPackageDev: ReactorPackageDevAgentConfig;
+    powerhouseArchitect: PowerhouseArchitectAgentConfig;
   }
 }
 
-type WorkDocument = {
+type AgentWorkDocument = {
   documentType: string;
-  documentId: string;
+  documentId: string | null;
 }
 
 type BaseAgentConfig = {
   name: string;
-  reactor: {
-    storage: StorageOptions;
-    driveUrl: string;
+  workDrive: {
+    reactorStorage: StorageOptions;
+    driveUrl: string | null;
     documents: {
-      inbox: WorkDocument;
-      wbs: WorkDocument;
+      inbox: AgentWorkDocument;
+      wbs: AgentWorkDocument;
     },
   }
 }
 
-export type ReactorPackageAgentConfig = BaseAgentConfig & {
-  projectDir: string;
-  defaultProject: string;
-  
+export type ReactorPackageDevAgentConfig = BaseAgentConfig & {
+  reactorPackages: {
+    projectsDir: string;
+    defaultProjectName: string;
+    autoStartDefaultProject: boolean;
+  };
+  vetraConfig: {
+    connectPort: number;
+    switchboardPort: number;
+    startupTimeout: number;
+  };
 }
 
-export type PowerhouseArchitectAgentConfig = BaseAgentConfig & {
-  
-}
+export type PowerhouseArchitectAgentConfig = BaseAgentConfig & {}
 
 export type ReactorInstance = {
   driveServer: IDocumentDriveServer;

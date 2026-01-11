@@ -1,4 +1,4 @@
-import { ReactorPackageAgent } from './ReactorPackageAgent/ReactorPackageAgent.js';
+import { ReactorPackageDevAgent } from './ReactorPackageDevAgent/ReactorPackageDevAgent.js';
 import { PowerhouseArchitectAgent } from './PowerhouseArchitectAgent/PowerhouseArchitectAgent.js';
 import type { AgentBase, ILogger } from './AgentBase.js';
 import type { AgentConfig } from './AgentBase.js';
@@ -17,7 +17,7 @@ export interface AgentsConfig {
  */
 export class AgentsManager {
     private agents: Map<string, AgentBase> = new Map();
-    private reactorPackageAgent?: ReactorPackageAgent;
+    private reactorPackageAgent?: ReactorPackageDevAgent;
     private architectAgent?: PowerhouseArchitectAgent;
     private logger: ILogger;
     
@@ -41,7 +41,7 @@ export class AgentsManager {
         // Initialize ReactorPackageAgent
         if (this.config.enableReactorPackageAgent) {
             this.logger.info("AgentsManager: Initializing ReactorPackageAgent");
-            this.reactorPackageAgent = new ReactorPackageAgent(
+            this.reactorPackageAgent = new ReactorPackageDevAgent(
                 this.config.projectsDir,
                 this.logger,
                 this.config.reactorPackageConfig
@@ -85,7 +85,7 @@ export class AgentsManager {
     /**
      * Get ReactorPackageAgent for API routes
      */
-    getReactorPackageAgent(): ReactorPackageAgent {
+    getReactorPackageAgent(): ReactorPackageDevAgent {
         if (!this.reactorPackageAgent) {
             throw new Error('ReactorPackageAgent not initialized');
         }

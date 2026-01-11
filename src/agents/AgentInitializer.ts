@@ -1,5 +1,5 @@
 import { AgentsManager } from './AgentsManager.js';
-import { config as AppConfig } from '../config.js';
+import type { ServerConfig } from '../types.js';
 import type { ILogger } from './AgentBase.js';
 
 let agentsManager: AgentsManager | null = null;
@@ -27,21 +27,24 @@ function createLogger(): ILogger {
 /**
  * Initialize agents asynchronously after server is running
  */
-export async function initializeAgents(projectsDir: string, config: typeof AppConfig): Promise<void> {
+export async function initializeAgents(config: ServerConfig): Promise<void> {
   const logger = createLogger();
   
   try {
     logger.info('🔧 Initializing agents...');
     
     // Create and configure agents manager with logger
+    const reactorPackageDev = config.agents.reactorPackageDev;
+    const powerhouseArchitect = config.agents.powerhouseArchitect;
+    
     agentsManager = new AgentsManager({
       enableReactorPackageAgent: true,
       enableArchitectAgent: true,
-      projectsDir: projectsDir,
+      projectsDir: reactorPackageDev.reactorPackages.projectsDir,
       reactorPackageConfig: {
         reactor: {
-          remoteDriveUrl: config.remoteDriveUrl,
-          storage: config.storage
+          remoteDriveUrl: reactorPackageDev.workDrive.driveUrl || undefined,
+          storage: reactorPackageDev.workDrive.reactorStorage
         }
       },
       logger
@@ -77,8 +80,12 @@ export function areAgentsInitialized(): boolean {
 /**
  * Auto-start the configured Powerhouse project if specified
  */
-async function startConfiguredProject(config: typeof AppConfig): Promise<void> {
-  const { project, connectPort, switchboardPort, startupTimeout } = config.powerhouse;
+async function startConfiguredProject(config: ServerConfig): Promise<void> {
+  const reactorPackageDev = config.agents.reactorPackageDev;
+  const { autoStartDefaultProject, defaultProjectName } = reactorPackageDev.reactorPackages;
+  const { connectPort, switchboardPort, startupTimeout } = reactorPackageDev.vetraConfig;
+  
+  const project = autoStartDefaultProject ? defaultProjectName : null;
   
   if (!project) {
     console.log('📦 No Powerhouse project configured for auto-start');
@@ -103,7 +110,7 @@ async function startConfiguredProject(config: typeof AppConfig): Promise<void> {
   try {
     // Check if project exists
     const projects = await reactorPackageAgent.listProjects();
-    const projectExists = projects.some(p => p.name === project);
+    const projectExists = projects.some((p: any) => p.name === project);
     
     if (!projectExists) {
       console.log(`📝 Project "${project}" not found, initializing it now...`);
@@ -121,7 +128,7 @@ async function startConfiguredProject(config: typeof AppConfig): Promise<void> {
         return;
       }
     } else {
-      console.log(`✓ Project "${project}" found in ${config.powerhouse.projectsDir}`);
+      console.log(`✓ Project "${project}" found in ${reactorPackageDev.reactorPackages.projectsDir}`);
     }
     
     // Prepare run options
@@ -171,8 +178,8 @@ async function startConfiguredProject(config: typeof AppConfig): Promise<void> {
 /**
  * Initialize agents and auto-start project
  */
-export async function initializeAgentsAndStartProject(projectsDir: string, config: typeof AppConfig): Promise<void> {
-  await initializeAgents(projectsDir, config);
+export async function initializeAgentsAndStartProject(config: ServerConfig): Promise<void> {
+  await initializeAgents(config);
   
   // Auto-start configured Powerhouse project AFTER agents are initialized
   try {

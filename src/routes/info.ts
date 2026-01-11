@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { ReactorPackagesManager } from '../agents/ReactorPackageAgent/ReactorPackagesManager.js';
+import { ReactorPackagesManager } from '../agents/ReactorPackageDevAgent/ReactorPackagesManager.js';
 
 export function createInfoRouter(getProjectsManager: () => ReactorPackagesManager | null): Router {
   const router = Router();

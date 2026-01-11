@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { config } from '../config.js';
-import { ReactorPackagesManager } from '../agents/ReactorPackageAgent/ReactorPackagesManager.js';
+import { defaultConfig } from '../defaultConfig.js';
+import { ReactorPackagesManager } from '../agents/ReactorPackageDevAgent/ReactorPackagesManager.js';
 
 interface AutoStartState {
   status: 'idle' | 'starting' | 'running' | 'failed';
@@ -64,8 +64,8 @@ export function createProjectsRouter(
       return res.json({
         running: false,
         status: 'starting',
-        message: `Project "${config.powerhouse.project}" is being initialized...`,
-        project: config.powerhouse.project
+        message: `Project "${defaultConfig.agents.reactorPackageDev.reactorPackages.defaultProjectName}" is being initialized...`,
+        project: defaultConfig.agents.reactorPackageDev.reactorPackages.defaultProjectName
       });
     }
     
@@ -74,7 +74,7 @@ export function createProjectsRouter(
         running: false,
         status: 'failed',
         message: autoStartState.error || 'Project failed to start',
-        project: config.powerhouse.project
+        project: defaultConfig.agents.reactorPackageDev.reactorPackages.defaultProjectName
       });
     }
     
@@ -115,7 +115,7 @@ export function createProjectsRouter(
       
       return res.json({
         status,
-        project: config.powerhouse.project || null,
+        project: defaultConfig.agents.reactorPackageDev.reactorPackages.defaultProjectName || null,
         driveUrl: null,
         ready: false,
         uptime: 0,
