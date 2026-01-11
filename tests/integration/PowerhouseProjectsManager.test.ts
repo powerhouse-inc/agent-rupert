@@ -118,7 +118,8 @@ describe('PowerhouseProjectsManager Integration Tests', () => {
             process.stderr.write(`  ℹ️ Using ports: connect=${customConnectPort}, switchboard=${customSwitchboardPort}\n`);
             const runResult = await manager.runProject(projectName, {
                 connectPort: customConnectPort,
-                switchboardPort: customSwitchboardPort
+                switchboardPort: customSwitchboardPort,
+                startupTimeout: 60000
             });
             
             // Note: This might fail if ph vetra is not available or ports are in use
@@ -140,7 +141,11 @@ describe('PowerhouseProjectsManager Integration Tests', () => {
                     expect(runningProject.logs).toBeDefined();
                     
                     process.stderr.write("📍 Step 8: Try to run another project (should fail)\n");
-                    const secondRunResult = await manager.runProject(projectName);
+                    const secondRunResult = await manager.runProject(projectName, {
+                        connectPort: customConnectPort + 1,
+                        switchboardPort: customSwitchboardPort + 1,
+                        startupTimeout: 60000
+                    });
                     expect(secondRunResult.success).toBe(false);
                     expect(secondRunResult.error).toContain('already running');
                     
@@ -228,7 +233,11 @@ describe('PowerhouseProjectsManager Integration Tests', () => {
             }
             
             process.stderr.write("📍 Step 13: Test running a non-existent project\n");
-            const nonExistentResult = await manager.runProject('non-existent-project');
+            const nonExistentResult = await manager.runProject('non-existent-project', {
+                connectPort: customConnectPort + 2,
+                switchboardPort: customSwitchboardPort + 2,
+                startupTimeout: 60000
+            });
             expect(nonExistentResult.success).toBe(false);
             expect(nonExistentResult.error).toContain('not found');
             

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, jest } from '@jest/globals';
-import { AgentProjectsClient } from '../../../src/graphql/AgentProjectsClient.js';
-import { ProjectStatus, LogLevel, LogSource } from '../../../src/graphql/types.js';
+import { AgentProjectsClient } from '../../src/graphql/AgentProjectsClient.js';
+import { ProjectStatus, LogLevel, LogSource } from '../../src/graphql/types.js';
 import { spawn, ChildProcess } from 'node:child_process';
 import { setTimeout } from 'node:timers/promises';
 
