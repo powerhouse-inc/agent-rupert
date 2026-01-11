@@ -48,10 +48,6 @@ export async function initializeAgents(config: ServerConfig): Promise<void> {
     // Initialize all agents (includes reactor initialization)
     await agentsManager.initialize();
     
-    logger.info(`✅ ReactorPackageAgent: initialized`);
-    logger.info(`⚡ Reactor status: initialized`);
-    logger.info(`🔨 Task framework: ready`);
-    
   } catch (error) {
     logger.error('❌ Failed to initialize agents:', error);
     // Don't throw - server should continue to run without agents
