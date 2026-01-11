@@ -12,6 +12,13 @@ import { CLIExecutor } from './tasks/executors/cli-executor.js';
 import { PowerhouseProjectsManager } from './powerhouse/PowerhouseProjectsManager.js';
 import { AgentProjectsClient } from './graphql/AgentProjectsClient.js';
 import { config } from './config.js';
+import {
+  createHealthRouter,
+  createModelsRouter,
+  createDrivesRouter,
+  createProjectsRouter,
+  createInfoRouter
+} from './routes/index.js';
 
 const app: express.Application = express();
 const PORT = config.port;
@@ -28,6 +35,7 @@ const cliExecutor = new CLIExecutor({
 const projectsManager = new PowerhouseProjectsManager(
   config.powerhouse.projectsDir,
   cliExecutor,
+  undefined, // ServiceExecutor will be created internally
   config.graphql
 );
 
@@ -49,6 +57,15 @@ if (graphqlClient) {
 // Track auto-start status
 let autoStartStatus: 'idle' | 'starting' | 'running' | 'failed' = 'idle';
 let autoStartError: string | null = null;
+
+// Helper function to get reactor instance
+const getReactorInstance = () => reactorInstance;
+
+// Helper function to get auto-start state
+const getAutoStartState = () => ({
+  status: autoStartStatus,
+  error: autoStartError
+});
 
 /**
  * Auto-start the configured Powerhouse project if specified
@@ -139,297 +156,12 @@ async function startConfiguredProject(): Promise<void> {
 app.use(cors());
 app.use(express.json());
 
-app.get('/health', async (_req, res) => {
-  const drives = reactorInstance ? await reactorInstance.driveServer.getDrives() : [];
-  const runningProject = projectsManager.getRunningProject();
-  
-  res.json({
-    status: 'ok',
-    message: 'Powerhouse Agent is running',
-    timestamp: new Date().toISOString(),
-    reactor: reactorInstance ? 'initialized' : 'not initialized',
-    drives: drives.length,
-    remoteDrives: drives.filter((drive: any) => drive.state?.remote).length,
-    models: reactorInstance ? reactorInstance.driveServer.getDocumentModelModules().length : 0,
-    powerhouseProject: {
-      configured: !!config.powerhouse.project,
-      running: !!runningProject,
-      name: runningProject?.name || config.powerhouse.project || null,
-      ready: runningProject?.isFullyStarted || false,
-      driveUrl: runningProject?.driveUrl || null
-    }
-  });
-});
-
-app.get('/', (_req, res) => {
-  const runningProject = projectsManager.getRunningProject();
-  res.json({
-    name: 'Powerhouse Agent',
-    version: '1.0.0',
-    endpoints: [
-      'GET /health - Health check with project status',
-      'GET /models - List available document models',
-      'GET /drives - List connected drives',
-      'GET /projects - List all Powerhouse projects',
-      'GET /projects/running - Get running project info',
-      'GET /projects/running/status - Quick project status',
-      'GET /projects/running/logs - Get project logs (?limit=N&tail=true)',
-      'GET /projects/running/drive-url - Get project Drive URL',
-      'GET /stats - Agent statistics (coming soon)',
-      'GET /events - Recent events (coming soon)'
-    ],
-    powerhouseProject: {
-      running: !!runningProject,
-      name: runningProject?.name || null
-    }
-  });
-});
-
-app.get('/models', (_req, res) => {
-  if (!reactorInstance) {
-    return res.status(503).json({
-      error: 'Reactor not initialized'
-    });
-  }
-
-  const models = reactorInstance.driveServer.getDocumentModelModules().map(module => ({
-    id: module.documentModel.global.id,
-    name: module.documentModel.global.name,
-    extension: module.documentModel.global.extension,
-    author: module.documentModel.global.author,
-    description: module.documentModel.global.description
-  }));
-
-  res.json({
-    count: models.length,
-    models
-  });
-});
-
-app.get('/drives', async (_req, res) => {
-  if (!reactorInstance) {
-    return res.status(503).json({
-      error: 'Reactor not initialized'
-    });
-  }
-
-  try {
-    const driveIds = await reactorInstance.driveServer.getDrives();
-    const driveDetails = await Promise.all(
-      driveIds.map(async (driveId: string) => {
-        try {
-          const drive = await reactorInstance!.driveServer.getDrive(driveId);
-          return drive;
-        } catch (error) {
-          return {
-            id: driveId,
-            name: 'Error loading drive',
-            error: error instanceof Error ? error.message : 'Unknown error'
-          };
-        }
-      })
-    );
-
-    res.json({
-      count: driveIds.length,
-      drives: driveDetails
-    });
-  } catch (error) {
-    res.status(500).json({
-      error: 'Failed to retrieve drives',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    });
-  }
-});
-
-// ===== Powerhouse Projects API Endpoints =====
-
-/**
- * GET /projects - List all available Powerhouse projects
- */
-app.get('/projects', async (_req, res) => {
-  try {
-    const projects = await projectsManager.listProjects();
-    const runningProject = projectsManager.getRunningProject();
-    
-    // Add running status to each project
-    const projectsWithStatus = projects.map(project => ({
-      ...project,
-      running: runningProject?.name === project.name
-    }));
-    
-    res.json({
-      projects: projectsWithStatus,
-      projectsDirectory: projectsManager.getProjectsDir(),
-      totalProjects: projects.length,
-      runningProject: runningProject?.name || null
-    });
-  } catch (error) {
-    console.error('Error listing projects:', error);
-    res.status(500).json({
-      error: 'Failed to list projects',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    });
-  }
-});
-
-/**
- * GET /projects/running - Get information about the running project
- */
-app.get('/projects/running', (_req, res) => {
-  const runningProject = projectsManager.getRunningProject();
-  
-  // If no project is running but auto-start is in progress
-  if (!runningProject && autoStartStatus === 'starting') {
-    return res.json({
-      running: false,
-      status: 'starting',
-      message: `Project "${config.powerhouse.project}" is being initialized...`,
-      project: config.powerhouse.project
-    });
-  }
-  
-  // If auto-start failed
-  if (!runningProject && autoStartStatus === 'failed') {
-    return res.json({
-      running: false,
-      status: 'failed',
-      message: autoStartError || 'Project failed to start',
-      project: config.powerhouse.project
-    });
-  }
-  
-  // If no project configured
-  if (!runningProject) {
-    return res.json({
-      running: false,
-      status: 'idle',
-      message: 'No project configured at startup. Set POWERHOUSE_PROJECT environment variable.'
-    });
-  }
-  
-  const uptime = Date.now() - runningProject.startedAt.getTime();
-  
-  res.json({
-    running: true,
-    name: runningProject.name,
-    path: runningProject.path,
-    connectPort: runningProject.connectPort,
-    switchboardPort: runningProject.switchboardPort,
-    driveUrl: runningProject.driveUrl || null,
-    isFullyStarted: runningProject.isFullyStarted,
-    startedAt: runningProject.startedAt.toISOString(),
-    uptime
-  });
-});
-
-/**
- * GET /projects/running/status - Quick status check for the running project
- */
-app.get('/projects/running/status', (_req, res) => {
-  const runningProject = projectsManager.getRunningProject();
-  
-  // Handle various auto-start states when no project is running
-  if (!runningProject) {
-    let status = 'not-running';
-    if (autoStartStatus === 'starting') status = 'starting';
-    else if (autoStartStatus === 'failed') status = 'failed';
-    else if (autoStartStatus === 'idle') status = 'not-configured';
-    
-    return res.json({
-      status,
-      project: config.powerhouse.project || null,
-      driveUrl: null,
-      ready: false,
-      uptime: 0,
-      ports: null,
-      error: autoStartStatus === 'failed' ? autoStartError : null
-    });
-  }
-  
-  const uptime = Date.now() - runningProject.startedAt.getTime();
-  const status = runningProject.isFullyStarted ? 'ready' : 'starting';
-  
-  res.json({
-    status,
-    project: runningProject.name,
-    driveUrl: runningProject.driveUrl || null,
-    ready: runningProject.isFullyStarted,
-    uptime,
-    ports: {
-      connect: runningProject.connectPort,
-      switchboard: runningProject.switchboardPort
-    }
-  });
-});
-
-/**
- * GET /projects/running/logs - Get logs from the running project
- */
-app.get('/projects/running/logs', (req, res) => {
-  const logs = projectsManager.getProjectLogs();
-  const runningProject = projectsManager.getRunningProject();
-  
-  if (!logs || !runningProject) {
-    return res.status(404).json({
-      error: 'No project is currently running'
-    });
-  }
-  
-  // Parse query parameters
-  const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
-  const tail = req.query.tail === 'true';
-  
-  // Get logs based on parameters
-  let resultLogs = logs;
-  
-  if (limit && limit > 0) {
-    // Return last N logs
-    resultLogs = logs.slice(-limit);
-  }
-  
-  // For tail mode, we could implement a marker system in the future
-  // For now, just return the latest logs
-  if (tail) {
-    // In a real implementation, this would track the last position
-    // and only return new logs since then
-    resultLogs = logs.slice(-10); // Return last 10 logs for tail mode
-  }
-  
-  res.json({
-    logs: resultLogs,
-    count: resultLogs.length,
-    totalAvailable: logs.length,
-    projectName: runningProject.name
-  });
-});
-
-/**
- * GET /projects/running/drive-url - Get the Drive URL of the running project
- */
-app.get('/projects/running/drive-url', (_req, res) => {
-  const runningProject = projectsManager.getRunningProject();
-  
-  if (!runningProject) {
-    return res.json({
-      driveUrl: null,
-      message: 'No project is currently running'
-    });
-  }
-  
-  if (!runningProject.driveUrl) {
-    return res.json({
-      driveUrl: null,
-      message: 'Drive URL not yet available',
-      project: runningProject.name
-    });
-  }
-  
-  res.json({
-    driveUrl: runningProject.driveUrl,
-    project: runningProject.name
-  });
-});
+// Mount route handlers
+app.use(createInfoRouter(projectsManager));
+app.use(createHealthRouter(getReactorInstance, projectsManager));
+app.use(createModelsRouter(getReactorInstance));
+app.use(createDrivesRouter(getReactorInstance));
+app.use(createProjectsRouter(projectsManager, getAutoStartState));
 
 async function start() {
   try {

@@ -81,6 +81,40 @@ export function createClaudeCodeTask(
 }
 
 /**
+ * Service status type for tracking lifecycle states
+ */
+export type ServiceStatus = 'booting' | 'running' | 'stopping' | 'stopped' | 'failed';
+
+/**
+ * Endpoint capture group configuration for extracting URLs from output
+ */
+export interface EndpointCaptureGroup {
+    endpointName: string; // E.g. 'vetra-switchboard', 'vetra-connect', 'drive-url'
+    endpointDefaultHostUrl: string; // E.g. 'http://localhost'
+    endpointCaptureGroup: number; // Which capture group contains the port/path (1-based)
+    monitorPortReleaseUponTermination?: boolean; // Monitor port release when service stops (default: false)
+}
+
+/**
+ * Readiness pattern for detecting when a service is ready
+ */
+export interface ReadinessPattern {
+    regex: string; // Regular expression to match
+    flags?: string; // Regex flags (default: '')
+    stream?: 'stdout' | 'stderr' | 'any'; // Which stream to monitor (default: 'any')
+    name?: string; // Optional name for the pattern
+    endpoints?: EndpointCaptureGroup[]; // Optional endpoint extraction
+}
+
+/**
+ * Readiness configuration for service boot phase
+ */
+export interface ReadinessConfig {
+    patterns: ReadinessPattern[]; // Patterns to match for readiness
+    timeout?: number; // Boot phase timeout in ms (default: 30000)
+}
+
+/**
  * Task for long-running services that should not timeout
  */
 export interface ServiceTask extends BaseTask {
@@ -98,6 +132,7 @@ export interface ServiceTask extends BaseTask {
         maxRetries?: number;
         delay?: number;
     };
+    readiness?: ReadinessConfig; // Optional readiness detection
 }
 
 /**
@@ -108,13 +143,16 @@ export interface ServiceHandle {
     taskId: string;
     pid?: number;
     startedAt: Date;
-    status: 'starting' | 'running' | 'stopping' | 'stopped' | 'failed';
+    bootedAt?: Date; // When service transitioned from booting to running
+    status: ServiceStatus;
+    readinessMatches?: Map<string, string[]>; // Pattern name/index → captured groups
+    endpoints?: Map<string, string>; // endpointName → constructed URL
 }
 
 /**
- * Service status information
+ * Service information for status reporting
  */
-export interface ServiceStatus {
+export interface ServiceInfo {
     handle: ServiceHandle;
     uptime: number;
     restartCount: number;

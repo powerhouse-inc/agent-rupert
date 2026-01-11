@@ -1,4 +1,4 @@
-import { spawn, ChildProcess, SpawnOptions } from 'child_process';
+import { spawn, ChildProcess, SpawnOptions, exec, execSync } from 'child_process';
 import { EventEmitter } from 'events';
 import { Readable } from 'stream';
 import { BaseTask } from '../types.js';
@@ -214,11 +214,32 @@ export abstract class BaseExecutor extends EventEmitter {
 
             // Send graceful shutdown signal
             try {
-                process.kill(killSignal);
-                this.emit('process-kill-sent', { 
-                    pid: process.pid, 
-                    signal: killSignal 
-                });
+                if (process.pid && global.process.platform !== 'win32') {
+                    // On Unix, if process was spawned with detached: true,
+                    // it's a process group leader. Kill the entire group.
+                    try {
+                        // Use system kill to send signal to process group (negative PID)
+                        execSync(`kill -${killSignal.replace('SIG', '')} -${process.pid}`, { stdio: 'ignore' });
+                        this.emit('process-kill-sent', { 
+                            pid: -process.pid, // Negative indicates process group
+                            signal: killSignal 
+                        });
+                    } catch (err) {
+                        // If group kill fails, fallback to normal kill
+                        process.kill(killSignal);
+                        this.emit('process-kill-sent', { 
+                            pid: process.pid, 
+                            signal: killSignal 
+                        });
+                    }
+                } else {
+                    // Windows or fallback
+                    process.kill(killSignal);
+                    this.emit('process-kill-sent', { 
+                        pid: process.pid, 
+                        signal: killSignal 
+                    });
+                }
             } catch (error) {
                 // Process might already be dead
                 process.removeListener('exit', exitHandler);
@@ -230,7 +251,17 @@ export abstract class BaseExecutor extends EventEmitter {
             forceKillTimeout = setTimeout(() => {
                 if (!processExited && !process.killed) {
                     try {
-                        process.kill('SIGKILL');
+                        if (process.pid && global.process.platform !== 'win32') {
+                            // Force kill the process group
+                            try {
+                                execSync(`kill -9 -${process.pid}`, { stdio: 'ignore' });
+                            } catch {
+                                // Fallback to normal kill
+                                process.kill('SIGKILL');
+                            }
+                        } else {
+                            process.kill('SIGKILL');
+                        }
                         this.emit('process-force-killed', { 
                             pid: process.pid 
                         });

@@ -3057,6 +3057,93 @@ packages:
     peerDependencies:
       storybook: ^8.2.0 || ^8.3.0-0 || ^8.4.0-0 || ^8.5.0-0 || ^8.6.0-0
 
+  '@svar-ui/comments-locales@2.4.0':
+    resolution: {integrity: sha512-StcviQBWrfs4iulgNAb7rjycBe6fsv2/UvmeZpHNHSvSGCMF+q5Cx0FczwgCXd+dVQI6QPhfOPunmu64hzgIWg==}
+
+  '@svar-ui/core-locales@2.4.0':
+    resolution: {integrity: sha512-FXB4MtqbZw4TNdPfELsMum6y5Tgu0PRA7a6upJjLWDYJjlcYEcyT49iJONb30gPIL7HgJkUylJnz6iNuNA3Icw==}
+
+  '@svar-ui/editor-locales@2.4.0':
+    resolution: {integrity: sha512-ngo2vdAxdpYeEhCfIJstyKP6mY7uE3hDI7xpzkN8d92DJcrdgCquYTAkI7UV94FGlfGMfGM2DFnXYSuQwLYB9w==}
+
+  '@svar-ui/filter-locales@2.4.0':
+    resolution: {integrity: sha512-POV7u7xM9O84i5HnWKQ9LfWyfvmVgFOl0wDO+Ix6MfugPkj14pX6FLvuooyXwfUNMV6G6hS7AuKlNR5SlW94ZA==}
+
+  '@svar-ui/filter-store@2.4.0':
+    resolution: {integrity: sha512-xEnVZXuDFxduHfqq+r1YjditolB1FpHHFGK87WOjTrtIPmiiKCQF2vt5LKJuswUQPbG3kMW93EAvZWZVCnKeKA==}
+
+  '@svar-ui/grid-data-provider@2.4.0':
+    resolution: {integrity: sha512-Rm0Zbwj3/ZZLTdpmJXX/lGKafL2sqZuikOh/8KXNty7RXjx6WqryjaAkX6t0cl8lnhPjV/awC4R4+uYRW4UbEQ==}
+
+  '@svar-ui/grid-locales@2.4.0':
+    resolution: {integrity: sha512-UnhsQYzDAplMES08QXupa7/1BdBXyCujnTuQaIKZcDf/PGRiSFo3I3iNCk6UdJ5Tnj4si9CqB8/wcIp2YyAHSg==}
+
+  '@svar-ui/grid-store@2.4.0':
+    resolution: {integrity: sha512-GJyVC+5G+aA8EfcoKMwrHVP2/OK7bUUbp9ofyZTGUAyuXO9tkxRnfquvk+nTA1ybOfbFCY8rSsJTEHYcgXQCTw==}
+
+  '@svar-ui/lib-data-provider@1.7.1':
+    resolution: {integrity: sha512-5Bi9ywngcMTKpGtan0s7q8ivd84Bp0ZnRP+5bLZg6oiRB7YMyN5D5X+apc3CWDAnG4zZn3en4YwS2qc/aHIIuQ==}
+
+  '@svar-ui/lib-dom@0.11.1':
+    resolution: {integrity: sha512-4wgerhDVttvrQ9t6OjHur34Of+VVr2VygA16HHGcWHytgdnOuGgfZb5PeBEhCJw/pO3RKfJvBHbaMIzL4IR//g==}
+
+  '@svar-ui/lib-react@1.2.2':
+    resolution: {integrity: sha512-bB+Vou2NM0JhMuFW03MsjjoV5Y3xcFfuuK48+7uzUC9Ui1oSWpCK+txOZ+dnUFJISSVjSsXuF34AzMw/2CA63w==}
+
+  '@svar-ui/lib-state@1.9.6':
+    resolution: {integrity: sha512-twoHa8wZvzdxtES68s6Wnp4Xi1WivScNaFFK6sJ6WDgqVYOzJw0ZhVVrdwHQgieLITTKl/DYh/U3nuqtMetKYw==}
+
+  '@svar-ui/react-comments@2.4.0':
+    resolution: {integrity: sha512-AYIyox5AboURnS+mQXWR+0egk/XGzcZivam9TaGvUh7+msq1Dr0SZXcDXImZDZDQzIFDfgRW6GrJb6i/P4AJkQ==}
+    peerDependencies:
+      react: '>=18'
+      react-dom: '>=18'
+
+  '@svar-ui/react-core@2.4.0':
+    resolution: {integrity: sha512-65skFDBmQFedlwdMYZ/OF/U/D/IMrs+NqlgI+IUBATXjwshn2YNu6Mke08rfiatr4+Tc/RRowdfhkB0BgmT6Pw==}
+    peerDependencies:
+      react: '>=18'
+      react-dom: '>=18'
+
+  '@svar-ui/react-editor@2.4.0':
+    resolution: {integrity: sha512-hbF5XWPmqrOwo4KTs51jyNyWyeE20n5oTUX0CkL814UiKjGu5LDd4POzpJAVUASeHe535TqS4Vr0SCY1AcrVdQ==}
+    peerDependencies:
+      react: '>=18'
+      react-dom: '>=18'
+
+  '@svar-ui/react-filter@2.4.0':
+    resolution: {integrity: sha512-NaGf1M0uI4n6djpuqy9Lwv2g3YcvRwfwYHnVqLiTb8uspghWucTMM7QVy4ESkwl8CF09MxH4WaEwzpoN5M1+JQ==}
+    peerDependencies:
+      react: '>=18'
+      react-dom: '>=18'
+
+  '@svar-ui/react-grid@2.4.0':
+    resolution: {integrity: sha512-N7G7QwBN/1KQliQNdN8xhnF0W+tkdoIDg5plTYr3NspwIZYMF6oQCO+r+jVRNZV2cxtb9WHlq7x2vm/x0twsrg==}
+    peerDependencies:
+      react: '>=18'
+      react-dom: '>=18'
+
+  '@svar-ui/react-menu@2.4.0':
+    resolution: {integrity: sha512-v7hPw7T5RRBVEj9F7W35IF38l4SiMauzboDTw7pamcXpA7VJE88Pb3ctCC0TDAFbZPGxVevo+cHliDzfUygQsw==}
+    peerDependencies:
+      react: '>=18'
+      react-dom: '>=18'
+
+  '@svar-ui/react-tasklist@2.4.0':
+    resolution: {integrity: sha512-kOTpot7ds+aEAD0OP8K98dyQKQmF7wLpn7BrEHDvcPlwzW6RtajR7mWnK8znw2Y+O0qo3b3uYxBVE1JoKB2ePw==}
+    peerDependencies:
+      react: '>=18'
+      react-dom: '>=18'
+
+  '@svar-ui/react-toolbar@2.4.0':
+    resolution: {integrity: sha512-eBtUTftSosf0I7Y3r9TeHe3uVvg+YL77+NhGEGV9DnqFCvw2Zp2IrCViuBbcW9owsPLeXHtM7Eb8/U61EqRUYQ==}
+    peerDependencies:
+      react: '>=18'
+      react-dom: '>=18'
+
+  '@svar-ui/tasklist-locales@2.4.0':
+    resolution: {integrity: sha512-gcclKwfShkTiZaYCl9blfOiUqVwcEv8qtyNoKfEhli4FWjjG4sysue27CvHD2qFZAjoRYQi2hoQ4odLM1AO7tQ==}
+
   '@svgr/babel-plugin-add-jsx-attribute@8.0.0':
     resolution: {integrity: sha512-b9MIk7yhdS1pMCZM8VeNfUlSKVRhsHZNMl5O9SfaX0l0t5wjdgu4IDzGB8bpnGBBOjGST3rRFVsaaEtI4W6f7g==}
     engines: {node: '>=14'}
@@ -14949,6 +15036,129 @@ snapshots:
     dependencies:
       storybook: 8.6.15(bufferutil@4.1.0)(prettier@3.7.4)(utf-8-validate@5.0.10)
 
+  '@svar-ui/comments-locales@2.4.0': {}
+
+  '@svar-ui/core-locales@2.4.0': {}
+
+  '@svar-ui/editor-locales@2.4.0': {}
+
+  '@svar-ui/filter-locales@2.4.0': {}
+
+  '@svar-ui/filter-store@2.4.0':
+    dependencies:
+      '@svar-ui/lib-state': 1.9.6
+
+  '@svar-ui/grid-data-provider@2.4.0':
+    dependencies:
+      '@svar-ui/lib-data-provider': 1.7.1
+
+  '@svar-ui/grid-locales@2.4.0': {}
+
+  '@svar-ui/grid-store@2.4.0':
+    dependencies:
+      '@svar-ui/lib-dom': 0.11.1
+      '@svar-ui/lib-state': 1.9.6
+
+  '@svar-ui/lib-data-provider@1.7.1':
+    dependencies:
+      '@svar-ui/lib-state': 1.9.6
+
+  '@svar-ui/lib-dom@0.11.1': {}
+
+  '@svar-ui/lib-react@1.2.2':
+    dependencies:
+      '@svar-ui/lib-dom': 0.11.1
+
+  '@svar-ui/lib-state@1.9.6': {}
+
+  '@svar-ui/react-comments@2.4.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3)':
+    dependencies:
+      '@svar-ui/comments-locales': 2.4.0
+      '@svar-ui/core-locales': 2.4.0
+      '@svar-ui/lib-data-provider': 1.7.1
+      '@svar-ui/lib-dom': 0.11.1
+      '@svar-ui/lib-state': 1.9.6
+      '@svar-ui/react-core': 2.4.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      '@svar-ui/react-menu': 2.4.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      react: 19.2.3
+      react-dom: 19.2.3(react@19.2.3)
+
+  '@svar-ui/react-core@2.4.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3)':
+    dependencies:
+      '@svar-ui/core-locales': 2.4.0
+      '@svar-ui/lib-dom': 0.11.1
+      '@svar-ui/lib-react': 1.2.2
+      react: 19.2.3
+      react-dom: 19.2.3(react@19.2.3)
+
+  '@svar-ui/react-editor@2.4.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3)':
+    dependencies:
+      '@svar-ui/editor-locales': 2.4.0
+      '@svar-ui/lib-dom': 0.11.1
+      '@svar-ui/lib-state': 1.9.6
+      '@svar-ui/react-comments': 2.4.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      '@svar-ui/react-core': 2.4.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      '@svar-ui/react-tasklist': 2.4.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      '@svar-ui/react-toolbar': 2.4.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      react: 19.2.3
+      react-dom: 19.2.3(react@19.2.3)
+
+  '@svar-ui/react-filter@2.4.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3)':
+    dependencies:
+      '@svar-ui/filter-locales': 2.4.0
+      '@svar-ui/filter-store': 2.4.0
+      '@svar-ui/lib-dom': 0.11.1
+      '@svar-ui/lib-react': 1.2.2
+      '@svar-ui/lib-state': 1.9.6
+      '@svar-ui/react-core': 2.4.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      '@svar-ui/react-grid': 2.4.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      '@svar-ui/react-menu': 2.4.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      react: 19.2.3
+      react-dom: 19.2.3(react@19.2.3)
+
+  '@svar-ui/react-grid@2.4.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3)':
+    dependencies:
+      '@svar-ui/grid-data-provider': 2.4.0
+      '@svar-ui/grid-locales': 2.4.0
+      '@svar-ui/grid-store': 2.4.0
+      '@svar-ui/lib-dom': 0.11.1
+      '@svar-ui/lib-react': 1.2.2
+      '@svar-ui/lib-state': 1.9.6
+      '@svar-ui/react-core': 2.4.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      '@svar-ui/react-editor': 2.4.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      '@svar-ui/react-filter': 2.4.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      '@svar-ui/react-menu': 2.4.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      react: 19.2.3
+      react-dom: 19.2.3(react@19.2.3)
+
+  '@svar-ui/react-menu@2.4.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3)':
+    dependencies:
+      '@svar-ui/core-locales': 2.4.0
+      '@svar-ui/lib-dom': 0.11.1
+      '@svar-ui/react-core': 2.4.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      react: 19.2.3
+      react-dom: 19.2.3(react@19.2.3)
+
+  '@svar-ui/react-tasklist@2.4.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3)':
+    dependencies:
+      '@svar-ui/lib-data-provider': 1.7.1
+      '@svar-ui/lib-dom': 0.11.1
+      '@svar-ui/lib-state': 1.9.6
+      '@svar-ui/react-core': 2.4.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      '@svar-ui/tasklist-locales': 2.4.0
+      react: 19.2.3
+      react-dom: 19.2.3(react@19.2.3)
+
+  '@svar-ui/react-toolbar@2.4.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3)':
+    dependencies:
+      '@svar-ui/core-locales': 2.4.0
+      '@svar-ui/lib-dom': 0.11.1
+      '@svar-ui/react-core': 2.4.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      react: 19.2.3
+      react-dom: 19.2.3(react@19.2.3)
+
+  '@svar-ui/tasklist-locales@2.4.0': {}
+
   '@svgr/babel-plugin-add-jsx-attribute@8.0.0(@babel/core@7.28.5)':
     dependencies:
       '@babel/core': 7.28.5
@@ -21203,6 +21413,7 @@ snapshots:
       '@powerhousedao/design-system': 5.1.0(@tanstack/query-core@5.90.16)(@types/express@5.0.6)(@types/react-dom@19.2.3(@types/react@19.2.7))(@types/react@19.2.7)(bufferutil@4.1.0)(encoding@0.1.13)(fastestsmallesttextencoderdecoder@1.0.22)(react-dom@19.2.3(react@19.2.3))(react-native@0.83.1(@babel/core@7.28.5)(@types/react@19.2.7)(bufferutil@4.1.0)(react@19.2.3)(utf-8-validate@5.0.10))(react@19.2.3)(typescript@5.9.3)(utf-8-validate@5.0.10)(ws@8.19.0(bufferutil@4.1.0)(utf-8-validate@5.0.10))
       '@powerhousedao/document-engineering': 1.40.0(@types/express@5.0.6)(@types/react-dom@19.2.3(@types/react@19.2.7))(@types/react@19.2.7)(bufferutil@4.1.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(typescript@5.9.3)(utf-8-validate@5.0.10)
       '@powerhousedao/vetra': 5.1.0(91439b045c35ccc588add39956e6dd26)
+      '@svar-ui/react-grid': 2.4.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       document-model: 5.1.0
       graphql: 16.12.0
       graphql-tag: 2.12.6(graphql@16.12.0)

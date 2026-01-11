@@ -8,14 +8,20 @@ describe('PowerhouseProjectsManager', () => {
     let tempDir: string;
     let manager: PowerhouseProjectsManager;
     let originalConsoleWarn: typeof console.warn;
-    let mockExecutor: any;
+    let originalConsoleLog: typeof console.log;
+    let mockCLIExecutor: any;
+    let mockServiceExecutor: any;
     let mockExecute: jest.Mock;
-    let mockExecuteWithStream: jest.Mock;
+    let mockStart: jest.Mock;
+    let mockStop: jest.Mock;
+    let serviceListeners: Map<string, Function[]>;
 
     beforeEach(async () => {
-        // Suppress console.warn in tests
+        // Suppress console.warn and console.log in tests
         originalConsoleWarn = console.warn;
+        originalConsoleLog = console.log;
         console.warn = jest.fn();
+        console.log = jest.fn();
         
         // Create a temporary directory for testing
         tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'ph-test-'));
@@ -23,26 +29,58 @@ describe('PowerhouseProjectsManager', () => {
         // Reset mocks
         jest.clearAllMocks();
         
-        // Create mock executor
+        // Track service executor event listeners
+        serviceListeners = new Map();
+        
+        // Create mock CLI executor for init
         mockExecute = jest.fn();
-        mockExecuteWithStream = jest.fn();
-        mockExecutor = {
+        mockCLIExecutor = {
             execute: mockExecute,
-            executeWithStream: mockExecuteWithStream,
             on: jest.fn(),
             emit: jest.fn()
         };
         
-        // Create manager instance with temp directory and mock executor
-        manager = new PowerhouseProjectsManager(tempDir, mockExecutor);
+        // Create mock Service executor for run/stop
+        mockStart = jest.fn();
+        mockStop = jest.fn();
+        mockServiceExecutor = {
+            start: mockStart,
+            stop: mockStop,
+            restart: jest.fn(),
+            getStatus: jest.fn(),
+            getLogs: jest.fn(),
+            getAllServices: jest.fn(),
+            stopAll: jest.fn(),
+            on: jest.fn((event: string, handler: Function) => {
+                if (!serviceListeners.has(event)) {
+                    serviceListeners.set(event, []);
+                }
+                serviceListeners.get(event)!.push(handler);
+            }),
+            once: jest.fn((event: string, handler: Function) => {
+                if (!serviceListeners.has(event)) {
+                    serviceListeners.set(event, []);
+                }
+                serviceListeners.get(event)!.push(handler);
+            }),
+            emit: jest.fn((event: string, ...args: any[]) => {
+                const handlers = serviceListeners.get(event) || [];
+                handlers.forEach(handler => handler(...args));
+            }),
+            removeListener: jest.fn()
+        };
+        
+        // Create manager instance with temp directory and mock executors
+        manager = new PowerhouseProjectsManager(tempDir, mockCLIExecutor, mockServiceExecutor);
         
         // Mock waitForDriveUrl to resolve immediately in tests (avoid 60s timeout)
         jest.spyOn(manager, 'waitForDriveUrl').mockImplementation(() => Promise.resolve(null));
     });
 
     afterEach(async () => {
-        // Restore console.warn
+        // Restore console
         console.warn = originalConsoleWarn;
+        console.log = originalConsoleLog;
         
         // Clean up temp directory
         try {
@@ -123,12 +161,15 @@ describe('PowerhouseProjectsManager', () => {
         });
 
         it('should successfully start a project', async () => {
-            // Mock successful execution
-            mockExecuteWithStream.mockResolvedValue({
-                stdout: 'Server started',
-                stderr: '',
-                exitCode: 0
-            });
+            // Mock successful service start
+            const mockHandle = {
+                id: 'service-123',
+                taskId: 'task-456',
+                status: 'running',
+                pid: 1234,
+                startedAt: new Date()
+            };
+            mockStart.mockResolvedValue(mockHandle);
 
             const result = await manager.runProject('test-project');
 
@@ -138,9 +179,9 @@ describe('PowerhouseProjectsManager', () => {
             expect(result.switchboardPort).toBe(4001);
             expect(result.error).toBeUndefined();
 
-            // Verify CLI task was created correctly
-            expect(mockExecuteWithStream).toHaveBeenCalledTimes(1);
-            const task = mockExecuteWithStream.mock.calls[0][0];
+            // Verify ServiceTask was created correctly
+            expect(mockStart).toHaveBeenCalledTimes(1);
+            const task = mockStart.mock.calls[0][0];
             expect(task.command).toBe('ph');
             expect(task.args).toEqual([
                 'vetra', 
@@ -153,11 +194,14 @@ describe('PowerhouseProjectsManager', () => {
         });
 
         it('should use custom ports when provided', async () => {
-            mockExecuteWithStream.mockResolvedValue({
-                stdout: 'Server started',
-                stderr: '',
-                exitCode: 0
-            });
+            const mockHandle = {
+                id: 'service-123',
+                taskId: 'task-456',
+                status: 'running',
+                pid: 1234,
+                startedAt: new Date()
+            };
+            mockStart.mockResolvedValue(mockHandle);
 
             const result = await manager.runProject('test-project', {
                 connectPort: 8080,
@@ -168,7 +212,7 @@ describe('PowerhouseProjectsManager', () => {
             expect(result.connectPort).toBe(8080);
             expect(result.switchboardPort).toBe(8081);
 
-            const task = mockExecuteWithStream.mock.calls[0][0];
+            const task = mockStart.mock.calls[0][0];
             expect(task.args).toEqual([
                 'vetra',
                 '--watch',
@@ -182,16 +226,19 @@ describe('PowerhouseProjectsManager', () => {
 
             expect(result.success).toBe(false);
             expect(result.error).toContain('not found');
-            expect(mockExecuteWithStream).not.toHaveBeenCalled();
+            expect(mockStart).not.toHaveBeenCalled();
         });
 
         it('should fail if a project is already running', async () => {
             // Start first project
-            mockExecuteWithStream.mockResolvedValue({
-                stdout: 'Server started',
-                stderr: '',
-                exitCode: 0
-            });
+            const mockHandle = {
+                id: 'service-123',
+                taskId: 'task-456',
+                status: 'running',
+                pid: 1234,
+                startedAt: new Date()
+            };
+            mockStart.mockResolvedValue(mockHandle);
 
             await manager.runProject('test-project');
 
@@ -209,7 +256,7 @@ describe('PowerhouseProjectsManager', () => {
             expect(result.error).toContain('already running');
             expect(result.error).toContain('test-project');
             // Should not try to start the second project
-            expect(mockExecuteWithStream).toHaveBeenCalledTimes(1);
+            expect(mockStart).toHaveBeenCalledTimes(1);
         });
 
         it('should fail with empty project name', async () => {
@@ -217,30 +264,37 @@ describe('PowerhouseProjectsManager', () => {
 
             expect(result.success).toBe(false);
             expect(result.error).toContain('Project name cannot be empty');
-            expect(mockExecuteWithStream).not.toHaveBeenCalled();
+            expect(mockStart).not.toHaveBeenCalled();
         });
 
         it('should handle streaming output', async () => {
-            let capturedOnStdout: ((data: string) => void) | undefined;
-            let capturedOnStderr: ((data: string) => void) | undefined;
-
-            // Mock execution with stream callbacks
-            mockExecuteWithStream.mockImplementation(async (_task: any, streamOptions: any) => {
-                capturedOnStdout = streamOptions?.onStdout;
-                capturedOnStderr = streamOptions?.onStderr;
-                return { exitCode: 0 };
-            });
+            const mockHandle = {
+                id: 'service-123',
+                taskId: 'task-456',
+                status: 'running',
+                pid: 1234,
+                startedAt: new Date()
+            };
+            mockStart.mockResolvedValue(mockHandle);
 
             await manager.runProject('test-project');
 
-            // Simulate output
-            if (capturedOnStdout) {
-                capturedOnStdout('Server starting...');
-                capturedOnStdout('Listening on port 5000');
-            }
-            if (capturedOnStderr) {
-                capturedOnStderr('Warning: development mode');
-            }
+            // Simulate service output events
+            mockServiceExecutor.emit('service-output', {
+                serviceId: mockHandle.id,
+                type: 'stdout',
+                data: 'Server starting...'
+            });
+            mockServiceExecutor.emit('service-output', {
+                serviceId: mockHandle.id,
+                type: 'stdout',
+                data: 'Listening on port 5000'
+            });
+            mockServiceExecutor.emit('service-output', {
+                serviceId: mockHandle.id,
+                type: 'stderr',
+                data: 'Warning: development mode'
+            });
 
             // Check logs were captured
             const logs = manager.getProjectLogs();
@@ -251,20 +305,24 @@ describe('PowerhouseProjectsManager', () => {
         });
 
         it('should limit logs to 500 entries', async () => {
-            let capturedOnStdout: ((data: string) => void) | undefined;
-
-            mockExecuteWithStream.mockImplementation(async (_task: any, streamOptions: any) => {
-                capturedOnStdout = streamOptions?.onStdout;
-                return { exitCode: 0 };
-            });
+            const mockHandle = {
+                id: 'service-123',
+                taskId: 'task-456',
+                status: 'running',
+                pid: 1234,
+                startedAt: new Date()
+            };
+            mockStart.mockResolvedValue(mockHandle);
 
             await manager.runProject('test-project');
 
             // Should always keep 500 logs maximum
-            if (capturedOnStdout) {
-                for (let i = 0; i < 600; i++) {
-                    capturedOnStdout(`Log entry ${i}`);
-                }
+            for (let i = 0; i < 600; i++) {
+                mockServiceExecutor.emit('service-output', {
+                    serviceId: mockHandle.id,
+                    type: 'stdout',
+                    data: `Log entry ${i}`
+                });
             }
 
             let logs = manager.getProjectLogs();
@@ -274,11 +332,17 @@ describe('PowerhouseProjectsManager', () => {
             expect(logs![499]).toContain('Log entry 599'); // Last entry
 
             // Even after Drive URL is captured, should still keep 500 logs
-            if (capturedOnStdout) {
-                capturedOnStdout('Drive URL: http://localhost:4001/drives/test');
-                for (let i = 600; i < 700; i++) {
-                    capturedOnStdout(`Log entry ${i}`);
-                }
+            mockServiceExecutor.emit('service-output', {
+                serviceId: mockHandle.id,
+                type: 'stdout',
+                data: 'Drive URL: http://localhost:4001/drives/test'
+            });
+            for (let i = 600; i < 700; i++) {
+                mockServiceExecutor.emit('service-output', {
+                    serviceId: mockHandle.id,
+                    type: 'stdout',
+                    data: `Log entry ${i}`
+                });
             }
 
             logs = manager.getProjectLogs();
@@ -288,12 +352,14 @@ describe('PowerhouseProjectsManager', () => {
         });
 
         it('should capture Drive URL from stdout and set isFullyStarted', async () => {
-            let capturedOnStdout: ((data: string) => void) | undefined;
-
-            mockExecuteWithStream.mockImplementation(async (_task: any, streamOptions: any) => {
-                capturedOnStdout = streamOptions?.onStdout;
-                return { exitCode: 0 };
-            });
+            const mockHandle = {
+                id: 'service-123',
+                taskId: 'task-456',
+                status: 'running',
+                pid: 1234,
+                startedAt: new Date()
+            };
+            mockStart.mockResolvedValue(mockHandle);
 
             await manager.runProject('test-project');
 
@@ -304,9 +370,11 @@ describe('PowerhouseProjectsManager', () => {
             expect(runningProject!.driveUrl).toBeUndefined();
 
             // Simulate Drive URL appearing in stdout
-            if (capturedOnStdout) {
-                capturedOnStdout('Drive URL: http://localhost:4001/drives/abc123');
-            }
+            mockServiceExecutor.emit('service-output', {
+                serviceId: mockHandle.id,
+                type: 'stdout',
+                data: 'Drive URL: http://localhost:4001/drives/abc123'
+            });
 
             // After Drive URL, project should be fully started
             runningProject = manager.getRunningProject();
@@ -315,19 +383,23 @@ describe('PowerhouseProjectsManager', () => {
         });
 
         it('should capture Drive URL from stderr', async () => {
-            let capturedOnStderr: ((data: string) => void) | undefined;
-
-            mockExecuteWithStream.mockImplementation(async (_task: any, streamOptions: any) => {
-                capturedOnStderr = streamOptions?.onStderr;
-                return { exitCode: 0 };
-            });
+            const mockHandle = {
+                id: 'service-123',
+                taskId: 'task-456',
+                status: 'running',
+                pid: 1234,
+                startedAt: new Date()
+            };
+            mockStart.mockResolvedValue(mockHandle);
 
             await manager.runProject('test-project');
 
             // Simulate Drive URL appearing in stderr
-            if (capturedOnStderr) {
-                capturedOnStderr('Some startup logs... Drive URL: http://localhost:4001/drives/xyz789 ... more logs');
-            }
+            mockServiceExecutor.emit('service-output', {
+                serviceId: mockHandle.id,
+                type: 'stderr',
+                data: 'Some startup logs... Drive URL: http://localhost:4001/drives/xyz789 ... more logs'
+            });
 
             const runningProject = manager.getRunningProject();
             expect(runningProject!.isFullyStarted).toBe(true);
@@ -345,7 +417,14 @@ describe('PowerhouseProjectsManager', () => {
 
             // Mock waitForDriveUrl to return a URL
             (manager.waitForDriveUrl as jest.Mock).mockResolvedValue('http://localhost:4001/drives/test123');
-            mockExecuteWithStream.mockResolvedValue({ exitCode: 0 });
+            const mockHandle = {
+                id: 'service-123',
+                taskId: 'task-456',
+                status: 'running',
+                pid: 1234,
+                startedAt: new Date()
+            };
+            mockStart.mockResolvedValue(mockHandle);
 
             const result = await manager.runProject('test-project');
 
@@ -365,7 +444,14 @@ describe('PowerhouseProjectsManager', () => {
 
             // Mock waitForDriveUrl
             (manager.waitForDriveUrl as jest.Mock).mockResolvedValue('http://localhost:4001/drives/custom');
-            mockExecuteWithStream.mockResolvedValue({ exitCode: 0 });
+            const mockHandle = {
+                id: 'service-123',
+                taskId: 'task-456',
+                status: 'running',
+                pid: 1234,
+                startedAt: new Date()
+            };
+            mockStart.mockResolvedValue(mockHandle);
 
             const result = await manager.runProject('test-project', { 
                 connectPort: 5000,
@@ -387,7 +473,14 @@ describe('PowerhouseProjectsManager', () => {
                 JSON.stringify({ studio: { port: 3000 } })
             );
 
-            mockExecuteWithStream.mockResolvedValue({ exitCode: 0 });
+            const mockHandle = {
+                id: 'service-123',
+                taskId: 'task-456',
+                status: 'running',
+                pid: 1234,
+                startedAt: new Date()
+            };
+            mockStart.mockResolvedValue(mockHandle);
 
             // Use new signature with custom ports
             const result = await manager.runProject('test-project', { 
@@ -403,7 +496,7 @@ describe('PowerhouseProjectsManager', () => {
 
         it('should handle executor errors', async () => {
             // Mock the executor to throw synchronously (before promise handlers are attached)
-            mockExecuteWithStream.mockImplementation(() => {
+            mockStart.mockImplementation(() => {
                 throw new Error('Failed to start server');
             });
 
@@ -433,7 +526,14 @@ describe('PowerhouseProjectsManager', () => {
                 JSON.stringify({ studio: { port: 3000 } })
             );
 
-            mockExecuteWithStream.mockResolvedValue({ exitCode: 0 });
+            const mockHandle = {
+                id: 'service-123',
+                taskId: 'task-456',
+                status: 'running',
+                pid: 1234,
+                startedAt: new Date()
+            };
+            mockStart.mockResolvedValue(mockHandle);
 
             await manager.runProject('test-project');
 
@@ -457,15 +557,15 @@ describe('PowerhouseProjectsManager', () => {
                 JSON.stringify({ studio: { port: 3000 } })
             );
 
-            const mockProcess = {
-                killed: false,
-                kill: jest.fn((_signal?: string) => {
-                    mockProcess.killed = true;
-                })
+            const mockHandle = {
+                id: 'service-123',
+                taskId: 'task-456',
+                status: 'running',
+                pid: 1234,
+                startedAt: new Date()
             };
-
-            mockExecutor.currentProcess = mockProcess;
-            mockExecuteWithStream.mockResolvedValue({ exitCode: 0 });
+            mockStart.mockResolvedValue(mockHandle);
+            mockStop.mockResolvedValue(undefined);
 
             await manager.runProject('test-project');
 
@@ -474,7 +574,9 @@ describe('PowerhouseProjectsManager', () => {
 
             expect(result.success).toBe(true);
             expect(result.error).toBeUndefined();
-            expect(mockProcess.kill).toHaveBeenCalledWith('SIGTERM');
+            expect(mockStop).toHaveBeenCalledWith('service-123', expect.objectContaining({
+                timeout: 10000
+            }));
 
             // Should clear running project
             const running = manager.getRunningProject();
@@ -488,7 +590,7 @@ describe('PowerhouseProjectsManager', () => {
             expect(result.error).toContain('No project is currently running');
         });
 
-        it('should force kill if graceful shutdown fails', async () => {
+        it('should handle shutdown errors gracefully', async () => {
             // Start a project
             const projectPath = path.join(tempDir, 'test-project');
             await fs.mkdir(projectPath, { recursive: true });
@@ -497,34 +599,26 @@ describe('PowerhouseProjectsManager', () => {
                 JSON.stringify({ studio: { port: 3000 } })
             );
 
-            const mockProcess = {
-                killed: false,
-                kill: jest.fn((signal?: string) => {
-                    // Only mark as killed on SIGTERM
-                    if (signal === 'SIGTERM') {
-                        mockProcess.killed = true;
-                    }
-                })
+            const mockHandle = {
+                id: 'service-123',
+                taskId: 'task-456',
+                status: 'running',
+                pid: 1234,
+                startedAt: new Date()
             };
-
-            mockExecutor.currentProcess = mockProcess;
-            mockExecuteWithStream.mockResolvedValue({ exitCode: 0 });
+            mockStart.mockResolvedValue(mockHandle);
+            mockStop.mockRejectedValue(new Error('Failed to stop service'));
 
             await manager.runProject('test-project');
 
-            // Mock timer to speed up test
-            jest.useFakeTimers();
-            const shutdownPromise = manager.shutdownProject();
-            
-            // Advance timer to trigger SIGTERM
-            jest.advanceTimersByTime(1100);
-            
-            const result = await shutdownPromise;
-            jest.useRealTimers();
+            // Try to shutdown - should handle error gracefully
+            const result = await manager.shutdownProject();
 
-            expect(result.success).toBe(true);
-            expect(mockProcess.kill).toHaveBeenCalledWith('SIGTERM');
-            expect(mockProcess.kill).toHaveBeenCalledWith('SIGTERM');
+            expect(result.success).toBe(false);
+            expect(result.error).toContain('Failed to stop service');
+            expect(mockStop).toHaveBeenCalledWith('service-123', expect.objectContaining({
+                timeout: 10000
+            }));
         });
     });
 
