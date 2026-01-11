@@ -40,13 +40,8 @@ export async function initializeAgents(config: ServerConfig): Promise<void> {
     agentsManager = new AgentsManager({
       enableReactorPackageAgent: true,
       enableArchitectAgent: true,
-      projectsDir: reactorPackageDev.reactorPackages.projectsDir,
-      reactorPackageConfig: {
-        reactor: {
-          remoteDriveUrl: reactorPackageDev.workDrive.driveUrl || undefined,
-          storage: reactorPackageDev.workDrive.reactorStorage
-        }
-      },
+      reactorPackageConfig: reactorPackageDev,
+      architectConfig: powerhouseArchitect,
       logger
     });
     

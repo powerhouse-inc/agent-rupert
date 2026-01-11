@@ -1,4 +1,5 @@
-import { AgentBase, type AgentConfig, type ILogger } from "../AgentBase.js";
+import { AgentBase, type ILogger } from "../AgentBase.js";
+import type { PowerhouseArchitectAgentConfig } from "../../types.js";
 
 /**
  *  The PowerhouseArchitectAgent creates and manages a variety of architecture-related 
@@ -6,8 +7,16 @@ import { AgentBase, type AgentConfig, type ILogger } from "../AgentBase.js";
  *  to develop and roll out Powerhouse-based cloud platforms. 
  */
 export class PowerhouseArchitectAgent extends AgentBase {
-    constructor(logger: ILogger, config?: AgentConfig) {
-        super('PowerhouseArchitectAgent', logger, config);
+    private config: PowerhouseArchitectAgentConfig;
+    
+    constructor(config: PowerhouseArchitectAgentConfig, logger: ILogger) {
+        super(config.name, logger, {
+            reactor: {
+                remoteDriveUrl: config.workDrive.driveUrl || undefined,
+                storage: config.workDrive.reactorStorage
+            }
+        });
+        this.config = config;
     }
     
     public async initialize(): Promise<void> {

@@ -1,14 +1,13 @@
 import { ReactorPackageDevAgent } from './ReactorPackageDevAgent/ReactorPackageDevAgent.js';
 import { PowerhouseArchitectAgent } from './PowerhouseArchitectAgent/PowerhouseArchitectAgent.js';
 import type { AgentBase, ILogger } from './AgentBase.js';
-import type { AgentConfig } from './AgentBase.js';
+import type { ReactorPackageDevAgentConfig, PowerhouseArchitectAgentConfig } from '../types.js';
 
 export interface AgentsConfig {
     enableReactorPackageAgent?: boolean;
     enableArchitectAgent?: boolean;
-    projectsDir: string;
-    reactorPackageConfig?: AgentConfig;
-    architectConfig?: AgentConfig;
+    reactorPackageConfig?: ReactorPackageDevAgentConfig;
+    architectConfig?: PowerhouseArchitectAgentConfig;
     logger?: ILogger;
 }
 
@@ -39,12 +38,11 @@ export class AgentsManager {
      */
     async initialize(): Promise<void> {
         // Initialize ReactorPackageAgent
-        if (this.config.enableReactorPackageAgent) {
+        if (this.config.enableReactorPackageAgent && this.config.reactorPackageConfig) {
             this.logger.info("AgentsManager: Initializing ReactorPackageAgent");
             this.reactorPackageAgent = new ReactorPackageDevAgent(
-                this.config.projectsDir,
-                this.logger,
-                this.config.reactorPackageConfig
+                this.config.reactorPackageConfig,
+                this.logger
             );
             await this.reactorPackageAgent.initialize();
             this.logger.info("AgentsManager: ReactorPackageAgent initialized successfully");
@@ -52,11 +50,11 @@ export class AgentsManager {
         }
         
         // Initialize PowerhouseArchitectAgent
-        if (this.config.enableArchitectAgent) {
+        if (this.config.enableArchitectAgent && this.config.architectConfig) {
             this.logger.info("AgentsManager: Initializing PowerhouseArchitectAgent");
             this.architectAgent = new PowerhouseArchitectAgent(
-                this.logger,
-                this.config.architectConfig
+                this.config.architectConfig,
+                this.logger
             );
             await this.architectAgent.initialize();
             this.logger.info("AgentsManager: PowerhouseArchitectAgent initialized successfully");

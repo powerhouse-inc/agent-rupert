@@ -1,7 +1,8 @@
-import { AgentBase, type AgentConfig, type ILogger } from "../AgentBase.js";
+import { AgentBase, type ILogger } from "../AgentBase.js";
 import { ReactorPackagesManager, type RunProjectOptions } from "./ReactorPackagesManager.js";
 import { CLIExecutor } from "../../tasks/executors/cli-executor.js";
 import { ServiceExecutor } from "../../tasks/executors/service-executor.js";
+import type { ReactorPackageDevAgentConfig } from "../../types.js";
 
 /**
  *  The ReactorPackageAgent uses ReactorPackagesManager with a number of associated tools
@@ -11,10 +12,17 @@ export class ReactorPackageDevAgent extends AgentBase {
     private cliExecutor: CLIExecutor;
     private serviceExecutor: ServiceExecutor;
     private projectsDir: string;
+    private config: ReactorPackageDevAgentConfig;
     
-    constructor(projectsDir: string, logger: ILogger, config?: AgentConfig) {
-        super('ReactorPackageAgent', logger, config);
-        this.projectsDir = projectsDir;
+    constructor(config: ReactorPackageDevAgentConfig, logger: ILogger) {
+        super(config.name, logger, {
+            reactor: {
+                remoteDriveUrl: config.workDrive.driveUrl || undefined,
+                storage: config.workDrive.reactorStorage
+            }
+        });
+        this.config = config;
+        this.projectsDir = config.reactorPackages.projectsDir;
         
         // Initialize executors
         this.cliExecutor = new CLIExecutor({

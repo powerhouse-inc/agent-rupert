@@ -11,17 +11,17 @@ Migrating from flat global config to hierarchical agent-specific configuration s
 - [x] Update server.ts to use defaultConfig
 - [x] Test build and runtime
 
-### Phase 2: Update Agent Initialization ⏳
-- [ ] Update AgentInitializer.ts to accept ServerConfig
-- [ ] Pass agent-specific configs to AgentsManager
-- [ ] Update AgentsManager config interface
-- [ ] Test initialization flow
+### Phase 2: Update Agent Initialization ✅
+- [x] Update AgentInitializer.ts to accept ServerConfig
+- [x] Pass agent-specific configs to AgentsManager
+- [x] Update AgentsManager config interface
+- [x] Test initialization flow
 
-### Phase 3: Update Agent Classes ⏳
-- [ ] Update AgentBase.ts ReactorConfig
-- [ ] Rename ReactorPackageAgent to ReactorPackageDevAgent
-- [ ] Update PowerhouseArchitectAgent config
-- [ ] Test agent instantiation
+### Phase 3: Update Agent Classes ✅
+- [x] Update AgentBase.ts ReactorConfig
+- [x] Rename ReactorPackageAgent to ReactorPackageDevAgent
+- [x] Update PowerhouseArchitectAgent config
+- [x] Test agent instantiation
 
 ### Phase 4: Update Server & Routes ⏳
 - [ ] Update server.ts config usage
