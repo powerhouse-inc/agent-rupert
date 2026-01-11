@@ -52,7 +52,7 @@ type AgentWorkDocument = {
   documentId: string | null;
 }
 
-type BaseAgentConfig = {
+export type BaseAgentConfig = {
   name: string;
   workDrive: {
     reactorStorage: StorageOptions;

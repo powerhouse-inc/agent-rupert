@@ -7,21 +7,14 @@ import type { ReactorPackageDevAgentConfig } from "../../types.js";
 /**
  *  The ReactorPackageAgent uses ReactorPackagesManager with a number of associated tools
  */
-export class ReactorPackageDevAgent extends AgentBase {
+export class ReactorPackageDevAgent extends AgentBase<ReactorPackageDevAgentConfig> {
     private packagesManager?: ReactorPackagesManager;
     private cliExecutor: CLIExecutor;
     private serviceExecutor: ServiceExecutor;
     private projectsDir: string;
-    private config: ReactorPackageDevAgentConfig;
     
     constructor(config: ReactorPackageDevAgentConfig, logger: ILogger) {
-        super(config.name, logger, {
-            reactor: {
-                remoteDriveUrl: config.workDrive.driveUrl || undefined,
-                storage: config.workDrive.reactorStorage
-            }
-        });
-        this.config = config;
+        super(config, logger);
         this.projectsDir = config.reactorPackages.projectsDir;
         
         // Initialize executors
@@ -41,13 +34,13 @@ export class ReactorPackageDevAgent extends AgentBase {
         await super.initialize();
         
         // Create packages manager
-        this.logger.info(`${this.name}: Creating ReactorPackagesManager for ${this.projectsDir}`);
+        this.logger.info(`${this.config.name}: Creating ReactorPackagesManager for ${this.projectsDir}`);
         this.packagesManager = new ReactorPackagesManager(
             this.projectsDir,
             this.cliExecutor,
             this.serviceExecutor
         );
-        this.logger.info(`${this.name}: ReactorPackagesManager created successfully`);
+        this.logger.info(`${this.config.name}: ReactorPackagesManager created successfully`);
     }
     
     public async shutdown(): Promise<void> {
@@ -55,7 +48,7 @@ export class ReactorPackageDevAgent extends AgentBase {
         if (this.packagesManager) {
             const runningProject = this.packagesManager.getRunningProject();
             if (runningProject) {
-                this.logger.info(`${this.name}: Shutting down running project: ${runningProject.name}`);
+                this.logger.info(`${this.config.name}: Shutting down running project: ${runningProject.name}`);
                 await this.packagesManager.shutdownProject();
             }
         }
@@ -97,5 +90,29 @@ export class ReactorPackageDevAgent extends AgentBase {
     
     public getReactor() {
         return super.getReactor();
+    }
+    
+    /**
+     * Handle updates to the inbox document
+     * This is where new tasks/requests from stakeholders arrive
+     */
+    protected handleInboxUpdate(_documentId: string, operations: any[]): void {
+        this.logger.info(`${this.config.name}: Processing inbox update with ${operations.length} operations`);
+        // TODO: Process inbox operations
+        // - Extract new tasks/requests
+        // - Create work items in WBS
+        // - Trigger task execution based on priority
+    }
+    
+    /**
+     * Handle updates to the WBS document
+     * This is where work progress and status changes are tracked
+     */
+    protected handleWbsUpdate(_documentId: string, operations: any[]): void {
+        this.logger.info(`${this.config.name}: Processing WBS update with ${operations.length} operations`);
+        // TODO: Process WBS operations
+        // - Check for completed tasks
+        // - Update project status
+        // - Trigger next steps based on dependencies
     }
 }

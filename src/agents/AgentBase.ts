@@ -1,11 +1,10 @@
 
 import { InMemoryCache, MemoryStorage, ReactorBuilder, driveDocumentModelModule } from 'document-drive';
 import type { IDriveOperationStorage } from 'document-drive/storage/types';
-import type { ReactorInstance } from '../types.js';
+import type { ReactorInstance, BaseAgentConfig } from '../types.js';
 import { documentModels } from 'powerhouse-agent';
 import { documentModelDocumentModelModule } from 'document-model';
 import { FilesystemStorage } from 'document-drive/storage/filesystem';
-import path from 'path';
 
 // Logger interface for dependency injection
 export interface ILogger {
@@ -15,18 +14,8 @@ export interface ILogger {
     debug(message: string): void;
 }
 
-// Configuration types
-export interface ReactorConfig {
-    remoteDriveUrl?: string;
-    storage?: {
-        type: 'filesystem' | 'memory';
-        filesystemPath?: string;
-    };
-}
-
-export interface AgentConfig {
-    reactor?: ReactorConfig;
-}
+// Re-export BaseAgentConfig type for convenience
+export type { BaseAgentConfig } from '../types.js';
 
 /**
  *  The AgentBase class implements a Powerhouse Agent which operates as follows: 
@@ -69,17 +58,15 @@ export interface AgentConfig {
  *          - A goal can be moved from TODO to DELEGATED
  *      
  */
-export abstract class AgentBase {
+export abstract class AgentBase<TConfig extends BaseAgentConfig = BaseAgentConfig> {
     protected reactor?: ReactorInstance;
-    protected reactorConfig?: ReactorConfig;
-    protected name: string;
+    protected config: TConfig;
     protected logger: ILogger;
     
-    constructor(name: string, logger: ILogger, config?: AgentConfig) {
-        this.name = name;
+    constructor(config: TConfig, logger: ILogger) {
+        this.config = config;
         this.logger = logger;
-        this.reactorConfig = config?.reactor;
-        this.logger.info(`${name}: Initialized`);
+        this.logger.info(`${config.name}: Initialized`);
     }
     
     /**
@@ -87,12 +74,12 @@ export abstract class AgentBase {
      * Each agent can override to customize document models, storage, etc.
      */
     private async initializeReactor(): Promise<void> {
-        this.logger.info(`${this.name}: Starting reactor initialization`);
+        this.logger.info(`${this.config.name}: Starting reactor initialization`);
         
         // Core reactor initialization logic moved from reactor-setup.ts
         // Get document models (can be customized by subclasses)
         const models = this.getDocumentModels();
-        this.logger.debug(`${this.name}: Loaded ${models.length} document models`);
+        this.logger.debug(`${this.config.name}: Loaded ${models.length} document models`);
         
         // Create ReactorBuilder with document models
         const builder = new ReactorBuilder(models as any)
@@ -102,7 +89,7 @@ export abstract class AgentBase {
         // Build reactor
         const driveServer = builder.build();
         await driveServer.initialize();
-        this.logger.info(`${this.name}: Reactor built and initialized`);
+        this.logger.info(`${this.config.name}: Reactor built and initialized`);
         
         // Store reactor instance
         this.reactor = {
@@ -112,9 +99,12 @@ export abstract class AgentBase {
         };
         
         // Connect to remote drives if configured
-        if (this.reactorConfig?.remoteDriveUrl) {
-            await this.connectRemoteDrive(this.reactorConfig.remoteDriveUrl);
+        if (this.config.workDrive.driveUrl) {
+            await this.connectRemoteDrive(this.config.workDrive.driveUrl);
         }
+        
+        // Set up document event listeners
+        this.setupDocumentEventListeners();
     }
     
     /**
@@ -130,7 +120,7 @@ export abstract class AgentBase {
         const originalProcessStderr = process.stderr.write;
         
         try {
-            this.logger.info(`${this.name}: Connecting to remote drive: ${remoteDriveUrl}`);
+            this.logger.info(`${this.config.name}: Connecting to remote drive: ${remoteDriveUrl}`);
             
             // Suppress error logging during addRemoteDrive
             console.error = () => {};
@@ -160,7 +150,7 @@ export abstract class AgentBase {
                 ],
                 triggers: [],
             });
-            this.logger.info(`${this.name}: ✅ Successfully connected to remote drive`);
+            this.logger.info(`${this.config.name}: ✅ Successfully connected to remote drive`);
         } catch (error) {
             // Extract meaningful error message
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -168,11 +158,11 @@ export abstract class AgentBase {
             const isDriveNotFound = errorMessage.includes("Couldn't find drive info");
             
             if (isConnectionRefused) {
-                this.logger.warn(`${this.name}: 💡 Remote drive service not available - continuing in local mode`);
+                this.logger.warn(`${this.config.name}: 💡 Remote drive service not available - continuing in local mode`);
             } else if (isDriveNotFound) {
-                this.logger.warn(`${this.name}: 💡 Remote drive not found - continuing in local mode`);
+                this.logger.warn(`${this.config.name}: 💡 Remote drive not found - continuing in local mode`);
             } else {
-                this.logger.warn(`${this.name}: 💡 Unable to connect to remote drive - continuing in local mode`);
+                this.logger.warn(`${this.config.name}: 💡 Unable to connect to remote drive - continuing in local mode`);
             }
             // Don't throw - allow agent to continue without remote drive
         } finally {
@@ -203,31 +193,30 @@ export abstract class AgentBase {
      * Override in subclasses to customize storage
      */
     protected async createStorage(): Promise<IDriveOperationStorage> {
-        // Use filesystem storage for ReactorPackageAgent if configured
-        if (this.reactorConfig?.storage?.type === 'filesystem') {
-            const storagePath = this.reactorConfig.storage.filesystemPath || 
-                path.join(process.cwd(), '.ph', 'file-storage');
-            
-            return new FilesystemStorage(storagePath);
+        const storage = this.config.workDrive.reactorStorage;
+        if (storage?.type === 'filesystem' && storage.filesystemPath) {
+            this.logger.info(`${this.config.name}: Using filesystem storage at ${storage.filesystemPath}`);
+            return new FilesystemStorage(storage.filesystemPath);
+        } else {
+            this.logger.info(`${this.config.name}: Using in-memory storage`);
+            return new MemoryStorage();
         }
-
-        return new MemoryStorage();
     }
     
     /**
      * Initialize the agent - must be called before using the agent
      */
     public async initialize(): Promise<void> {
-        this.logger.info(`${this.name}: Beginning initialization`);
+        this.logger.info(`${this.config.name}: Beginning initialization`);
         await this.initializeReactor();
-        this.logger.info(`${this.name}: Initialization complete`);
+        this.logger.info(`${this.config.name}: Initialization complete`);
     }
     
     /**
      * Shutdown the agent and clean up resources
      */
     public async shutdown(): Promise<void> {
-        this.logger.info(`${this.name}: Shutting down`);
+        this.logger.info(`${this.config.name}: Shutting down`);
         return Promise.resolve();
     }
     
@@ -243,6 +232,56 @@ export abstract class AgentBase {
     }
 
     public getName(): string {
-        return this.name;
+        return this.config.name;
     }
+    
+    /**
+     * Set up event listeners for document updates
+     * Listens for operations on configured inbox and WBS documents
+     */
+    private setupDocumentEventListeners(): void {
+        if (!this.reactor?.driveServer) return;
+        
+        const { inbox, wbs } = this.config.workDrive.documents;
+        
+        this.logger.info(`${this.config.name}: Setting up document event listeners`);
+        
+        // Listen for operations on documents
+        this.reactor.driveServer.on('operationsAdded', (documentId: string, operations: any[]) => {
+            // Check if this is our inbox document
+            if (inbox?.documentId && documentId === inbox.documentId) {
+                this.logger.info(`${this.config.name}: Inbox document updated - ${operations.length} operations`);
+                this.handleInboxUpdate(documentId, operations);
+            }
+            // Check if this is our WBS document
+            else if (wbs?.documentId && documentId === wbs.documentId) {
+                this.logger.info(`${this.config.name}: WBS document updated - ${operations.length} operations`);
+                this.handleWbsUpdate(documentId, operations);
+            }
+        });
+        
+        // Listen for new documents added
+        this.reactor.driveServer.on('documentAdded', (document: any) => {
+            // Check if it's a document type we care about
+            if (inbox && document.documentType === inbox.documentType) {
+                this.logger.info(`${this.config.name}: New inbox document added: ${document.id}`);
+                // Could update config if this is our first inbox document
+            } else if (wbs && document.documentType === wbs.documentType) {
+                this.logger.info(`${this.config.name}: New WBS document added: ${document.id}`);
+                // Could update config if this is our first WBS document
+            }
+        });
+    }
+    
+    /**
+     * Abstract method - must be implemented by subclasses
+     * Called when the agent's inbox document receives updates
+     */
+    protected abstract handleInboxUpdate(documentId: string, operations: any[]): void;
+    
+    /**
+     * Abstract method - must be implemented by subclasses  
+     * Called when the agent's WBS document receives updates
+     */
+    protected abstract handleWbsUpdate(documentId: string, operations: any[]): void;
 }

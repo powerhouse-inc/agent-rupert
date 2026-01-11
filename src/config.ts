@@ -7,7 +7,7 @@ export const config: ServerConfig = {
     serverPort: Number(process.env.API_PORT) || 3100,
     agents: {
         reactorPackageDev: {
-            name: "ReactorPackageDev",
+            name: process.env.REACTOR_PACKAGES_DEV_NAME || "Reactor Package Dev",
             workDrive: {
                 driveUrl: process.env.AGENT_MANAGER_DRIVE || null,
                 reactorStorage: {
@@ -16,11 +16,11 @@ export const config: ServerConfig = {
                 documents: {
                     inbox: {
                         documentType: "powerhouse/agent-inbox",
-                        documentId: null,
+                        documentId: process.env.REACTOR_PACKAGES_DEV_INBOX || null,
                     },
                     wbs: {
                         documentType: "powerhouse/work-breakdown-structure",
-                        documentId: null,
+                        documentId: process.env.REACTOR_PACKAGES_DEV_WBS || null,
                     }
                 }
             },
@@ -36,7 +36,7 @@ export const config: ServerConfig = {
             }
         },
         powerhouseArchitect: {
-            name: "PowerhouseArchitect",
+            name: process.env.POWERHOUSE_ARCHITECT_NAME || "Powerhouse Architect",
             workDrive: {
                 driveUrl: process.env.AGENT_MANAGER_DRIVE || null,
                 reactorStorage: {
@@ -45,11 +45,11 @@ export const config: ServerConfig = {
                 documents: {
                     inbox: {
                         documentType: "powerhouse/agent-inbox",
-                        documentId: null,
+                        documentId: process.env.POWERHOUSE_ARCHITECT_INBOX || null,
                     },
                     wbs: {
                         documentType: "powerhouse/work-breakdown-structure",
-                        documentId: null,
+                        documentId: process.env.POWERHOUSE_ARCHITECT_WBS || null,
                     }
                 }
             }
