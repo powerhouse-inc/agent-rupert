@@ -1,5 +1,6 @@
 import { AgentBase, type ILogger } from "../AgentBase.js";
 import type { PowerhouseArchitectAgentConfig } from "../../types.js";
+import type { AgentBrain } from "../AgentBrain.js";
 
 /**
  *  The PowerhouseArchitectAgent creates and manages a variety of architecture-related 
@@ -8,8 +9,8 @@ import type { PowerhouseArchitectAgentConfig } from "../../types.js";
  */
 export class PowerhouseArchitectAgent extends AgentBase<PowerhouseArchitectAgentConfig> {
     
-    constructor(config: PowerhouseArchitectAgentConfig, logger: ILogger) {
-        super(config, logger);
+    constructor(config: PowerhouseArchitectAgentConfig, logger: ILogger, brain?: AgentBrain) {
+        super(config, logger, brain);
     }
     
     public async initialize(): Promise<void> {
@@ -42,8 +43,19 @@ export class PowerhouseArchitectAgent extends AgentBase<PowerhouseArchitectAgent
      * Handle updates to the inbox document
      * This is where architecture requests and feedback arrive
      */
-    protected handleInboxUpdate(_documentId: string, operations: any[]): void {
+    protected async handleInboxUpdate(_documentId: string, operations: any[]): Promise<void> {
         this.logger.info(`${this.config.name}: Processing inbox update with ${operations.length} operations`);
+        
+        // Use brain to describe the operations if available
+        if (this.brain) {
+            try {
+                const description = await this.brain.describeInboxOperations(operations);
+                this.logger.info(`${this.config.name}: Brain analysis: ${description}`);
+            } catch (error) {
+                this.logger.warn(`${this.config.name}: Failed to get brain analysis of inbox operations`);
+            }
+        }
+        
         // TODO: Process inbox operations
         // - Extract architecture requests
         // - Process feedback on existing designs
@@ -54,8 +66,19 @@ export class PowerhouseArchitectAgent extends AgentBase<PowerhouseArchitectAgent
      * Handle updates to the WBS document
      * This is where architecture work progress is tracked
      */
-    protected handleWbsUpdate(_documentId: string, operations: any[]): void {
+    protected async handleWbsUpdate(_documentId: string, operations: any[]): Promise<void> {
         this.logger.info(`${this.config.name}: Processing WBS update with ${operations.length} operations`);
+        
+        // Use brain to describe the operations if available
+        if (this.brain) {
+            try {
+                const description = await this.brain.describeWbsOperations(operations);
+                this.logger.info(`${this.config.name}: Brain analysis: ${description}`);
+            } catch (error) {
+                this.logger.warn(`${this.config.name}: Failed to get brain analysis of WBS operations`);
+            }
+        }
+        
         // TODO: Process WBS operations
         // - Monitor architecture design progress
         // - Coordinate with ReactorPackageAgent for implementation

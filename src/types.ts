@@ -41,6 +41,7 @@ export type AgentConfig = {
 
 export type ServerConfig = {
   serverPort: number;
+  anthropicApiKey: string | null;
   agents: {
     reactorPackageDev: ReactorPackageDevAgentConfig;
     powerhouseArchitect: PowerhouseArchitectAgentConfig;

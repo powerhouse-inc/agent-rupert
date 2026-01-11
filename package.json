@@ -21,6 +21,7 @@
   "license": "ISC",
   "packageManager": "pnpm@10.26.0",
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.71.2",
     "@powerhousedao/common": "^5.1.0",
     "@powerhousedao/reactor": "^5.1.0",
     "cors": "^2.8.5",

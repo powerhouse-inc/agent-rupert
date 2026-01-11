@@ -2,12 +2,15 @@ import { ReactorPackageDevAgent } from './ReactorPackageDevAgent/ReactorPackageD
 import { PowerhouseArchitectAgent } from './PowerhouseArchitectAgent/PowerhouseArchitectAgent.js';
 import type { AgentBase, ILogger } from './AgentBase.js';
 import type { ReactorPackageDevAgentConfig, PowerhouseArchitectAgentConfig } from '../types.js';
+import { AgentBrain } from './AgentBrain.js';
+import Anthropic from '@anthropic-ai/sdk';
 
 export interface AgentsConfig {
     enableReactorPackageAgent?: boolean;
     enableArchitectAgent?: boolean;
     reactorPackageConfig?: ReactorPackageDevAgentConfig;
     architectConfig?: PowerhouseArchitectAgentConfig;
+    anthropicApiKey?: string | null;
     logger?: ILogger;
 }
 
@@ -19,9 +22,23 @@ export class AgentsManager {
     private reactorPackageAgent?: ReactorPackageDevAgent;
     private architectAgent?: PowerhouseArchitectAgent;
     private logger: ILogger;
+    private brain?: AgentBrain;
     
     constructor(private config: AgentsConfig) {
         this.logger = config.logger || this.createDefaultLogger();
+        
+        // Initialize AgentBrain if API key is provided
+        if (config.anthropicApiKey) {
+            try {
+                const anthropic = new Anthropic({
+                    apiKey: config.anthropicApiKey
+                });
+                this.brain = new AgentBrain(anthropic);
+                this.logger.info("AgentsManager: AgentBrain initialized with Anthropic API");
+            } catch (error) {
+                this.logger.error("AgentsManager: Failed to initialize AgentBrain:", error);
+            }
+        }
     }
     
     private createDefaultLogger(): ILogger {
@@ -42,7 +59,8 @@ export class AgentsManager {
             this.logger.info("AgentsManager: Initializing ReactorPackageAgent");
             this.reactorPackageAgent = new ReactorPackageDevAgent(
                 this.config.reactorPackageConfig,
-                this.logger
+                this.logger,
+                this.brain
             );
             await this.reactorPackageAgent.initialize();
             this.logger.info("AgentsManager: ReactorPackageAgent initialized successfully");
@@ -54,7 +72,8 @@ export class AgentsManager {
             this.logger.info("AgentsManager: Initializing PowerhouseArchitectAgent");
             this.architectAgent = new PowerhouseArchitectAgent(
                 this.config.architectConfig,
-                this.logger
+                this.logger,
+                this.brain
             );
             await this.architectAgent.initialize();
             this.logger.info("AgentsManager: PowerhouseArchitectAgent initialized successfully");

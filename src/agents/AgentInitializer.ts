@@ -42,6 +42,7 @@ export async function initializeAgents(config: ServerConfig): Promise<void> {
       enableArchitectAgent: true,
       reactorPackageConfig: reactorPackageDev,
       architectConfig: powerhouseArchitect,
+      anthropicApiKey: config.anthropicApiKey,
       logger
     });
     

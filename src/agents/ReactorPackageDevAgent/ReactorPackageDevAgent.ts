@@ -3,6 +3,7 @@ import { ReactorPackagesManager, type RunProjectOptions } from "./ReactorPackage
 import { CLIExecutor } from "../../tasks/executors/cli-executor.js";
 import { ServiceExecutor } from "../../tasks/executors/service-executor.js";
 import type { ReactorPackageDevAgentConfig } from "../../types.js";
+import type { AgentBrain } from "../AgentBrain.js";
 
 /**
  *  The ReactorPackageAgent uses ReactorPackagesManager with a number of associated tools
@@ -13,8 +14,8 @@ export class ReactorPackageDevAgent extends AgentBase<ReactorPackageDevAgentConf
     private serviceExecutor: ServiceExecutor;
     private projectsDir: string;
     
-    constructor(config: ReactorPackageDevAgentConfig, logger: ILogger) {
-        super(config, logger);
+    constructor(config: ReactorPackageDevAgentConfig, logger: ILogger, brain?: AgentBrain) {
+        super(config, logger, brain);
         this.projectsDir = config.reactorPackages.projectsDir;
         
         // Initialize executors
@@ -96,8 +97,19 @@ export class ReactorPackageDevAgent extends AgentBase<ReactorPackageDevAgentConf
      * Handle updates to the inbox document
      * This is where new tasks/requests from stakeholders arrive
      */
-    protected handleInboxUpdate(_documentId: string, operations: any[]): void {
+    protected async handleInboxUpdate(_documentId: string, operations: any[]): Promise<void> {
         this.logger.info(`${this.config.name}: Processing inbox update with ${operations.length} operations`);
+        
+        // Use brain to describe the operations if available
+        if (this.brain) {
+            try {
+                const description = await this.brain.describeInboxOperations(operations);
+                this.logger.info(`${this.config.name}: Brain analysis: ${description}`);
+            } catch (error) {
+                this.logger.warn(`${this.config.name}: Failed to get brain analysis of inbox operations`);
+            }
+        }
+        
         // TODO: Process inbox operations
         // - Extract new tasks/requests
         // - Create work items in WBS
@@ -108,8 +120,19 @@ export class ReactorPackageDevAgent extends AgentBase<ReactorPackageDevAgentConf
      * Handle updates to the WBS document
      * This is where work progress and status changes are tracked
      */
-    protected handleWbsUpdate(_documentId: string, operations: any[]): void {
+    protected async handleWbsUpdate(_documentId: string, operations: any[]): Promise<void> {
         this.logger.info(`${this.config.name}: Processing WBS update with ${operations.length} operations`);
+        
+        // Use brain to describe the operations if available
+        if (this.brain) {
+            try {
+                const description = await this.brain.describeWbsOperations(operations);
+                this.logger.info(`${this.config.name}: Brain analysis: ${description}`);
+            } catch (error) {
+                this.logger.warn(`${this.config.name}: Failed to get brain analysis of WBS operations`);
+            }
+        }
+        
         // TODO: Process WBS operations
         // - Check for completed tasks
         // - Update project status

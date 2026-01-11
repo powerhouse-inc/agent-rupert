@@ -5,6 +5,7 @@ import type { ReactorInstance, BaseAgentConfig } from '../types.js';
 import { documentModels } from 'powerhouse-agent';
 import { documentModelDocumentModelModule } from 'document-model';
 import { FilesystemStorage } from 'document-drive/storage/filesystem';
+import type { AgentBrain } from './AgentBrain.js';
 
 // Logger interface for dependency injection
 export interface ILogger {
@@ -62,11 +63,13 @@ export abstract class AgentBase<TConfig extends BaseAgentConfig = BaseAgentConfi
     protected reactor?: ReactorInstance;
     protected config: TConfig;
     protected logger: ILogger;
+    protected brain?: AgentBrain;
     
-    constructor(config: TConfig, logger: ILogger) {
+    constructor(config: TConfig, logger: ILogger, brain?: AgentBrain) {
         this.config = config;
         this.logger = logger;
-        this.logger.info(`${config.name}: Initialized`);
+        this.brain = brain;
+        this.logger.info(`${config.name}: Initialized${brain ? ' with AgentBrain' : ''}`);
     }
     
     /**
@@ -277,11 +280,11 @@ export abstract class AgentBase<TConfig extends BaseAgentConfig = BaseAgentConfi
      * Abstract method - must be implemented by subclasses
      * Called when the agent's inbox document receives updates
      */
-    protected abstract handleInboxUpdate(documentId: string, operations: any[]): void;
+    protected abstract handleInboxUpdate(documentId: string, operations: any[]): void | Promise<void>;
     
     /**
      * Abstract method - must be implemented by subclasses  
      * Called when the agent's WBS document receives updates
      */
-    protected abstract handleWbsUpdate(documentId: string, operations: any[]): void;
+    protected abstract handleWbsUpdate(documentId: string, operations: any[]): void | Promise<void>;
 }

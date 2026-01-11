@@ -5,6 +5,7 @@ dotenv.config();
 
 export const config: ServerConfig = {
     serverPort: Number(process.env.API_PORT) || 3100,
+    anthropicApiKey: process.env.ANTHROPIC_API_KEY || null,
     agents: {
         reactorPackageDev: {
             name: process.env.REACTOR_PACKAGES_DEV_NAME || "Reactor Package Dev",
