@@ -271,8 +271,9 @@ describe('ServiceExecutor Integration Tests', () => {
             const handle = await executor.start(task);
             expect(handle).toBeDefined();
 
-            // Wait a moment for the error to be processed
-            await new Promise(resolve => setTimeout(resolve, SERVICE_STABILIZATION_TIME));
+            // Wait longer for the shell to start, fail to find the command, and exit
+            // The shell process needs time to: spawn -> attempt command -> fail -> exit -> cleanup
+            await new Promise(resolve => setTimeout(resolve, PROCESS_CLEANUP_TIME));
 
             // Service should have failed
             const status = executor.getStatus(handle.id);
