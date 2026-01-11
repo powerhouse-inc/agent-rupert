@@ -36,11 +36,11 @@ Migrating from flat global config to hierarchical agent-specific configuration s
 - [x] Check autoStartDefaultProject flag
 - [x] Test project auto-start
 
-### Phase 6: Cleanup ⏳
-- [ ] Remove old config.ts file
-- [ ] Remove deprecated env vars from .env
-- [ ] Final testing and validation
-- [ ] Update documentation if needed
+### Phase 6: Cleanup ✅
+- [x] Remove old config.ts file
+- [x] Remove deprecated env vars from .env
+- [x] Final testing and validation
+- [x] Update documentation if needed
 
 ## Implementation Notes
 

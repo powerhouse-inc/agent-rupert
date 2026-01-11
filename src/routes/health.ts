@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { ReactorInstance } from '../types.js';
-import { config } from '../config.js';
+import { defaultConfig } from '../defaultConfig.js';
 import { ReactorPackagesManager } from '../agents/ReactorPackageDevAgent/ReactorPackagesManager.js';
 
 export function createHealthRouter(
@@ -24,9 +24,9 @@ export function createHealthRouter(
       remoteDrives: drives.filter((drive: any) => drive.state?.remote).length,
       models: reactorInstance ? reactorInstance.driveServer.getDocumentModelModules().length : 0,
       ReactorPackage: {
-        configured: !!config.powerhouse.project,
+        configured: defaultConfig.agents.reactorPackageDev.reactorPackages.autoStartDefaultProject,
         running: !!runningProject,
-        name: runningProject?.name || config.powerhouse.project || null,
+        name: runningProject?.name || defaultConfig.agents.reactorPackageDev.reactorPackages.defaultProjectName || null,
         ready: runningProject?.isFullyStarted || false,
         driveUrl: runningProject?.driveUrl || null
       }
