@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { defaultConfig } from '../defaultConfig.js';
+import { config } from '../config.js';
 import { ReactorPackagesManager } from '../agents/ReactorPackageDevAgent/ReactorPackagesManager.js';
 
 interface AutoStartState {
@@ -64,8 +64,8 @@ export function createProjectsRouter(
       return res.json({
         running: false,
         status: 'starting',
-        message: `Project "${defaultConfig.agents.reactorPackageDev.reactorPackages.defaultProjectName}" is being initialized...`,
-        project: defaultConfig.agents.reactorPackageDev.reactorPackages.defaultProjectName
+        message: `Project "${config.agents.reactorPackageDev.reactorPackages.defaultProjectName}" is being initialized...`,
+        project: config.agents.reactorPackageDev.reactorPackages.defaultProjectName
       });
     }
     
@@ -74,7 +74,7 @@ export function createProjectsRouter(
         running: false,
         status: 'failed',
         message: autoStartState.error || 'Project failed to start',
-        project: defaultConfig.agents.reactorPackageDev.reactorPackages.defaultProjectName
+        project: config.agents.reactorPackageDev.reactorPackages.defaultProjectName
       });
     }
     
@@ -115,7 +115,7 @@ export function createProjectsRouter(
       
       return res.json({
         status,
-        project: defaultConfig.agents.reactorPackageDev.reactorPackages.defaultProjectName || null,
+        project: config.agents.reactorPackageDev.reactorPackages.defaultProjectName || null,
         driveUrl: null,
         ready: false,
         uptime: 0,

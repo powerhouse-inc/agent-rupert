@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-export const defaultConfig: ServerConfig = {
+export const config: ServerConfig = {
     serverPort: Number(process.env.API_PORT) || 3100,
     agents: {
         reactorPackageDev: {

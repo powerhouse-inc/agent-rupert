@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 // IMPORTANT: Load environment variables BEFORE importing config
 dotenv.config();
 
-import { defaultConfig } from './defaultConfig.js';
+import { config } from './config.js';
 import { initializeAgentsAndStartProject, getAgentsManager, shutdownAgents, getAutoStartState } from './agents/AgentInitializer.js';
 import {
   createHealthRouter,
@@ -16,7 +16,7 @@ import {
 } from './routes/index.js';
 
 const app: express.Application = express();
-const PORT = defaultConfig.serverPort;
+const PORT = config.serverPort;
 
 
 // Helper function to get reactor instance (may be null if agents not initialized)
@@ -62,7 +62,7 @@ async function start() {
     // Start Express server FIRST so API endpoints are immediately available
     app.listen(PORT, () => {
       console.log(`🚀 Powerhouse Agent running: http://localhost:${PORT}/`);
-      initializeAgentsAndStartProject(defaultConfig);
+      initializeAgentsAndStartProject(config);
     });
   } catch (error) {
     console.error('Failed to start server:', error);
