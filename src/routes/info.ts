@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import { PowerhouseProjectsManager } from '../powerhouse/PowerhouseProjectsManager.js';
+import { ReactorPackagesManager } from '../agents/ReactorPackageAgent/ReactorPackagesManager.js';
 
-export function createInfoRouter(projectsManager: PowerhouseProjectsManager): Router {
+export function createInfoRouter(projectsManager: ReactorPackagesManager): Router {
   const router = Router();
 
   router.get('/', (_req, res) => {
@@ -22,7 +22,7 @@ export function createInfoRouter(projectsManager: PowerhouseProjectsManager): Ro
         'GET /stats - Agent statistics (coming soon)',
         'GET /events - Recent events (coming soon)'
       ],
-      powerhouseProject: {
+      ReactorPackage: {
         running: !!runningProject,
         name: runningProject?.name || null
       }

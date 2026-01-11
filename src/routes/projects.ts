@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { PowerhouseProjectsManager } from '../powerhouse/PowerhouseProjectsManager.js';
 import { config } from '../config.js';
+import { ReactorPackagesManager } from '../agents/ReactorPackageAgent/ReactorPackagesManager.js';
 
 interface AutoStartState {
   status: 'idle' | 'starting' | 'running' | 'failed';
@@ -8,7 +8,7 @@ interface AutoStartState {
 }
 
 export function createProjectsRouter(
-  projectsManager: PowerhouseProjectsManager,
+  projectsManager: ReactorPackagesManager,
   getAutoStartState: () => AutoStartState
 ): Router {
   const router = Router();

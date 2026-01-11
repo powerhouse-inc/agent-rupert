@@ -2,11 +2,11 @@ import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
-import { PowerhouseProjectsManager } from '../../src/powerhouse/PowerhouseProjectsManager.js';
+import { ReactorPackagesManager } from '../../src/agents/ReactorPackageAgent/ReactorPackagesManager';
 
-describe('PowerhouseProjectsManager', () => {
+describe('ReactorPackagesManager', () => {
     let tempDir: string;
-    let manager: PowerhouseProjectsManager;
+    let manager: ReactorPackagesManager;
     let originalConsoleWarn: typeof console.warn;
     let originalConsoleLog: typeof console.log;
     let mockCLIExecutor: any;
@@ -42,7 +42,7 @@ describe('PowerhouseProjectsManager', () => {
         };
         
         // Create manager instance with temp directory and mock executors
-        manager = new PowerhouseProjectsManager(tempDir, mockCLIExecutor, mockServiceExecutor);
+        manager = new ReactorPackagesManager(tempDir, mockCLIExecutor, mockServiceExecutor);
     });
 
     afterEach(async () => {

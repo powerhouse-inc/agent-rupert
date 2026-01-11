@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { ClaudeCodeExecutor } from '../../src/tasks/executors/claude-code-executor.js';
-import { PowerhouseProjectsManager } from '../../src/powerhouse/PowerhouseProjectsManager.js';
+import { ReactorPackagesManager } from '../../src/powerhouse/ReactorPackagesManager.js';
 import { createClaudeCodeTask } from '../../src/tasks/types.js';
 import { TaskValidationError } from '../../src/tasks/executors/errors.js';
 
@@ -12,7 +12,7 @@ describe('ClaudeCodeExecutor', () => {
     beforeEach(() => {
         jest.clearAllMocks();
 
-        // Create mock PowerhouseProjectsManager
+        // Create mock ReactorPackagesManager
         mockProjectsManager = {
             getRunningProject: jest.fn(),
             runProject: jest.fn(),

@@ -167,18 +167,18 @@ driveServer.on('documentAdded', async (document) => {
 - [x] Write unit tests for CLITask and CLIExecutor
 
 ### Phase 2a: Powerhouse Projects Management Infrastructure
-- [x] Using Phase 1 CLI Tasks, implement PowerhouseProjectsManager.init to initialize new projects
-- [x] Implement PowerhouseProjectsManager class that lists Powerhouse projects in ../projects folder
-- [x] Implement PowerhouseProjectsManager.runProject() to start ph vetra --watch of one of the projects
-- [x] Implement PowerhouseProjectsManager.shutdownProject to stop the running project with SIGINT signals
-- [x] Write unit tests for PowerhouseProjectsManager
+- [x] Using Phase 1 CLI Tasks, implement ReactorPackagesManager.init to initialize new projects
+- [x] Implement ReactorPackagesManager class that lists Powerhouse projects in ../projects folder
+- [x] Implement ReactorPackagesManager.runProject() to start ph vetra --watch of one of the projects
+- [x] Implement ReactorPackagesManager.shutdownProject to stop the running project with SIGINT signals
+- [x] Write unit tests for ReactorPackagesManager
 
 ### Phase 2b: Claude Code Task Implementation
 - [x] Create ClaudeCodeTask class extending BaseTask
 - [ ] Implement ClaudeCodeExecutor with claude CLI wrapper
 - [ ] Handle prompt formatting and response parsing for Powerhouse projects
 - [ ] Implement rate limiting and API error handling
-- [ ] Integrate with PowerhouseProjectsManager for project context
+- [ ] Integrate with ReactorPackagesManager for project context
 - [ ] Write unit tests for ClaudeCodeTask and ClaudeCodeExecutor
 - [ ] Write integration tests for ClaudeCodeExecutor
 

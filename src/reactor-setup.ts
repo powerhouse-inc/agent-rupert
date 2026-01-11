@@ -7,16 +7,15 @@ import { documentModels } from 'powerhouse-agent';
 import { driveDocumentModelModule } from 'document-drive';
 import { documentModelDocumentModelModule, PHDocument } from 'document-model';
 import type { ReactorInstance, StorageOptions } from './types.js';
-import type { PowerhouseProjectsManager } from './powerhouse/PowerhouseProjectsManager.js';
+import type { ReactorPackagesManager } from './agents/ReactorPackageAgent/ReactorPackagesManager.js';
 import type { AgentProjectsClient } from './graphql/AgentProjectsClient.js';
-import { ProjectStatus, LogLevel, LogSource } from './graphql/types.js';
 // Don't import config here - we'll load it after dotenv
 
 /**
- * Sync all projects from PowerhouseProjectsManager to GraphQL
+ * Sync all projects from ReactorPackagesManager to GraphQL
  */
 async function syncProjectsToGraphQL(
-  projectsManager: PowerhouseProjectsManager,
+  projectsManager: ReactorPackagesManager,
   graphqlClient: AgentProjectsClient,
   documentId: string,
   driveId?: string
@@ -143,7 +142,7 @@ export const createStorage = (options: StorageOptions): IDriveOperationStorage =
 };
 
 export async function initializeReactor(
-  projectsManager?: PowerhouseProjectsManager,
+  projectsManager?: ReactorPackagesManager,
   graphqlClient?: AgentProjectsClient
 ): Promise<ReactorInstance> {
   // Import config after dotenv has been loaded

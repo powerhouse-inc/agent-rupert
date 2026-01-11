@@ -1,12 +1,12 @@
 import path from 'node:path';
 import fs from 'node:fs/promises';
-import { CLIExecutor } from '../tasks/executors/cli-executor.js';
-import { ServiceExecutor } from '../tasks/executors/service-executor.js';
-import { createCLITask, createServiceTask } from '../tasks/types.js';
-import type { CLITask, ServiceTask, ServiceHandle } from '../tasks/types.js';
+import { CLIExecutor } from '../../tasks/executors/cli-executor.js';
+import { ServiceExecutor } from '../../tasks/executors/service-executor.js';
+import { createCLITask, createServiceTask } from '../../tasks/types.js';
+import type { CLITask, ServiceTask, ServiceHandle } from '../../tasks/types.js';
 import type { ChildProcess } from 'node:child_process';
 
-export interface PowerhouseProjectConfig {
+export interface ReactorPackageConfig {
     name: string;
     path: string;
     connectPort?: number;      // Connect Studio port (default: 3000)
@@ -75,7 +75,7 @@ export interface RunProjectResult {
     driveUrl?: string;
 }
 
-export class PowerhouseProjectsManager {
+export class ReactorPackagesManager {
     private readonly projectsDir: string;
     private readonly cliExecutor: CLIExecutor;
     private readonly serviceExecutor: ServiceExecutor;
@@ -213,8 +213,8 @@ export class PowerhouseProjectsManager {
      * List all Powerhouse projects in the projects directory
      * @returns Array of project configurations
      */
-    async listProjects(): Promise<PowerhouseProjectConfig[]> {
-        const projects: PowerhouseProjectConfig[] = [];
+    async listProjects(): Promise<ReactorPackageConfig[]> {
+        const projects: ReactorPackageConfig[] = [];
 
         try {
             // Ensure directory exists

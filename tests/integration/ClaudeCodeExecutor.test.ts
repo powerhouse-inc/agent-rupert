@@ -1,14 +1,14 @@
 import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { PowerhouseProjectsManager } from '../../src/powerhouse/PowerhouseProjectsManager.js';
+import { ReactorPackagesManager } from '../../src/agents/ReactorPackageAgent/ReactorPackagesManager';
 import { CLIExecutor } from '../../src/tasks/executors/cli-executor.js';
 import { ClaudeCodeExecutor } from '../../src/tasks/executors/claude-code-executor.js';
 import { createClaudeCodeTask } from '../../src/tasks/types.js';
 
 describe('ClaudeCodeExecutor Integration Tests', () => {
     let testProjectsDir: string;
-    let manager: PowerhouseProjectsManager;
+    let manager: ReactorPackagesManager;
     let claudeCodeExecutor: ClaudeCodeExecutor;
     let projectName: string;
     let projectPath: string;
@@ -43,8 +43,8 @@ describe('ClaudeCodeExecutor Integration Tests', () => {
             retryAttempts: 0 // No retries for integration tests
         });
         
-        // Create PowerhouseProjectsManager pointing to test-projects dir
-        manager = new PowerhouseProjectsManager(testProjectsDir, cliExecutor);
+        // Create ReactorPackagesManager pointing to test-projects dir
+        manager = new ReactorPackagesManager(testProjectsDir, cliExecutor);
         
         process.stderr.write("🚀 Starting persistent test Powerhouse project...\n");
         

@@ -502,7 +502,7 @@ describe('ServiceExecutor Readiness Detection', () => {
 
             const timeoutEvent = await timeoutPromise;
             
-            // Verify the event has all properties that consumers like PowerhouseProjectsManager expect
+            // Verify the event has all properties that consumers like ReactorPackagesManager expect
             expect(timeoutEvent).toBeDefined();
             expect(timeoutEvent.handle).toBeDefined();
             expect(timeoutEvent.handle.id).toBe(handle.id);
@@ -658,19 +658,19 @@ describe('ServiceExecutor Readiness Detection', () => {
 
         it('should emit boot-timeout event consumable by managers', async () => {
             // This test verifies that the boot-timeout event can be properly consumed
-            // by managers like PowerhouseProjectsManager
+            // by managers like ReactorPackagesManager
             
             let bootTimeoutHandlerCalled = false;
             let capturedEvent: any = null;
             
-            // Simulate PowerhouseProjectsManager's bootTimeoutHandler
+            // Simulate ReactorPackagesManager's bootTimeoutHandler
             const bootTimeoutHandler = (event: any) => {
-                // This mimics what PowerhouseProjectsManager does
+                // This mimics what ReactorPackagesManager does
                 if (event.handle && event.handle.id) {
                     bootTimeoutHandlerCalled = true;
                     capturedEvent = event;
                     // In real code, this would resolve a promise with null
-                    // (PowerhouseProjectsManager would log a warning here)
+                    // (ReactorPackagesManager would log a warning here)
                 }
             };
             

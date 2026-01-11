@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach, jest } from '@jest/globals';
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from '@jest/globals';
 import { AgentProjectsClient } from '../../src/graphql/AgentProjectsClient.js';
 import { ProjectStatus, LogLevel, LogSource } from '../../src/graphql/types.js';
 import { spawn, ChildProcess } from 'node:child_process';

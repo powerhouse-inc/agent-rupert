@@ -5,7 +5,7 @@ export type StorageOptions = {
   filesystemPath?: string;
 };
 
-export type PowerhouseProjectConfig = {
+export type ReactorPackageConfig = {
   /** Name of the Powerhouse project to auto-start on server startup */
   project?: string;
   /** Directory containing all Powerhouse projects (default: ../projects) */
@@ -34,7 +34,7 @@ export type AgentConfig = {
   enableAutoEdit: boolean;
   enableValidation: boolean;
   remoteDriveUrl?: string;
-  powerhouse: PowerhouseProjectConfig;
+  powerhouse: ReactorPackageConfig;
   graphql: GraphQLConfig;
 };
 

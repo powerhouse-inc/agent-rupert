@@ -1,10 +1,10 @@
 import { EventEmitter } from 'node:events';
-import { PowerhouseProjectsManager } from '../../powerhouse/PowerhouseProjectsManager.js';
 import { CLIExecutor } from './cli-executor.js';
 import { createCLITask } from '../types.js';
 import type { ClaudeCodeTask, CLITask } from '../types.js';
 import type { CLIExecutorResult } from './cli-executor.js';
 import { TaskValidationError } from './errors.js';
+import { ReactorPackagesManager } from '../../agents/ReactorPackageAgent/ReactorPackagesManager.js';
 
 export interface ClaudeCodeExecutorConfig {
     timeout?: number;
@@ -24,15 +24,15 @@ export interface ClaudeCodeExecutorResult {
 }
 
 /**
- * Executor for ClaudeCode tasks that requires a running PowerhouseProjectsManager project
+ * Executor for ClaudeCode tasks that requires a running ReactorPackagesManager project
  */
 export class ClaudeCodeExecutor extends EventEmitter {
     private readonly config: Required<ClaudeCodeExecutorConfig>;
-    private readonly projectsManager: PowerhouseProjectsManager;
+    private readonly projectsManager: ReactorPackagesManager;
     private readonly cliExecutor: CLIExecutor;
 
     constructor(
-        projectsManager: PowerhouseProjectsManager,
+        projectsManager: ReactorPackagesManager,
         config: ClaudeCodeExecutorConfig = {}
     ) {
         super();
@@ -51,7 +51,7 @@ export class ClaudeCodeExecutor extends EventEmitter {
 
     /**
      * Execute a Claude Code task
-     * Requires a running project in PowerhouseProjectsManager
+     * Requires a running project in ReactorPackagesManager
      */
     async execute(task: ClaudeCodeTask): Promise<ClaudeCodeExecutorResult> {
         const startedAt = new Date();
@@ -59,7 +59,7 @@ export class ClaudeCodeExecutor extends EventEmitter {
         // Check if a project is running
         const runningProject = this.projectsManager.getRunningProject();
         if (!runningProject) {
-            const error = 'No Powerhouse project is currently running. Please start a project with PowerhouseProjectsManager.runProject() first.';
+            const error = 'No Powerhouse project is currently running. Please start a project with ReactorPackagesManager.runProject() first.';
             this.emit('error', { task, error });
             
             return {

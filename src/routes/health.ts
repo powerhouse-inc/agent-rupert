@@ -1,11 +1,11 @@
 import { Router } from 'express';
 import type { ReactorInstance } from '../types.js';
-import { PowerhouseProjectsManager } from '../powerhouse/PowerhouseProjectsManager.js';
 import { config } from '../config.js';
+import { ReactorPackagesManager } from '../agents/ReactorPackageAgent/ReactorPackagesManager.js';
 
 export function createHealthRouter(
   getReactorInstance: () => ReactorInstance | null,
-  projectsManager: PowerhouseProjectsManager
+  projectsManager: ReactorPackagesManager
 ): Router {
   const router = Router();
 
@@ -22,7 +22,7 @@ export function createHealthRouter(
       drives: drives.length,
       remoteDrives: drives.filter((drive: any) => drive.state?.remote).length,
       models: reactorInstance ? reactorInstance.driveServer.getDocumentModelModules().length : 0,
-      powerhouseProject: {
+      ReactorPackage: {
         configured: !!config.powerhouse.project,
         running: !!runningProject,
         name: runningProject?.name || config.powerhouse.project || null,

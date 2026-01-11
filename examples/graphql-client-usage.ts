@@ -110,13 +110,13 @@ async function exampleUsage() {
     }
 }
 
-// Integration with PowerhouseProjectsManager
+// Integration with ReactorPackagesManager
 async function integratedExample() {
-    const { PowerhouseProjectsManager } = await import('../src/powerhouse/PowerhouseProjectsManager.js');
+    const { ReactorPackagesManager } = await import('../src/powerhouse/ReactorPackagesManager.js');
     const { config } = await import('../src/config.js');
     
     // Create manager with GraphQL integration
-    const manager = new PowerhouseProjectsManager(
+    const manager = new ReactorPackagesManager(
         '../projects',
         undefined,
         config.graphql

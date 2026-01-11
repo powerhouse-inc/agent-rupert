@@ -47,7 +47,7 @@ The application follows a modular architecture with these key components:
 - **src/tasks/executors/errors.ts**: Custom error types for task execution
 
 ### Powerhouse Integration
-- **src/powerhouse/PowerhouseProjectsManager.ts**: Manages Powerhouse projects (init, run, shutdown)
+- **src/powerhouse/ReactorPackagesManager.ts**: Manages Powerhouse projects (init, run, shutdown)
   - Supports single project execution with `ph dev`
   - Handles project initialization with `ph init`
   - Manages project lifecycle and logs
@@ -90,7 +90,7 @@ The project uses Jest for testing with a clear separation between unit and integ
 
 ### Test Coverage
 - Task framework components have comprehensive unit tests
-- PowerhouseProjectsManager has both unit tests (mocked) and integration tests (real `ph` CLI)
+- ReactorPackagesManager has both unit tests (mocked) and integration tests (real `ph` CLI)
 - Use `pnpm test:coverage` to generate coverage reports in `tmp/coverage/`
 
 ### Writing Tests

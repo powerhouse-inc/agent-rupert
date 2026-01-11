@@ -1,13 +1,13 @@
 # GraphQL Projects Sync Implementation Plan
 
 ## Overview
-Implement synchronization of PowerhouseProjectsManager projects to GraphQL when a `powerhouse/agent-projects` document is added to the reactor.
+Implement synchronization of ReactorPackagesManager projects to GraphQL when a `powerhouse/agent-projects` document is added to the reactor.
 
 ## Implementation Steps
 
 ### Step 1: Update reactor-setup.ts Function Signature
 - [x] Modify `initializeReactor()` to accept optional parameters
-- [x] Add `PowerhouseProjectsManager` parameter
+- [x] Add `ReactorPackagesManager` parameter
 - [x] Add `AgentProjectsClient` parameter
 - [x] Update return type if needed (not needed, kept same)
 - [x] Add type imports for both classes

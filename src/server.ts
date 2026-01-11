@@ -8,7 +8,6 @@ dotenv.config();
 import { initializeReactor } from './reactor-setup.js';
 import type { ReactorInstance } from './types.js';
 import { CLIExecutor } from './tasks/executors/cli-executor.js';
-import { PowerhouseProjectsManager } from './powerhouse/PowerhouseProjectsManager.js';
 import { AgentProjectsClient } from './graphql/AgentProjectsClient.js';
 import { config } from './config.js';
 import {
@@ -18,6 +17,7 @@ import {
   createProjectsRouter,
   createInfoRouter
 } from './routes/index.js';
+import { ReactorPackagesManager } from './agents/ReactorPackageAgent/ReactorPackagesManager.js';
 
 const app: express.Application = express();
 const PORT = config.port;
@@ -30,8 +30,8 @@ const cliExecutor = new CLIExecutor({
   retryAttempts: 0 // No retries by default
 });
 
-// Initialize PowerhouseProjectsManager with configured directory and GraphQL config
-const projectsManager = new PowerhouseProjectsManager(
+// Initialize ReactorPackagesManager with configured directory and GraphQL config
+const projectsManager = new ReactorPackagesManager(
   config.powerhouse.projectsDir,
   cliExecutor
 );

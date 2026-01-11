@@ -3,14 +3,14 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
-import { PowerhouseProjectsManager } from '../../src/powerhouse/PowerhouseProjectsManager.js';
+import { ReactorPackagesManager } from '../../src/agents/ReactorPackageAgent/ReactorPackagesManager';
 import { CLIExecutor } from '../../src/tasks/executors/cli-executor.js';
 
 const execAsync = promisify(exec);
 
-describe('PowerhouseProjectsManager Integration Tests', () => {
+describe('ReactorPackagesManager Integration Tests', () => {
     let testProjectsDir: string;
-    let manager: PowerhouseProjectsManager;
+    let manager: ReactorPackagesManager;
     
     beforeAll(async () => {
         // Create test projects directory in ../test-projects for easy inspection
@@ -30,7 +30,7 @@ describe('PowerhouseProjectsManager Integration Tests', () => {
             retryAttempts: 0 // No retries for integration tests
         });
         
-        manager = new PowerhouseProjectsManager(testProjectsDir, cliExecutor);
+        manager = new ReactorPackagesManager(testProjectsDir, cliExecutor);
     });
 
     afterAll(async () => {
@@ -48,7 +48,7 @@ describe('PowerhouseProjectsManager Integration Tests', () => {
         // The test artifacts are preserved at: ../test-projects/integration-{timestamp}
     });
 
-    describe('Comprehensive PowerhouseProjectsManager integration', () => {
+    describe('Comprehensive ReactorPackagesManager integration', () => {
         it('should test all manager methods with a real project', async () => {
             const projectName = 'test-powerhouse-project';
             const projectPath = path.join(testProjectsDir, projectName);
