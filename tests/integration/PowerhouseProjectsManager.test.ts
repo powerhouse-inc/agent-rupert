@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
-import { ReactorPackagesManager } from '../../src/agents/ReactorPackageAgent/ReactorPackagesManager';
+import { ReactorPackagesManager } from '../../src/agents/ReactorPackageDevAgent/ReactorPackagesManager';
 import { CLIExecutor } from '../../src/tasks/executors/cli-executor.js';
 
 const execAsync = promisify(exec);

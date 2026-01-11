@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
-import { ReactorPackagesManager } from '../../src/agents/ReactorPackageAgent/ReactorPackagesManager';
+import { ReactorPackagesManager } from '../../src/agents/ReactorPackageDevAgent/ReactorPackagesManager';
 
 describe('ReactorPackagesManager', () => {
     let tempDir: string;

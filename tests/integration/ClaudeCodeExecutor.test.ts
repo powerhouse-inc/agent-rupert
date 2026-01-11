@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { ReactorPackagesManager } from '../../src/agents/ReactorPackageAgent/ReactorPackagesManager';
+import { ReactorPackagesManager } from '../../src/agents/ReactorPackageDevAgent/ReactorPackagesManager';
 import { CLIExecutor } from '../../src/tasks/executors/cli-executor.js';
 import { ClaudeCodeExecutor } from '../../src/tasks/executors/claude-code-executor.js';
 import { createClaudeCodeTask } from '../../src/tasks/types.js';
