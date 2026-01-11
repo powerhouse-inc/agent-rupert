@@ -26,6 +26,13 @@ const servers = [];
 
 console.log(`Test service with ports started in ${mode} mode (PID: ${process.pid})`);
 
+// Timing constants matching test-timing-constants.ts
+const INITIAL_DELAY = 50;
+const PATTERN_INTERVAL = 50;
+const PORT_RELEASE_DELAY = 500;
+const GRACEFUL_SHUTDOWN_TIME = 100;
+const FORCED_EXIT_TIMEOUT = 2000;
+
 function createHttpServer(port, name = 'HTTP') {
     const server = http.createServer((req, res) => {
         res.writeHead(200, { 'Content-Type': 'text/plain' });
@@ -89,11 +96,11 @@ function closeAllServers() {
         });
     });
     
-    // Force exit after 2 seconds if servers don't close
+    // Force exit after timeout if servers don't close
     setTimeout(() => {
         console.error('Forced exit after timeout');
         process.exit(1);
-    }, 2000);
+    }, FORCED_EXIT_TIMEOUT);
 }
 
 switch (mode) {
@@ -105,8 +112,8 @@ switch (mode) {
             // Output in format that readiness pattern can detect
             setTimeout(() => {
                 console.log(`Service ready on http://localhost:${basePort}`);
-            }, 100);
-        }, 200);
+            }, PATTERN_INTERVAL * 2);
+        }, INITIAL_DELAY * 4);
         
         // Keep alive with periodic status
         setInterval(() => {
@@ -122,19 +129,19 @@ switch (mode) {
         
         setTimeout(() => {
             createHttpServer(basePort, 'API');
-        }, 100);
+        }, INITIAL_DELAY * 2);
         
         setTimeout(() => {
             createTcpServer(basePort + 1, 'WebSocket');
-        }, 200);
+        }, INITIAL_DELAY * 4);
         
         setTimeout(() => {
             createHttpServer(basePort + 2, 'Admin');
-        }, 300);
+        }, INITIAL_DELAY * 6);
         
         setTimeout(() => {
             console.log('All services ready');
-        }, 400);
+        }, INITIAL_DELAY * 8);
         
         process.on('SIGTERM', () => gracefulShutdown(0));
         break;
@@ -146,10 +153,10 @@ switch (mode) {
         setTimeout(() => {
             createHttpServer(basePort, 'Delayed Release');
             console.log(`Service ready on http://localhost:${basePort}`);
-        }, 100);
+        }, INITIAL_DELAY * 2);
         
-        // Delay port release by 500ms
-        process.on('SIGTERM', () => gracefulShutdown(500));
+        // Delay port release by PORT_RELEASE_DELAY
+        process.on('SIGTERM', () => gracefulShutdown(PORT_RELEASE_DELAY));
         break;
 
     case 'immediate-release':
@@ -159,7 +166,7 @@ switch (mode) {
         setTimeout(() => {
             createHttpServer(basePort, 'Immediate Release');
             console.log(`Service ready on http://localhost:${basePort}`);
-        }, 100);
+        }, INITIAL_DELAY * 2);
         
         // Immediate port release
         process.on('SIGTERM', () => gracefulShutdown(0));
@@ -171,7 +178,7 @@ switch (mode) {
         
         setTimeout(() => {
             console.log('Service ready (no ports)');
-        }, 100);
+        }, INITIAL_DELAY * 2);
         
         setInterval(() => {
             console.log('Processing...');
@@ -182,7 +189,7 @@ switch (mode) {
             setTimeout(() => {
                 console.log('Shutdown complete');
                 process.exit(0);
-            }, 100);
+            }, GRACEFUL_SHUTDOWN_TIME);
         });
         break;
 
@@ -192,18 +199,18 @@ switch (mode) {
         
         setTimeout(() => {
             createHttpServer(basePort, 'Switchboard');
-        }, 100);
+        }, INITIAL_DELAY * 2);
         
         setTimeout(() => {
             createHttpServer(basePort + 1, 'Connect');
-        }, 200);
+        }, INITIAL_DELAY * 4);
         
         setTimeout(() => {
             // Output in Powerhouse format
             console.log(`Connect Studio running on port ${basePort + 1}`);
             console.log(`Switchboard listening on port ${basePort}`);
             console.log(`Drive URL: http://localhost:${basePort}/drives/test123`);
-        }, 300);
+        }, INITIAL_DELAY * 6);
         
         process.on('SIGTERM', () => gracefulShutdown(0));
         break;

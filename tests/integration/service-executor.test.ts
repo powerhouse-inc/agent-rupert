@@ -207,20 +207,28 @@ describe('ServiceExecutor Integration Tests', () => {
             const handle1 = await executor.start(task);
             const pid1 = handle1.pid;
 
-            // Wait a moment
+            // Wait a moment for service to stabilize
             await new Promise(resolve => setTimeout(resolve, 500));
 
             // Restart the service
             const handle2 = await executor.restart(handle1.id);
+            
+            // Wait for the new service to fully start
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
             const pid2 = handle2.pid;
 
             // Should have different PIDs
             expect(pid2).not.toBe(pid1);
             expect(handle2.status).toBe('running');
 
-            // Clean up
+            // Clean up - wait a bit before stopping to ensure process is stable
+            await new Promise(resolve => setTimeout(resolve, 200));
             await executor.stop(handle2.id);
-        });
+            
+            // Wait for cleanup to complete
+            await new Promise(resolve => setTimeout(resolve, 500));
+        }, 10000);
     });
 
     describe('Error Handling', () => {

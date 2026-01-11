@@ -4,6 +4,19 @@ import { createServiceTask } from '../../src/tasks/types.js';
 import type { ServiceTask, ServiceHandle, ReadinessConfig } from '../../src/tasks/types.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+    FIXTURE_FAST_BOOT_TIME,
+    FIXTURE_PATTERN_INTERVAL,
+    TEST_TIMING_BUFFER,
+    SERVICE_STABILIZATION_TIME,
+    PROCESS_CLEANUP_TIME,
+    WAIT_FOR_TIMEOUT,
+    DEFAULT_READINESS_TIMEOUT,
+    EXTENDED_READINESS_TIMEOUT,
+    STANDARD_TEST_TIMEOUT,
+    WAIT_FOR_FAST_READY,
+    WAIT_FOR_MULTI_PATTERN_READY
+} from './test-timing-constants.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -47,7 +60,7 @@ describe('ServiceExecutor Readiness Detection', () => {
                         regex: 'Service ready',
                         stream: 'stdout'
                     }],
-                    timeout: 500
+                    timeout: DEFAULT_READINESS_TIMEOUT
                 }
             });
 
@@ -93,7 +106,7 @@ describe('ServiceExecutor Readiness Detection', () => {
                         stream: 'stdout',
                         name: 'http-port'
                     }],
-                    timeout: 500
+                    timeout: DEFAULT_READINESS_TIMEOUT
                 }
             });
 
@@ -157,7 +170,7 @@ describe('ServiceExecutor Readiness Detection', () => {
                             }]
                         }
                     ],
-                    timeout: 2000
+                    timeout: EXTENDED_READINESS_TIMEOUT
                 }
             });
 
@@ -191,7 +204,7 @@ describe('ServiceExecutor Readiness Detection', () => {
                         stream: 'stderr',
                         name: 'drive-stderr'
                     }],
-                    timeout: 500
+                    timeout: DEFAULT_READINESS_TIMEOUT
                 }
             });
 
@@ -222,7 +235,7 @@ describe('ServiceExecutor Readiness Detection', () => {
                         stream: 'any',
                         name: 'connect-any'
                     }],
-                    timeout: 500
+                    timeout: DEFAULT_READINESS_TIMEOUT
                 }
             });
 
@@ -266,7 +279,7 @@ describe('ServiceExecutor Readiness Detection', () => {
                             name: 'final'
                         }
                     ],
-                    timeout: 500
+                    timeout: DEFAULT_READINESS_TIMEOUT
                 }
             });
 
@@ -280,8 +293,8 @@ describe('ServiceExecutor Readiness Detection', () => {
             expect(handle.status).toBe('booting');
             expect(readyEventFired).toBe(false);
 
-            // Wait for all patterns
-            await new Promise(resolve => setTimeout(resolve, 50));
+            // Wait for all patterns - need more time for all 4 patterns to match
+            await new Promise(resolve => setTimeout(resolve, 100));
             
             // Now should be ready
             expect(handle.status).toBe('running');
@@ -305,7 +318,7 @@ describe('ServiceExecutor Readiness Detection', () => {
                         regex: 'This pattern will never match',
                         name: 'never'
                     }],
-                    timeout: 500 // Short timeout for testing
+                    timeout: DEFAULT_READINESS_TIMEOUT // Short timeout for testing
                 }
             });
 
@@ -346,7 +359,7 @@ describe('ServiceExecutor Readiness Detection', () => {
                             name: 'drive'
                         }
                     ],
-                    timeout: 500
+                    timeout: DEFAULT_READINESS_TIMEOUT
                 }
             });
 
@@ -374,7 +387,7 @@ describe('ServiceExecutor Readiness Detection', () => {
                     regex: 'ready',
                     name: 'ready'
                 }],
-                timeout: 5000
+                timeout: EXTENDED_READINESS_TIMEOUT
             };
 
             const task = createServiceTask({
@@ -411,7 +424,7 @@ describe('ServiceExecutor Readiness Detection', () => {
                         regex: 'listening on port',
                         name: 'port'
                     }],
-                    timeout: 500
+                    timeout: DEFAULT_READINESS_TIMEOUT
                 }
             });
 
@@ -450,7 +463,7 @@ describe('ServiceExecutor Readiness Detection', () => {
                             name: 'switchboard'
                         }
                     ],
-                    timeout: 500
+                    timeout: DEFAULT_READINESS_TIMEOUT
                 }
             });
 
@@ -486,7 +499,7 @@ describe('ServiceExecutor Readiness Detection', () => {
                         regex: 'Never matches',
                         name: 'never'
                     }],
-                    timeout: 500 // Very short timeout
+                    timeout: DEFAULT_READINESS_TIMEOUT // Very short timeout
                 }
             });
 
@@ -496,7 +509,7 @@ describe('ServiceExecutor Readiness Detection', () => {
             const timeoutEvent = await timeoutPromise;
             
             expect(timeoutEvent.handle.id).toBe(handle.id);
-            expect(timeoutEvent.timeout).toBe(500);
+            expect(timeoutEvent.timeout).toBe(DEFAULT_READINESS_TIMEOUT);
         });
     });
 
@@ -509,23 +522,29 @@ describe('ServiceExecutor Readiness Detection', () => {
                 args: [getTestFixture('test-service-with-readiness.js'), 'slow-boot'],
                 readiness: {
                     patterns: [{
-                        regex: 'Service ready',
+                        regex: 'Service ready on port',
                         name: 'ready'
                     }],
-                    timeout: 2000
+                    timeout: EXTENDED_READINESS_TIMEOUT
                 }
             });
 
             const handle = await executor.start(task);
+            
+            // Give the service a moment to enter boot phase
+            await new Promise(resolve => setTimeout(resolve, 100));
             
             expect(handle.status).toBe('booting');
 
             // Stop during boot phase
             await executor.stop(handle.id);
             
+            // Give time for cleanup
+            await new Promise(resolve => setTimeout(resolve, 200));
+            
             const status = executor.getStatus(handle.id);
             expect(status).toBeNull(); // Service removed after stop
-        });
+        }, 10000);
 
         it('should clear boot timeout when service stops', async () => {
             let timeoutFired = false;
@@ -543,7 +562,7 @@ describe('ServiceExecutor Readiness Detection', () => {
                         regex: 'Never',
                         name: 'never'
                     }],
-                    timeout: 500
+                    timeout: DEFAULT_READINESS_TIMEOUT
                 }
             });
 

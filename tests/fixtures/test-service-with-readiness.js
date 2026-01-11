@@ -20,29 +20,35 @@ const mode = process.argv[2] || 'powerhouse';
 
 console.log(`Test service with readiness started in ${mode} mode (PID: ${process.pid})`);
 
+// Timing constants matching test-timing-constants.ts
+const INITIAL_DELAY = 50;
+const PATTERN_INTERVAL = 50;
+const SLOW_BOOT_STEP = 500;
+const GRACEFUL_SHUTDOWN_TIME = 100;
+
 switch (mode) {
     case 'powerhouse':
         // Simulates Powerhouse vetra startup sequence
         console.log('Initializing Powerhouse services...');
         setTimeout(() => {
             console.log('Starting Connect Studio...');
-        }, 50);
+        }, INITIAL_DELAY);
         setTimeout(() => {
             console.log('Connect Studio running on port 3000');
-        }, 100);
+        }, INITIAL_DELAY + PATTERN_INTERVAL);
         setTimeout(() => {
             console.log('Starting Vetra Switchboard...');
-        }, 150);
+        }, INITIAL_DELAY + PATTERN_INTERVAL * 2);
         setTimeout(() => {
             console.log('Switchboard listening on port 4001');
-        }, 200);
+        }, INITIAL_DELAY + PATTERN_INTERVAL * 3);
         setTimeout(() => {
             console.log('Connecting to remote drives...');
-        }, 250);
+        }, INITIAL_DELAY + PATTERN_INTERVAL * 4);
         setTimeout(() => {
             console.log('Drive URL: http://localhost:4001/drives/abc123xyz789');
             console.log('Service fully started and ready to accept connections');
-        }, 300);
+        }, INITIAL_DELAY + PATTERN_INTERVAL * 5);
         
         // Keep running with periodic status updates
         setInterval(() => {
@@ -55,16 +61,16 @@ switch (mode) {
         console.log('Starting multi-component service...');
         setTimeout(() => {
             console.log('Database connected on port 5432');
-        }, 50);
+        }, INITIAL_DELAY);
         setTimeout(() => {
             console.log('API server ready on port 8080');
-        }, 100);
+        }, INITIAL_DELAY + PATTERN_INTERVAL);
         setTimeout(() => {
             console.log('WebSocket server listening on port 8081');
-        }, 150);
+        }, INITIAL_DELAY + PATTERN_INTERVAL * 2);
         setTimeout(() => {
             console.log('All components ready');
-        }, 200);
+        }, INITIAL_DELAY + PATTERN_INTERVAL * 3);
         
         setInterval(() => {
             console.log('Health check: OK');
@@ -72,7 +78,7 @@ switch (mode) {
         break;
 
     case 'slow-boot':
-        // Takes 2.5 seconds to become ready (still slow for timeout testing)
+        // Takes 2.5 seconds to become ready (5 steps * 500ms each)
         console.log('Starting slow service...');
         let progress = 0;
         const bootInterval = setInterval(() => {
@@ -83,7 +89,7 @@ switch (mode) {
                 console.log('Service ready on port 9000');
                 console.log('Drive URL: http://localhost:9000/drives/slow123');
             }
-        }, 500);
+        }, SLOW_BOOT_STEP);
         break;
 
     case 'boot-fail':
@@ -91,7 +97,7 @@ switch (mode) {
         console.log('Starting service that will never be ready...');
         setInterval(() => {
             console.log('Still booting... (this will never complete)');
-        }, 500);
+        }, SLOW_BOOT_STEP);
         break;
 
     case 'stderr-ready':
@@ -99,13 +105,13 @@ switch (mode) {
         console.log('Starting service with stderr readiness...');
         setTimeout(() => {
             console.error('ERROR: Connect port: 3000');
-        }, 50);
+        }, INITIAL_DELAY);
         setTimeout(() => {
             console.error('WARNING: Switchboard port: 4001');
-        }, 100);
+        }, INITIAL_DELAY + PATTERN_INTERVAL);
         setTimeout(() => {
             console.error('Drive URL: http://localhost:4001/drives/stderr456');
-        }, 150);
+        }, INITIAL_DELAY + PATTERN_INTERVAL * 2);
         
         setInterval(() => {
             console.log('Service operational');
@@ -141,10 +147,10 @@ switch (mode) {
         console.log('Starting minimal service...');
         setTimeout(() => {
             console.log('HTTP server listening on port 8888');
-        }, 100);
+        }, INITIAL_DELAY + PATTERN_INTERVAL);
         setTimeout(() => {
             console.log('Service ready (no Drive URL available)');
-        }, 150);
+        }, INITIAL_DELAY + PATTERN_INTERVAL * 2);
         
         setInterval(() => {
             console.log('Heartbeat');
@@ -174,7 +180,7 @@ process.on('SIGTERM', () => {
     setTimeout(() => {
         console.log('Shutdown complete');
         process.exit(0);
-    }, 100);
+    }, GRACEFUL_SHUTDOWN_TIME);
 });
 
 // Keep process alive
