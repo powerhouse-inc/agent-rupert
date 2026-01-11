@@ -1,4 +1,25 @@
 
+import { InMemoryCache, MemoryStorage, ReactorBuilder, logger, driveDocumentModelModule } from 'document-drive';
+import type { IDriveOperationStorage } from 'document-drive/storage/types';
+import type { ReactorInstance } from '../types.js';
+import { documentModels } from 'powerhouse-agent';
+import { documentModelDocumentModelModule } from 'document-model';
+import { FilesystemStorage } from 'document-drive/storage/filesystem';
+import path from 'path';
+
+// Configuration types
+export interface ReactorConfig {
+    remoteDriveUrl?: string;
+    storage?: {
+        type: 'filesystem' | 'memory';
+        filesystemPath?: string;
+    };
+}
+
+export interface AgentConfig {
+    reactor?: ReactorConfig;
+}
+
 /**
  *  The AgentBase class implements a Powerhouse Agent which operates as follows: 
  * 
@@ -40,6 +61,164 @@
  *          - A goal can be moved from TODO to DELEGATED
  *      
  */
-export class AgentBase {
+export abstract class AgentBase {
+    protected reactor?: ReactorInstance;
+    protected reactorConfig?: ReactorConfig;
+    
+    constructor(config?: AgentConfig) {
+        this.reactorConfig = config?.reactor;
+    }
+    
+    /**
+     * Initialize the agent's reactor with custom configuration
+     * Each agent can override to customize document models, storage, etc.
+     */
+    private async initializeReactor(): Promise<void> {
+        // Core reactor initialization logic moved from reactor-setup.ts
+        // Get document models (can be customized by subclasses)
+        const models = this.getDocumentModels();
+        
+        // Create ReactorBuilder with document models
+        const builder = new ReactorBuilder(models as any)
+            .withCache(await this.createCache())
+            .withStorage(await this.createStorage());
+        
+        // Build reactor
+        const driveServer = builder.build();
+        await driveServer.initialize();
+        
+        // Store reactor instance
+        this.reactor = {
+            driveServer,
+            reactor: null as any, // Will be implemented when needed for queue system
+            client: null as any   // Will be implemented when needed for queue system
+        };
+        
+        // Connect to remote drives if configured
+        if (this.reactorConfig?.remoteDriveUrl) {
+            await this.connectRemoteDrive(this.reactorConfig.remoteDriveUrl);
+        }
+    }
+    
+    /**
+     * Connect to a remote drive
+     */
+    private async connectRemoteDrive(remoteDriveUrl: string): Promise<void> {
+        if (!this.reactor?.driveServer) {
+            throw new Error('Reactor not initialized');
+        }
+        
+        // Temporarily suppress console errors from the document-drive library
+        const originalConsoleError = console.error;
+        const originalProcessStderr = process.stderr.write;
+        
+        try {
+            logger.info(`🔗 Connecting to remote drive: ${remoteDriveUrl}`);
+            
+            // Suppress error logging during addRemoteDrive
+            console.error = () => {};
+            process.stderr.write = () => true;
+            
+            await this.reactor.driveServer.addRemoteDrive(remoteDriveUrl, {
+                sharingType: "public",
+                availableOffline: true,
+                listeners: [
+                    {
+                        block: true,
+                        callInfo: {
+                            data: remoteDriveUrl,
+                            name: "switchboard-push",
+                            transmitterType: "SwitchboardPush",
+                        },
+                        filter: {
+                            branch: ["main"],
+                            documentId: ["*"],
+                            documentType: ["*"],
+                            scope: ["global"],
+                        },
+                        label: "Switchboard Sync",
+                        listenerId: crypto.randomUUID(),
+                        system: true,
+                    },
+                ],
+                triggers: [],
+            });
+            logger.info(`✅ Successfully connected to remote drive`);
+        } catch (error) {
+            // Extract meaningful error message
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            const isConnectionRefused = errorMessage.includes('ECONNREFUSED') || errorMessage.includes('Connection refused');
+            const isDriveNotFound = errorMessage.includes("Couldn't find drive info");
+            
+            if (isConnectionRefused) {
+                logger.info(`💡 Remote drive service not available - continuing in local mode`);
+            } else if (isDriveNotFound) {
+                logger.info(`💡 Remote drive not found - continuing in local mode`);
+            } else {
+                logger.info(`💡 Unable to connect to remote drive - continuing in local mode`);
+            }
+            // Don't throw - allow agent to continue without remote drive
+        } finally {
+            // Restore console logging
+            console.error = originalConsoleError;
+            process.stderr.write = originalProcessStderr;
+        }
+    }
+    
+    protected getDocumentModels(): any[] {
+            // ReactorPackageAgent uses powerhouse document models
+            return [
+                ...documentModels,
+                driveDocumentModelModule,
+                documentModelDocumentModelModule
+            ];
+        }
+    
+    /**
+     * Override in subclasses to provide custom cache (optional)
+     * Defaults to InMemoryCache
+     */
+    protected async createCache(): Promise<any> {
+        return new InMemoryCache();
+    }
+    
+    /**
+     * Override in subclasses to customize storage
+     */
+    protected async createStorage(): Promise<IDriveOperationStorage> {
+        // Use filesystem storage for ReactorPackageAgent if configured
+        if (this.reactorConfig?.storage?.type === 'filesystem') {
+            const storagePath = this.reactorConfig.storage.filesystemPath || 
+                path.join(process.cwd(), '.ph', 'file-storage');
+            
+            return new FilesystemStorage(storagePath);
+        }
 
+        return new MemoryStorage();
+    }
+    
+    /**
+     * Initialize the agent - must be called before using the agent
+     */
+    public async initialize(): Promise<void> {
+        return this.initializeReactor();
+    }
+    
+    /**
+     * Shutdown the agent and clean up resources
+     */
+    public async shutdown(): Promise<void> {
+        return Promise.resolve();
+    }
+    
+    /**
+     * Get the reactor instance
+     */
+    protected getReactor(): ReactorInstance {
+        if (!this.reactor) {
+            throw new Error('Reactor not initialized - call initialize() first');
+        }
+
+        return this.reactor;
+    }
 }

@@ -63,13 +63,3 @@ export const config: AgentConfig = {
     timeout: parseTimeout(process.env.GRAPHQL_TIMEOUT, 30000)
   }
 };
-
-/**
- * Validate configuration on module load
- */
-function validateConfig(): void {
-  const { powerhouse } = config;
-  
-  // Validation happens silently unless there's an error
-  // Use DEBUG=* or similar env var to enable logging if needed
-}

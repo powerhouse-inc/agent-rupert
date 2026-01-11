@@ -5,11 +5,8 @@ import dotenv from 'dotenv';
 // IMPORTANT: Load environment variables BEFORE importing config
 dotenv.config();
 
-import { initializeReactor } from './reactor-setup.js';
-import type { ReactorInstance } from './types.js';
-import { CLIExecutor } from './tasks/executors/cli-executor.js';
-import { AgentProjectsClient } from './graphql/AgentProjectsClient.js';
 import { config } from './config.js';
+import { AgentsManager } from './agents/AgentsManager.js';
 import {
   createHealthRouter,
   createModelsRouter,
@@ -17,46 +14,26 @@ import {
   createProjectsRouter,
   createInfoRouter
 } from './routes/index.js';
-import { ReactorPackagesManager } from './agents/ReactorPackageAgent/ReactorPackagesManager.js';
 
 const app: express.Application = express();
 const PORT = config.port;
 
-let reactorInstance: ReactorInstance | null = null;
-
-// Create shared CLI executor instance
-const cliExecutor = new CLIExecutor({
-  timeout: 120000, // 2 minutes default timeout
-  retryAttempts: 0 // No retries by default
+// Create and configure agents manager
+const agentsManager = new AgentsManager({
+  enableReactorPackageAgent: true,
+  enableArchitectAgent: false, // Disabled until fully implemented
+  projectsDir: config.powerhouse.projectsDir,
+  reactorPackageConfig: {
+    reactor: {
+      remoteDriveUrl: config.remoteDriveUrl,
+      storage: config.storage
+    }
+  }
 });
-
-// Initialize ReactorPackagesManager with configured directory and GraphQL config
-const projectsManager = new ReactorPackagesManager(
-  config.powerhouse.projectsDir,
-  cliExecutor
-);
-
-// Create GraphQL client instance for reactor sync
-const graphqlClient = config.graphql ? new AgentProjectsClient({
-  endpoint: config.graphql.endpoint,
-  headers: config.graphql.authToken ? { Authorization: `Bearer ${config.graphql.authToken}` } : {},
-  retryAttempts: config.graphql.retryAttempts,
-  retryDelay: config.graphql.retryDelay,
-  timeout: config.graphql.timeout
-}) : null;
-
-if (graphqlClient) {
-  console.log(`📊 GraphQL client configured for endpoint: ${config.graphql.endpoint}`);
-} else {
-  console.log('📊 GraphQL client not configured - project sync disabled');
-}
 
 // Track auto-start status
 let autoStartStatus: 'idle' | 'starting' | 'running' | 'failed' = 'idle';
 let autoStartError: string | null = null;
-
-// Helper function to get reactor instance
-const getReactorInstance = () => reactorInstance;
 
 // Helper function to get auto-start state
 const getAutoStartState = () => ({
@@ -76,6 +53,15 @@ async function startConfiguredProject(): Promise<void> {
     return;
   }
   
+  if (!agentsManager.hasReactorPackageAgent()) {
+    console.log('⚠️ ReactorPackageAgent not enabled, cannot auto-start project');
+    autoStartStatus = 'failed';
+    autoStartError = 'ReactorPackageAgent not enabled';
+    return;
+  }
+  
+  const reactorPackageAgent = agentsManager.getReactorPackageAgent();
+  
   console.log(`\n🚀 Auto-starting Powerhouse project: ${project}`);
   console.log('================================');
   autoStartStatus = 'starting';
@@ -83,14 +69,14 @@ async function startConfiguredProject(): Promise<void> {
   
   try {
     // Check if project exists
-    const projects = await projectsManager.listProjects();
+    const projects = await reactorPackageAgent.listProjects();
     const projectExists = projects.some(p => p.name === project);
     
     if (!projectExists) {
       console.log(`📝 Project "${project}" not found, initializing it now...`);
       
       // Initialize the project
-      const initResult = await projectsManager.init(project);
+      const initResult = await reactorPackageAgent.initProject(project);
       
       if (initResult.success) {
         console.log(`✅ Project "${project}" initialized successfully at ${initResult.projectPath}`);
@@ -119,7 +105,7 @@ async function startConfiguredProject(): Promise<void> {
     console.log(`   Startup Timeout: ${runOptions.startupTimeout}ms`);
     
     // Run the project
-    const result = await projectsManager.runProject(project, runOptions);
+    const result = await reactorPackageAgent.runProject(project, runOptions);
     
     if (result.success) {
       console.log(`✅ Project "${project}" started successfully`);
@@ -137,6 +123,7 @@ async function startConfiguredProject(): Promise<void> {
       autoStartStatus = 'failed';
       autoStartError = result.error || 'Failed to start project';
     }
+    
   } catch (error) {
     console.error(`❌ Error during project auto-start:`, error);
     console.log('⚠️ Server will continue without auto-started project');
@@ -150,30 +137,41 @@ async function startConfiguredProject(): Promise<void> {
 app.use(cors());
 app.use(express.json());
 
-// Mount route handlers
-app.use(createInfoRouter(projectsManager));
-app.use(createHealthRouter(getReactorInstance, projectsManager));
-app.use(createModelsRouter(getReactorInstance));
-app.use(createDrivesRouter(getReactorInstance));
-app.use(createProjectsRouter(projectsManager, getAutoStartState));
+// Mount route handlers (will be configured after agents are initialized)
+let routesConfigured = false;
 
 async function start() {
   try {
-    // Initialize reactor with project manager and GraphQL client for sync
-    reactorInstance = await initializeReactor(projectsManager, graphqlClient || undefined);
+    // Initialize all agents (includes reactor initialization)
+    await agentsManager.initialize();
+    
+    // Get the ReactorPackageAgent for route configuration
+    const reactorPackageAgent = agentsManager.getReactorPackageAgent();
+    
+    // Configure routes with agents
+    if (!routesConfigured) {
+      app.use(createInfoRouter(reactorPackageAgent.getPackagesManager()));
+      app.use(createHealthRouter(() => reactorPackageAgent.getReactor(), reactorPackageAgent.getPackagesManager()));
+      app.use(createModelsRouter(() => reactorPackageAgent.getReactor()));
+      app.use(createDrivesRouter(() => reactorPackageAgent.getReactor()));
+      app.use(createProjectsRouter(reactorPackageAgent.getPackagesManager(), getAutoStartState));
+      routesConfigured = true;
+    }
     
     // Start Express server FIRST so API endpoints are immediately available
     app.listen(PORT, () => {
       console.log(`🚀 Powerhouse Agent server listening on port ${PORT}`);
       console.log(`📍 Health check: http://localhost:${PORT}/health`);
       console.log(`📍 Projects API: http://localhost:${PORT}/projects`);
+      console.log(`✅ ReactorPackageAgent: initialized`);
       console.log(`⚡ Reactor status: initialized`);
       console.log(`🔨 Task framework: ready`);
       
       // Auto-start configured Powerhouse project AFTER server is running
       // This runs asynchronously so the server is immediately available
       startConfiguredProject().then(() => {
-        const runningProject = projectsManager.getRunningProject();
+        const reactorPackageAgent = agentsManager.getReactorPackageAgent();
+        const runningProject = reactorPackageAgent.getRunningProject();
         if (runningProject) {
           console.log(`\n✅ Powerhouse project "${runningProject.name}" is now running`);
           console.log(`📍 Project status: http://localhost:${PORT}/projects/running`);
@@ -199,19 +197,9 @@ async function gracefulShutdown(signal: string): Promise<void> {
   console.log(`\n📛 Received ${signal}, starting graceful shutdown...`);
   
   try {
-    // Shutdown running Powerhouse project if any
-    const runningProject = projectsManager.getRunningProject();
-    if (runningProject) {
-      console.log(`🛑 Shutting down Powerhouse project: ${runningProject.name}`);
-      const shutdownResult = await projectsManager.shutdownProject();
-      if (shutdownResult.success) {
-        console.log(`✅ Project shutdown successful`);
-      } else {
-        console.error(`⚠️ Project shutdown failed: ${shutdownResult.error}`);
-      }
-    }
+    // Shutdown all agents (includes shutting down running projects)
+    await agentsManager.shutdown();
     
-    // Add any other cleanup here (database connections, etc.)
     console.log('👋 Graceful shutdown complete');
     process.exit(0);
   } catch (error) {
