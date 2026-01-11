@@ -5,14 +5,15 @@ import { ReactorPackagesManager } from '../agents/ReactorPackageAgent/ReactorPac
 
 export function createHealthRouter(
   getReactorInstance: () => ReactorInstance | null,
-  projectsManager: ReactorPackagesManager
+  getProjectsManager: () => ReactorPackagesManager | null
 ): Router {
   const router = Router();
 
   router.get('/health', async (_req, res) => {
     const reactorInstance = getReactorInstance();
     const drives = reactorInstance ? await reactorInstance.driveServer.getDrives() : [];
-    const runningProject = projectsManager.getRunningProject();
+    const projectsManager = getProjectsManager();
+    const runningProject = projectsManager?.getRunningProject();
     
     res.json({
       status: 'ok',

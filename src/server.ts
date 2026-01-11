@@ -18,18 +18,8 @@ import {
 const app: express.Application = express();
 const PORT = config.port;
 
-// Create and configure agents manager
-const agentsManager = new AgentsManager({
-  enableReactorPackageAgent: true,
-  enableArchitectAgent: false, // Disabled until fully implemented
-  projectsDir: config.powerhouse.projectsDir,
-  reactorPackageConfig: {
-    reactor: {
-      remoteDriveUrl: config.remoteDriveUrl,
-      storage: config.storage
-    }
-  }
-});
+// AgentsManager will be initialized after server starts
+let agentsManager: AgentsManager | null = null;
 
 // Track auto-start status
 let autoStartStatus: 'idle' | 'starting' | 'running' | 'failed' = 'idle';
@@ -40,6 +30,30 @@ const getAutoStartState = () => ({
   status: autoStartStatus,
   error: autoStartError
 });
+
+// Helper function to get reactor instance (may be null if agents not initialized)
+const getReactorInstance = () => {
+  if (agentsManager?.hasReactorPackageAgent()) {
+    try {
+      return agentsManager.getReactorPackageAgent().getReactor();
+    } catch {
+      return null;
+    }
+  }
+  return null;
+};
+
+// Helper function to get packages manager (may be null if agents not initialized)
+const getPackagesManager = () => {
+  if (agentsManager?.hasReactorPackageAgent()) {
+    try {
+      return agentsManager.getReactorPackageAgent().getPackagesManager();
+    } catch {
+      return null;
+    }
+  }
+  return null;
+};
 
 /**
  * Auto-start the configured Powerhouse project if specified
@@ -53,10 +67,10 @@ async function startConfiguredProject(): Promise<void> {
     return;
   }
   
-  if (!agentsManager.hasReactorPackageAgent()) {
-    console.log('⚠️ ReactorPackageAgent not enabled, cannot auto-start project');
+  if (!agentsManager?.hasReactorPackageAgent()) {
+    console.log('⚠️ ReactorPackageAgent not available, cannot auto-start project');
     autoStartStatus = 'failed';
-    autoStartError = 'ReactorPackageAgent not enabled';
+    autoStartError = 'ReactorPackageAgent not available';
     return;
   }
   
@@ -137,52 +151,53 @@ async function startConfiguredProject(): Promise<void> {
 app.use(cors());
 app.use(express.json());
 
-// Mount route handlers (will be configured after agents are initialized)
-let routesConfigured = false;
+// Mount basic route handlers (work without agents)
+app.use(createInfoRouter(getPackagesManager));
+app.use(createHealthRouter(getReactorInstance, getPackagesManager));
+app.use(createModelsRouter(getReactorInstance));
+app.use(createDrivesRouter(getReactorInstance));
+app.use(createProjectsRouter(getPackagesManager, getAutoStartState));
 
-async function start() {
+/**
+ * Initialize agents asynchronously after server is running
+ */
+async function initializeAgents(): Promise<void> {
   try {
+    console.log('🔧 Initializing agents...');
+    
+    // Create and configure agents manager
+    agentsManager = new AgentsManager({
+      enableReactorPackageAgent: true,
+      enableArchitectAgent: false, // Disabled until fully implemented
+      projectsDir: config.powerhouse.projectsDir,
+      reactorPackageConfig: {
+        reactor: {
+          remoteDriveUrl: config.remoteDriveUrl,
+          storage: config.storage
+        }
+      }
+    });
+    
     // Initialize all agents (includes reactor initialization)
     await agentsManager.initialize();
     
-    // Get the ReactorPackageAgent for route configuration
-    const reactorPackageAgent = agentsManager.getReactorPackageAgent();
-    
-    // Configure routes with agents
-    if (!routesConfigured) {
-      app.use(createInfoRouter(reactorPackageAgent.getPackagesManager()));
-      app.use(createHealthRouter(() => reactorPackageAgent.getReactor(), reactorPackageAgent.getPackagesManager()));
-      app.use(createModelsRouter(() => reactorPackageAgent.getReactor()));
-      app.use(createDrivesRouter(() => reactorPackageAgent.getReactor()));
-      app.use(createProjectsRouter(reactorPackageAgent.getPackagesManager(), getAutoStartState));
-      routesConfigured = true;
-    }
-    
+    // Auto-start configured Powerhouse project AFTER agents are initialized
+    try {
+      await startConfiguredProject();
+    } catch (error) {
+      console.error('\n❌ Failed to auto-start project:', error);
+    };
+  } catch (error) {
+    console.error('❌ Failed to initialize agents:', error);
+  };
+}
+
+async function start() {
+  try {
     // Start Express server FIRST so API endpoints are immediately available
     app.listen(PORT, () => {
-      console.log(`🚀 Powerhouse Agent server listening on port ${PORT}`);
-      console.log(`📍 Health check: http://localhost:${PORT}/health`);
-      console.log(`📍 Projects API: http://localhost:${PORT}/projects`);
-      console.log(`✅ ReactorPackageAgent: initialized`);
-      console.log(`⚡ Reactor status: initialized`);
-      console.log(`🔨 Task framework: ready`);
-      
-      // Auto-start configured Powerhouse project AFTER server is running
-      // This runs asynchronously so the server is immediately available
-      startConfiguredProject().then(() => {
-        const reactorPackageAgent = agentsManager.getReactorPackageAgent();
-        const runningProject = reactorPackageAgent.getRunningProject();
-        if (runningProject) {
-          console.log(`\n✅ Powerhouse project "${runningProject.name}" is now running`);
-          console.log(`📍 Project status: http://localhost:${PORT}/projects/running`);
-          if (runningProject.driveUrl) {
-            console.log(`🌐 Drive URL: ${runningProject.driveUrl}`);
-          }
-        }
-      }).catch((error) => {
-        console.error('\n❌ Failed to auto-start project:', error);
-        console.log(`📍 Check status at: http://localhost:${PORT}/projects/running`);
-      });
+      console.log(`🚀 Powerhouse Agent running: http://localhost:${PORT}/`);
+      initializeAgents();
     });
   } catch (error) {
     console.error('Failed to start server:', error);
@@ -197,11 +212,12 @@ async function gracefulShutdown(signal: string): Promise<void> {
   console.log(`\n📛 Received ${signal}, starting graceful shutdown...`);
   
   try {
-    // Shutdown all agents (includes shutting down running projects)
-    await agentsManager.shutdown();
-    
+    if (agentsManager) {
+      await agentsManager.shutdown();
+    }
     console.log('👋 Graceful shutdown complete');
     process.exit(0);
+
   } catch (error) {
     console.error('❌ Error during shutdown:', error);
     process.exit(1);

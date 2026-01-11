@@ -1,11 +1,12 @@
 import { Router } from 'express';
 import { ReactorPackagesManager } from '../agents/ReactorPackageAgent/ReactorPackagesManager.js';
 
-export function createInfoRouter(projectsManager: ReactorPackagesManager): Router {
+export function createInfoRouter(getProjectsManager: () => ReactorPackagesManager | null): Router {
   const router = Router();
 
   router.get('/', (_req, res) => {
-    const runningProject = projectsManager.getRunningProject();
+    const projectsManager = getProjectsManager();
+    const runningProject = projectsManager?.getRunningProject();
     
     res.json({
       name: 'Powerhouse Agent',

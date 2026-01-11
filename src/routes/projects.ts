@@ -8,13 +8,29 @@ interface AutoStartState {
 }
 
 export function createProjectsRouter(
-  projectsManager: ReactorPackagesManager,
+  getProjectsManager: () => ReactorPackagesManager | null,
   getAutoStartState: () => AutoStartState
 ): Router {
   const router = Router();
+  
+  // Helper to ensure projects manager is available
+  const requireProjectsManager = (res: any) => {
+    const manager = getProjectsManager();
+    if (!manager) {
+      res.status(503).json({ 
+        error: 'Projects manager not available', 
+        message: 'Agent is still initializing. Please try again in a moment.' 
+      });
+      return null;
+    }
+    return manager;
+  };
 
   router.get('/projects', async (_req, res) => {
     try {
+      const projectsManager = requireProjectsManager(res);
+      if (!projectsManager) return;
+      
       const projects = await projectsManager.listProjects();
       const runningProject = projectsManager.getRunningProject();
       
@@ -39,6 +55,8 @@ export function createProjectsRouter(
   });
 
   router.get('/projects/running', (_req, res) => {
+    const projectsManager = requireProjectsManager(res);
+    if (!projectsManager) return;
     const runningProject = projectsManager.getRunningProject();
     const autoStartState = getAutoStartState();
     
@@ -84,6 +102,8 @@ export function createProjectsRouter(
   });
 
   router.get('/projects/running/status', (_req, res) => {
+    const projectsManager = requireProjectsManager(res);
+    if (!projectsManager) return;
     const runningProject = projectsManager.getRunningProject();
     const autoStartState = getAutoStartState();
     
@@ -121,6 +141,9 @@ export function createProjectsRouter(
   });
 
   router.get('/projects/running/logs', (req, res) => {
+    const projectsManager = requireProjectsManager(res);
+    if (!projectsManager) return;
+    
     const logs = projectsManager.getProjectLogs();
     const runningProject = projectsManager.getRunningProject();
     
@@ -152,6 +175,8 @@ export function createProjectsRouter(
   });
 
   router.get('/projects/running/drive-url', (_req, res) => {
+    const projectsManager = requireProjectsManager(res);
+    if (!projectsManager) return;
     const runningProject = projectsManager.getRunningProject();
     
     if (!runningProject) {
