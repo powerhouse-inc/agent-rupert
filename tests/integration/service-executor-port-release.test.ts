@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, xit } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { ServiceExecutor, ServiceExecutorOptions } from '../../src/tasks/executors/service-executor.js';
 import { createServiceTask } from '../../src/tasks/types.js';
 import * as path from 'path';
@@ -99,7 +99,7 @@ describe('ServiceExecutor Port Release Verification', () => {
             expect(portsReleasedList).toContain(9501);
         }, TEST_TIMEOUT);
 
-        xit('should handle delayed port release', async () => {
+        it('should handle delayed port release', async () => {
             const task = createServiceTask({
                 title: 'Service with Delayed Port Release',
                 instructions: 'Test delayed port release',
@@ -145,7 +145,7 @@ describe('ServiceExecutor Port Release Verification', () => {
     });
 
     describe('Multiple Ports Service', () => {
-        xit('should verify release of multiple ports', async () => {
+        it('should verify release of multiple ports', async () => {
             const task = createServiceTask({
                 title: 'Multi-Port Service',
                 instructions: 'Test multiple port release',
@@ -217,7 +217,7 @@ describe('ServiceExecutor Port Release Verification', () => {
     });
 
     describe('Selective Port Monitoring', () => {
-        xit('should only monitor ports with monitorPortReleaseUponTermination=true', async () => {
+        it('should only monitor ports with monitorPortReleaseUponTermination=true', async () => {
             const task = createServiceTask({
                 title: 'Selective Port Monitoring',
                 instructions: 'Test selective port monitoring',
@@ -305,7 +305,7 @@ describe('ServiceExecutor Port Release Verification', () => {
     });
 
     describe('Port Release Timeout', () => {
-        xit('should emit timeout event if port is not released', async () => {
+        it('should emit timeout event if port is not released', async () => {
             // This test simulates a stuck port by using a very short timeout
             const quickTimeoutExecutor = new ServiceExecutor({
                 maxLogSize: 100,
@@ -363,7 +363,7 @@ describe('ServiceExecutor Port Release Verification', () => {
     });
 
     describe('Unexpected Exit Port Release', () => {
-        xit('should verify port release on unexpected process exit', async () => {
+        it('should verify port release on unexpected process exit', async () => {
             const task = createServiceTask({
                 title: 'Service with Unexpected Exit',
                 instructions: 'Test port release on crash',
