@@ -1,5 +1,4 @@
-import { spawn, ChildProcess } from 'child_process';
-import { EventEmitter } from 'events';
+import { ChildProcess } from 'child_process';
 import { CLITask } from '../types.js';
 import { 
     TaskTimeoutError, 
@@ -7,14 +6,12 @@ import {
     TaskProcessError,
     TaskExecutionError 
 } from './errors.js';
+import { BaseExecutor, BaseExecutorConfig, StreamHandlerOptions } from './base-executor.js';
 
-export interface CLIExecutorOptions {
+export interface CLIExecutorOptions extends BaseExecutorConfig {
     timeout?: number;
-    maxOutputSize?: number;
     retryAttempts?: number;
     retryDelay?: number;
-    killSignal?: NodeJS.Signals;
-    gracefulShutdownTimeout?: number;
 }
 
 export interface StreamOptions {
@@ -47,19 +44,16 @@ export interface CLIStreamEvent {
 /**
  * Unified CLI Executor with streaming, retry logic, and comprehensive error handling
  */
-export class CLIExecutor extends EventEmitter {
-    private readonly config: Required<CLIExecutorOptions>;
+export class CLIExecutor extends BaseExecutor {
+    private readonly cliConfig: Required<Pick<CLIExecutorOptions, 'timeout' | 'retryAttempts' | 'retryDelay'>>;
     public currentProcess: ChildProcess | null = null;
 
     constructor(options: CLIExecutorOptions = {}) {
-        super();
-        this.config = {
+        super(options);
+        this.cliConfig = {
             timeout: options.timeout || Number(process.env.TASK_TIMEOUT_MS) || 300000,
-            maxOutputSize: options.maxOutputSize || 1024 * 1024, // 1MB
             retryAttempts: options.retryAttempts || Number(process.env.TASK_RETRY_ATTEMPTS) || 3,
-            retryDelay: options.retryDelay || 1000, // 1 second
-            killSignal: options.killSignal || 'SIGTERM',
-            gracefulShutdownTimeout: options.gracefulShutdownTimeout || 5000
+            retryDelay: options.retryDelay || 1000 // 1 second
         };
     }
 
@@ -73,9 +67,9 @@ export class CLIExecutor extends EventEmitter {
         let lastError: Error | undefined;
         let retryCount = 0;
 
-        for (let attempt = 0; attempt < this.config.retryAttempts; attempt++) {
+        for (let attempt = 0; attempt < this.cliConfig.retryAttempts; attempt++) {
             try {
-                this.emit('attempt', { task, attempt: attempt + 1, maxAttempts: this.config.retryAttempts });
+                this.emit('attempt', { task, attempt: attempt + 1, maxAttempts: this.cliConfig.retryAttempts });
                 
                 const result = await this.executeOnce(task);
                 
@@ -92,7 +86,7 @@ export class CLIExecutor extends EventEmitter {
                 }
                 
                 // Check if we should retry
-                if (attempt < this.config.retryAttempts - 1) {
+                if (attempt < this.cliConfig.retryAttempts - 1) {
                     const shouldRetry = this.shouldRetry(error as Error);
                     
                     if (shouldRetry) {
@@ -100,11 +94,11 @@ export class CLIExecutor extends EventEmitter {
                             task, 
                             attempt: attempt + 1, 
                             error, 
-                            nextRetryIn: this.config.retryDelay 
+                            nextRetryIn: this.cliConfig.retryDelay 
                         });
                         
                         // Exponential backoff
-                        const delay = this.config.retryDelay * Math.pow(2, attempt);
+                        const delay = this.cliConfig.retryDelay * Math.pow(2, attempt);
                         await this.delay(delay);
                     } else {
                         throw error;
@@ -136,7 +130,7 @@ export class CLIExecutor extends EventEmitter {
         const startedAt = new Date();
         const timeout = task.environment?.TIMEOUT ? 
             parseInt(task.environment.TIMEOUT) : 
-            this.config.timeout;
+            this.cliConfig.timeout;
 
         // Emit start event for streaming
         if (streamOptions) {
@@ -154,29 +148,27 @@ export class CLIExecutor extends EventEmitter {
             let timeoutHandle: NodeJS.Timeout | undefined;
             let processKilled = false;
 
-            const options: any = {
+            const spawnOptions: any = {
                 cwd: task.workingDirectory || process.cwd(),
-                env: { ...process.env, ...task.environment },
-                shell: true
+                env: this.createEnvironment(task.environment)
             };
             
             // Only use detached mode if explicitly requested (for long-running processes)
             if (streamOptions?.detached && process.platform !== 'win32') {
-                options.detached = true;
+                spawnOptions.detached = true;
             }
 
-            const child: ChildProcess = spawn(task.command, task.args, options);
+            const { process: child, pid } = this.spawnProcess(task.command, task.args, spawnOptions);
             
             // Store reference to current process for cleanup
             this.currentProcess = child;
             
             // Store PID for monitoring
-            if (child.pid) {
-                this.emit('started', { task, pid: child.pid });
+            if (pid) {
+                this.emit('started', { task, pid });
             }
 
             // Handle timeout
-            let forceKillHandle: NodeJS.Timeout | null = null;
             if (timeout > 0) {
                 timeoutHandle = setTimeout(() => {
                     timedOut = true;
@@ -184,15 +176,10 @@ export class CLIExecutor extends EventEmitter {
                     
                     this.emit('timeout', { task, timeout, pid: child.pid });
                     
-                    // Graceful shutdown
-                    child.kill(this.config.killSignal);
-                    
-                    // Force kill after grace period
-                    forceKillHandle = setTimeout(() => {
-                        if (!child.killed) {
-                            child.kill('SIGKILL');
-                        }
-                    }, this.config.gracefulShutdownTimeout);
+                    // Use base class method for graceful kill
+                    this.killProcessGracefully(child).catch(() => {
+                        // Process kill errors are handled by exit event
+                    });
                 }, timeout);
             }
 
@@ -274,9 +261,6 @@ export class CLIExecutor extends EventEmitter {
                 if (timeoutHandle) {
                     clearTimeout(timeoutHandle);
                 }
-                if (forceKillHandle) {
-                    clearTimeout(forceKillHandle);
-                }
 
                 const completedAt = new Date();
                 const duration = completedAt.getTime() - startedAt.getTime();
@@ -349,19 +333,13 @@ export class CLIExecutor extends EventEmitter {
      * Validate task parameters
      */
     private validateTask(task: CLITask): void {
+        // Use base class validation for common properties
+        this.validateBaseTask(task);
+        
+        // Use base class command validation
+        this.validateCommand(task.command, task.args);
+        
         const errors: string[] = [];
-
-        if (!task.id) {
-            errors.push('Task ID is required');
-        }
-
-        if (!task.command || task.command.trim() === '') {
-            errors.push('Command cannot be empty');
-        }
-
-        if (!Array.isArray(task.args)) {
-            errors.push('Args must be an array');
-        }
 
         if (task.workingDirectory && typeof task.workingDirectory !== 'string') {
             errors.push('Working directory must be a string');
@@ -371,7 +349,7 @@ export class CLIExecutor extends EventEmitter {
             errors.push('Environment must be an object');
         }
 
-        // Check for dangerous commands if not explicitly allowed
+        // Additional validation for dangerous commands if not explicitly allowed
         if (task.environment?.ALLOW_DANGEROUS !== 'true') {
             const dangerous = ['rm -rf /', 'format', 'dd if=/dev/zero'];
             const cmdLower = task.command.toLowerCase();
@@ -418,10 +396,5 @@ export class CLIExecutor extends EventEmitter {
         return retryableMessages.some(msg => error.message.includes(msg));
     }
 
-    /**
-     * Helper to delay execution
-     */
-    private delay(ms: number): Promise<void> {
-        return new Promise(resolve => setTimeout(resolve, ms));
-    }
+    // Note: delay() method is now inherited from BaseExecutor
 }
