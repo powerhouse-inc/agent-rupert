@@ -40,6 +40,6 @@
  *          - A goal can be moved from TODO to DELEGATED
  *      
  */
-class AgentBase {
+export class AgentBase {
 
 }
