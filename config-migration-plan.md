@@ -23,18 +23,18 @@ Migrating from flat global config to hierarchical agent-specific configuration s
 - [x] Update PowerhouseArchitectAgent config
 - [x] Test agent instantiation
 
-### Phase 4: Update Server & Routes ⏳
-- [ ] Update server.ts config usage
-- [ ] Update health.ts route
-- [ ] Update projects.ts route
-- [ ] Update info.ts route
-- [ ] Test all API endpoints
+### Phase 4: Update Server & Routes ✅
+- [x] Update server.ts config usage
+- [x] Update health.ts route
+- [x] Update projects.ts route
+- [x] Update info.ts route
+- [x] Test all API endpoints
 
-### Phase 5: Project Auto-start Logic ⏳
-- [ ] Update startConfiguredProject() in AgentInitializer
-- [ ] Use new vetraConfig for ports
-- [ ] Check autoStartDefaultProject flag
-- [ ] Test project auto-start
+### Phase 5: Project Auto-start Logic ✅
+- [x] Update startConfiguredProject() in AgentInitializer
+- [x] Use new vetraConfig for ports
+- [x] Check autoStartDefaultProject flag
+- [x] Test project auto-start
 
 ### Phase 6: Cleanup ⏳
 - [ ] Remove old config.ts file

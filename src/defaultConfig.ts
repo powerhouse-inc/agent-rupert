@@ -27,7 +27,7 @@ export const defaultConfig: ServerConfig = {
             reactorPackages: {
                 projectsDir: "../projects",
                 defaultProjectName: "agent-project",
-                autoStartDefaultProject: false,
+                autoStartDefaultProject: true,
             },
             vetraConfig: {
                 connectPort: Number(process.env.VETRA_CONNECT_PORT) || 5000,
