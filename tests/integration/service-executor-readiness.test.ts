@@ -5,17 +5,10 @@ import type { ServiceTask, ServiceHandle, ReadinessConfig } from '../../src/task
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-    FIXTURE_FAST_BOOT_TIME,
     FIXTURE_PATTERN_INTERVAL,
     TEST_TIMING_BUFFER,
-    SERVICE_STABILIZATION_TIME,
-    PROCESS_CLEANUP_TIME,
-    WAIT_FOR_TIMEOUT,
     DEFAULT_READINESS_TIMEOUT,
-    EXTENDED_READINESS_TIMEOUT,
-    STANDARD_TEST_TIMEOUT,
-    WAIT_FOR_FAST_READY,
-    WAIT_FOR_MULTI_PATTERN_READY
+    EXTENDED_READINESS_TIMEOUT
 } from './test-timing-constants.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));

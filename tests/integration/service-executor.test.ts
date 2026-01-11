@@ -3,6 +3,12 @@ import { ServiceExecutor } from '../../src/tasks/executors/service-executor.js';
 import { createServiceTask } from '../../src/tasks/types.js';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
+import {
+    SERVICE_STABILIZATION_TIME,
+    PROCESS_CLEANUP_TIME,
+    WAIT_FOR_TIMEOUT,
+    STANDARD_TEST_TIMEOUT
+} from './test-timing-constants.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -29,7 +35,7 @@ describe('ServiceExecutor Integration Tests', () => {
         await executor.stopAll({ force: true });
         
         // Give time for processes to fully clean up
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, SERVICE_STABILIZATION_TIME));
         
         // Remove all listeners to prevent memory leaks
         executor.removeAllListeners();
@@ -64,7 +70,7 @@ describe('ServiceExecutor Integration Tests', () => {
 
             // Clean up
             await executor.stop(handle.id);
-        }, 10000); // 10 second test timeout
+        }, STANDARD_TEST_TIMEOUT); // Standard test timeout
 
         it('should handle service that exits after some time', async () => {
             const task = createServiceTask({
@@ -77,8 +83,8 @@ describe('ServiceExecutor Integration Tests', () => {
             const handle = await executor.start(task);
             expect(handle.status).toBe('running');
 
-            // Wait for service to complete (5 ticks * 200ms = 1 second)
-            await new Promise(resolve => setTimeout(resolve, 1500));
+            // Wait for service to complete (counted service takes ~1 second)
+            await new Promise(resolve => setTimeout(resolve, 1200)); // Specific timing for this test
 
             // Service should no longer be in the registry
             const status = executor.getStatus(handle.id);
@@ -102,7 +108,7 @@ describe('ServiceExecutor Integration Tests', () => {
             const handle = await executor.start(task);
             
             // Let it run for a moment
-            await new Promise(resolve => setTimeout(resolve, 500));
+            await new Promise(resolve => setTimeout(resolve, SERVICE_STABILIZATION_TIME));
 
             // Stop gracefully
             await executor.stop(handle.id);
@@ -123,7 +129,7 @@ describe('ServiceExecutor Integration Tests', () => {
             const handle = await executor.start(task);
             
             // Let it run for a moment
-            await new Promise(resolve => setTimeout(resolve, 500));
+            await new Promise(resolve => setTimeout(resolve, SERVICE_STABILIZATION_TIME));
 
             // Force stop
             await executor.stop(handle.id, { force: true });
@@ -148,8 +154,8 @@ describe('ServiceExecutor Integration Tests', () => {
 
             const handle = await executor.start(task);
 
-            // Wait for service to complete
-            await new Promise(resolve => setTimeout(resolve, 500));
+            // Wait for service to output to both streams
+            await new Promise(resolve => setTimeout(resolve, 300)); // Need time for output
 
             // Check that we captured both stdout and stderr
             expect(outputs.length).toBeGreaterThan(0);
@@ -180,6 +186,9 @@ describe('ServiceExecutor Integration Tests', () => {
             const handle1 = await executor.start(task1);
             const handle2 = await executor.start(task2);
 
+            // Wait for both services to stabilize
+            await new Promise(resolve => setTimeout(resolve, SERVICE_STABILIZATION_TIME));
+
             // Both should be running
             const services = executor.getAllServices();
             expect(services.length).toBe(2);
@@ -208,13 +217,13 @@ describe('ServiceExecutor Integration Tests', () => {
             const pid1 = handle1.pid;
 
             // Wait a moment for service to stabilize
-            await new Promise(resolve => setTimeout(resolve, 500));
+            await new Promise(resolve => setTimeout(resolve, SERVICE_STABILIZATION_TIME));
 
             // Restart the service
             const handle2 = await executor.restart(handle1.id);
             
             // Wait for the new service to fully start
-            await new Promise(resolve => setTimeout(resolve, 500));
+            await new Promise(resolve => setTimeout(resolve, SERVICE_STABILIZATION_TIME));
             
             const pid2 = handle2.pid;
 
@@ -223,11 +232,11 @@ describe('ServiceExecutor Integration Tests', () => {
             expect(handle2.status).toBe('running');
 
             // Clean up - wait a bit before stopping to ensure process is stable
-            await new Promise(resolve => setTimeout(resolve, 200));
+            await new Promise(resolve => setTimeout(resolve, PROCESS_CLEANUP_TIME));
             await executor.stop(handle2.id);
             
             // Wait for cleanup to complete
-            await new Promise(resolve => setTimeout(resolve, 500));
+            await new Promise(resolve => setTimeout(resolve, PROCESS_CLEANUP_TIME));
         }, 10000);
     });
 
@@ -243,7 +252,7 @@ describe('ServiceExecutor Integration Tests', () => {
             const handle = await executor.start(task);
 
             // Wait for service to fail
-            await new Promise(resolve => setTimeout(resolve, 500));
+            await new Promise(resolve => setTimeout(resolve, SERVICE_STABILIZATION_TIME));
 
             // Service should not be in registry
             const status = executor.getStatus(handle.id);
@@ -263,7 +272,7 @@ describe('ServiceExecutor Integration Tests', () => {
             expect(handle).toBeDefined();
 
             // Wait a moment for the error to be processed
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await new Promise(resolve => setTimeout(resolve, SERVICE_STABILIZATION_TIME));
 
             // Service should have failed
             const status = executor.getStatus(handle.id);
