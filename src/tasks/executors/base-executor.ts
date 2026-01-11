@@ -192,7 +192,7 @@ export abstract class BaseExecutor extends EventEmitter {
         signal?: NodeJS.Signals
     ): Promise<void> {
         return new Promise((resolve) => {
-            if (!process || process.killed) {
+            if (!process || process.killed || process.exitCode !== null) {
                 resolve();
                 return;
             }
@@ -213,29 +213,35 @@ export abstract class BaseExecutor extends EventEmitter {
             process.once('exit', exitHandler);
 
             // Send graceful shutdown signal
-            process.kill(killSignal);
-            this.emit('process-kill-sent', { 
-                pid: process.pid, 
-                signal: killSignal 
-            });
+            try {
+                process.kill(killSignal);
+                this.emit('process-kill-sent', { 
+                    pid: process.pid, 
+                    signal: killSignal 
+                });
+            } catch (error) {
+                // Process might already be dead
+                process.removeListener('exit', exitHandler);
+                resolve();
+                return;
+            }
 
             // Set timeout for forced kill
             forceKillTimeout = setTimeout(() => {
                 if (!processExited && !process.killed) {
-                    process.kill('SIGKILL');
-                    this.emit('process-force-killed', { 
-                        pid: process.pid 
-                    });
+                    try {
+                        process.kill('SIGKILL');
+                        this.emit('process-force-killed', { 
+                            pid: process.pid 
+                        });
+                    } catch {
+                        // Process already dead
+                    }
                 }
-            }, this.config.gracefulShutdownTimeout);
-
-            // Clean up timeout if process exits before timeout
-            if (processExited) {
-                if (forceKillTimeout) {
-                    clearTimeout(forceKillTimeout);
-                }
+                // Always resolve after timeout
+                process.removeListener('exit', exitHandler);
                 resolve();
-            }
+            }, this.config.gracefulShutdownTimeout);
         });
     }
 

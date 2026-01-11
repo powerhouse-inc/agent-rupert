@@ -3,10 +3,10 @@
  */
 export interface BaseTask {
     id: string;
-    type: 'cli' | 'claude-code' | 'claude-agent';
+    type: 'cli' | 'claude-code' | 'claude-agent' | 'service';
     title: string;
     instructions: string;
-    status: 'pending' | 'running' | 'completed' | 'failed';
+    status: 'pending' | 'running' | 'completed' | 'failed' | 'stopped';
     createdAt: Date;
     updatedAt: Date;
     result?: any;
@@ -74,6 +74,70 @@ export function createClaudeCodeTask(
         ...params,
         id: generateTaskId(),
         type: 'claude-code',
+        status: 'pending',
+        createdAt: new Date(),
+        updatedAt: new Date()
+    };
+}
+
+/**
+ * Task for long-running services that should not timeout
+ */
+export interface ServiceTask extends BaseTask {
+    type: 'service';
+    command: string;
+    args: string[];
+    workingDirectory?: string;
+    environment?: Record<string, string>;
+    gracefulShutdown?: {
+        signal?: NodeJS.Signals;
+        timeout?: number;
+    };
+    restartPolicy?: {
+        enabled: boolean;
+        maxRetries?: number;
+        delay?: number;
+    };
+}
+
+/**
+ * Service handle for managing running services
+ */
+export interface ServiceHandle {
+    id: string;
+    taskId: string;
+    pid?: number;
+    startedAt: Date;
+    status: 'starting' | 'running' | 'stopping' | 'stopped' | 'failed';
+}
+
+/**
+ * Service status information
+ */
+export interface ServiceStatus {
+    handle: ServiceHandle;
+    uptime: number;
+    restartCount: number;
+    lastError?: string;
+}
+
+/**
+ * Type guard to check if a task is a ServiceTask
+ */
+export function isServiceTask(task: BaseTask): task is ServiceTask {
+    return task.type === 'service';
+}
+
+/**
+ * Factory function to create a new ServiceTask
+ */
+export function createServiceTask(
+    params: Omit<ServiceTask, 'id' | 'status' | 'createdAt' | 'updatedAt' | 'type'>
+): ServiceTask {
+    return {
+        ...params,
+        id: generateTaskId(),
+        type: 'service',
         status: 'pending',
         createdAt: new Date(),
         updatedAt: new Date()
