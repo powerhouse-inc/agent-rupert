@@ -38,6 +38,44 @@ export type AgentConfig = {
   graphql: GraphQLConfig;
 };
 
+export type ServerConfig = {
+  agents: {
+    reactorPackageAgents: {
+
+    },
+    powerhouseArchitectAgents: {
+
+    }
+  }
+}
+
+type WorkDocument = {
+  documentType: string;
+  documentId: string;
+}
+
+type BaseAgentConfig = {
+  name: string;
+  reactor: {
+    storage: StorageOptions;
+    driveUrl: string;
+    documents: {
+      inbox: WorkDocument;
+      wbs: WorkDocument;
+    },
+  }
+}
+
+export type ReactorPackageAgentConfig = BaseAgentConfig & {
+  projectDir: string;
+  defaultProject: string;
+  
+}
+
+export type PowerhouseArchitectAgentConfig = BaseAgentConfig & {
+  
+}
+
 export type ReactorInstance = {
   driveServer: IDocumentDriveServer;
   reactor: any; // Will be properly typed when we implement the queue system

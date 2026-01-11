@@ -1,4 +1,4 @@
-import { AgentBase, type AgentConfig } from "../AgentBase.js";
+import { AgentBase, type AgentConfig, type ILogger } from "../AgentBase.js";
 import { ReactorPackagesManager, type RunProjectOptions } from "./ReactorPackagesManager.js";
 import { CLIExecutor } from "../../tasks/executors/cli-executor.js";
 import { ServiceExecutor } from "../../tasks/executors/service-executor.js";
@@ -12,8 +12,8 @@ export class ReactorPackageAgent extends AgentBase {
     private serviceExecutor: ServiceExecutor;
     private projectsDir: string;
     
-    constructor(projectsDir: string, config?: AgentConfig) {
-        super(config);
+    constructor(projectsDir: string, logger: ILogger, config?: AgentConfig) {
+        super('ReactorPackageAgent', logger, config);
         this.projectsDir = projectsDir;
         
         // Initialize executors
@@ -33,11 +33,13 @@ export class ReactorPackageAgent extends AgentBase {
         await super.initialize();
         
         // Create packages manager
+        this.logger.info(`${this.name}: Creating ReactorPackagesManager for ${this.projectsDir}`);
         this.packagesManager = new ReactorPackagesManager(
             this.projectsDir,
             this.cliExecutor,
             this.serviceExecutor
         );
+        this.logger.info(`${this.name}: ReactorPackagesManager created successfully`);
     }
     
     public async shutdown(): Promise<void> {
@@ -45,6 +47,7 @@ export class ReactorPackageAgent extends AgentBase {
         if (this.packagesManager) {
             const runningProject = this.packagesManager.getRunningProject();
             if (runningProject) {
+                this.logger.info(`${this.name}: Shutting down running project: ${runningProject.name}`);
                 await this.packagesManager.shutdownProject();
             }
         }

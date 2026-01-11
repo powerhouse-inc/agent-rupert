@@ -1,11 +1,19 @@
 
-import { InMemoryCache, MemoryStorage, ReactorBuilder, logger, driveDocumentModelModule } from 'document-drive';
+import { InMemoryCache, MemoryStorage, ReactorBuilder, driveDocumentModelModule } from 'document-drive';
 import type { IDriveOperationStorage } from 'document-drive/storage/types';
 import type { ReactorInstance } from '../types.js';
 import { documentModels } from 'powerhouse-agent';
 import { documentModelDocumentModelModule } from 'document-model';
 import { FilesystemStorage } from 'document-drive/storage/filesystem';
 import path from 'path';
+
+// Logger interface for dependency injection
+export interface ILogger {
+    info(message: string): void;
+    error(message: string, error?: any): void;
+    warn(message: string): void;
+    debug(message: string): void;
+}
 
 // Configuration types
 export interface ReactorConfig {
@@ -64,9 +72,14 @@ export interface AgentConfig {
 export abstract class AgentBase {
     protected reactor?: ReactorInstance;
     protected reactorConfig?: ReactorConfig;
+    protected name: string;
+    protected logger: ILogger;
     
-    constructor(config?: AgentConfig) {
+    constructor(name: string, logger: ILogger, config?: AgentConfig) {
+        this.name = name;
+        this.logger = logger;
         this.reactorConfig = config?.reactor;
+        this.logger.info(`${name}: Initialized`);
     }
     
     /**
@@ -74,9 +87,12 @@ export abstract class AgentBase {
      * Each agent can override to customize document models, storage, etc.
      */
     private async initializeReactor(): Promise<void> {
+        this.logger.info(`${this.name}: Starting reactor initialization`);
+        
         // Core reactor initialization logic moved from reactor-setup.ts
         // Get document models (can be customized by subclasses)
         const models = this.getDocumentModels();
+        this.logger.debug(`${this.name}: Loaded ${models.length} document models`);
         
         // Create ReactorBuilder with document models
         const builder = new ReactorBuilder(models as any)
@@ -86,6 +102,7 @@ export abstract class AgentBase {
         // Build reactor
         const driveServer = builder.build();
         await driveServer.initialize();
+        this.logger.info(`${this.name}: Reactor built and initialized`);
         
         // Store reactor instance
         this.reactor = {
@@ -113,7 +130,7 @@ export abstract class AgentBase {
         const originalProcessStderr = process.stderr.write;
         
         try {
-            logger.info(`🔗 Connecting to remote drive: ${remoteDriveUrl}`);
+            this.logger.info(`${this.name}: Connecting to remote drive: ${remoteDriveUrl}`);
             
             // Suppress error logging during addRemoteDrive
             console.error = () => {};
@@ -143,7 +160,7 @@ export abstract class AgentBase {
                 ],
                 triggers: [],
             });
-            logger.info(`✅ Successfully connected to remote drive`);
+            this.logger.info(`${this.name}: ✅ Successfully connected to remote drive`);
         } catch (error) {
             // Extract meaningful error message
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -151,11 +168,11 @@ export abstract class AgentBase {
             const isDriveNotFound = errorMessage.includes("Couldn't find drive info");
             
             if (isConnectionRefused) {
-                logger.info(`💡 Remote drive service not available - continuing in local mode`);
+                this.logger.warn(`${this.name}: 💡 Remote drive service not available - continuing in local mode`);
             } else if (isDriveNotFound) {
-                logger.info(`💡 Remote drive not found - continuing in local mode`);
+                this.logger.warn(`${this.name}: 💡 Remote drive not found - continuing in local mode`);
             } else {
-                logger.info(`💡 Unable to connect to remote drive - continuing in local mode`);
+                this.logger.warn(`${this.name}: 💡 Unable to connect to remote drive - continuing in local mode`);
             }
             // Don't throw - allow agent to continue without remote drive
         } finally {
@@ -201,13 +218,16 @@ export abstract class AgentBase {
      * Initialize the agent - must be called before using the agent
      */
     public async initialize(): Promise<void> {
-        return this.initializeReactor();
+        this.logger.info(`${this.name}: Beginning initialization`);
+        await this.initializeReactor();
+        this.logger.info(`${this.name}: Initialization complete`);
     }
     
     /**
      * Shutdown the agent and clean up resources
      */
     public async shutdown(): Promise<void> {
+        this.logger.info(`${this.name}: Shutting down`);
         return Promise.resolve();
     }
     
@@ -220,5 +240,9 @@ export abstract class AgentBase {
         }
 
         return this.reactor;
+    }
+
+    public getName(): string {
+        return this.name;
     }
 }

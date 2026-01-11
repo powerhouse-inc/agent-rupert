@@ -1,4 +1,4 @@
-import { AgentBase, type AgentConfig } from "../AgentBase.js";
+import { AgentBase, type AgentConfig, type ILogger } from "../AgentBase.js";
 
 /**
  *  The PowerhouseArchitectAgent creates and manages a variety of architecture-related 
@@ -6,18 +6,21 @@ import { AgentBase, type AgentConfig } from "../AgentBase.js";
  *  to develop and roll out Powerhouse-based cloud platforms. 
  */
 export class PowerhouseArchitectAgent extends AgentBase {
-    constructor(config?: AgentConfig) {
-        super(config);
+    constructor(logger: ILogger, config?: AgentConfig) {
+        super('PowerhouseArchitectAgent', logger, config);
     }
     
     public async initialize(): Promise<void> {
         await super.initialize();
         // Initialize architect-specific resources
+        this.logger.info(`${this.name}: Architect-specific initialization starting`);
         // TODO: Add architect-specific initialization
+        this.logger.info(`${this.name}: Architect-specific initialization complete`);
     }
     
     public async shutdown(): Promise<void> {
         // Cleanup architect resources
+        this.logger.info(`${this.name}: Cleaning up architect resources`);
         // TODO: Add architect-specific cleanup
         await super.shutdown();
     }

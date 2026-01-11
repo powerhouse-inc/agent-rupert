@@ -1,5 +1,6 @@
 import { AgentsManager } from './AgentsManager.js';
 import { config as AppConfig } from '../config.js';
+import type { ILogger } from './AgentBase.js';
 
 let agentsManager: AgentsManager | null = null;
 
@@ -7,35 +8,54 @@ let agentsManager: AgentsManager | null = null;
 let autoStartStatus: 'idle' | 'starting' | 'running' | 'failed' = 'idle';
 let autoStartError: string | null = null;
 
+// Create a logger that prefixes all messages properly
+function createLogger(): ILogger {
+  return {
+    info: (message: string) => console.log(message),
+    error: (message: string, error?: any) => {
+      if (error) {
+        console.error(message, error);
+      } else {
+        console.error(message);
+      }
+    },
+    warn: (message: string) => console.warn(message),
+    debug: (message: string) => console.log(message)
+  };
+}
+
 /**
  * Initialize agents asynchronously after server is running
  */
 export async function initializeAgents(projectsDir: string, config: typeof AppConfig): Promise<void> {
+  const logger = createLogger();
+  
   try {
-    console.log('🔧 Initializing agents...');
+    logger.info('🔧 Initializing agents...');
     
-    // Create and configure agents manager
+    // Create and configure agents manager with logger
     agentsManager = new AgentsManager({
       enableReactorPackageAgent: true,
-      enableArchitectAgent: false, // Disabled until fully implemented
+      enableArchitectAgent: true,
       projectsDir: projectsDir,
       reactorPackageConfig: {
         reactor: {
           remoteDriveUrl: config.remoteDriveUrl,
           storage: config.storage
         }
-      }
+      },
+      logger
     });
     
     // Initialize all agents (includes reactor initialization)
     await agentsManager.initialize();
     
-    console.log(`✅ ReactorPackageAgent: initialized`);
-    console.log(`⚡ Reactor status: initialized`);
-    console.log(`🔨 Task framework: ready`);
+    logger.info(`✅ ReactorPackageAgent: initialized`);
+    logger.info(`⚡ Reactor status: initialized`);
+    logger.info(`🔨 Task framework: ready`);
     
   } catch (error) {
-    console.error('❌ Failed to initialize agents:', error);
+    logger.error('❌ Failed to initialize agents:', error);
     // Don't throw - server should continue to run without agents
   }
 }
