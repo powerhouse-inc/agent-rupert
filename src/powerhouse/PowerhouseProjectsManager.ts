@@ -450,9 +450,12 @@ export class PowerhouseProjectsManager {
         // Use provided ports from effectiveOptions (with guaranteed defaults)
         const actualConnectPort = effectiveOptions.connectPort;
         const actualSwitchboardPort = effectiveOptions.switchboardPort;
+        
+        // Track the readiness timeout so we can clean it up
+        let readinessTimeoutId: NodeJS.Timeout | null = null;
 
         try {
-            // Create Service task for ph vetra --watch with port options (no timeout!)
+            // Create Service task for ph vetra --watch with port options and readiness patterns
             const runTask: ServiceTask = createServiceTask({
                 title: `Run Powerhouse project: ${project.name}`,
                 instructions: `Start Powerhouse Vetra development server for ${project.name}`,
@@ -470,6 +473,31 @@ export class PowerhouseProjectsManager {
                 gracefulShutdown: {
                     signal: 'SIGTERM',
                     timeout: 10000
+                },
+                readiness: {
+                    patterns: [
+                        {
+                            regex: '➜\\s+Local:\\s+http://localhost:(\\d+)',
+                            name: 'connect-port',
+                            endpoints: [{
+                                endpointName: 'connect-studio',
+                                endpointDefaultHostUrl: 'http://localhost',
+                                endpointCaptureGroup: 1,
+                                monitorPortReleaseUponTermination: true
+                            }]
+                        },
+                        {
+                            regex: '➜\\s+Drive URL:\\s*(https?://[^\\s]+)',
+                            name: 'drive-url',
+                            endpoints: [{
+                                endpointName: 'drive-url',
+                                endpointDefaultHostUrl: '',
+                                endpointCaptureGroup: 1,
+                                monitorPortReleaseUponTermination: false
+                            }]
+                        }
+                    ],
+                    timeout: effectiveOptions.startupTimeout
                 }
             });
 
@@ -502,7 +530,7 @@ export class PowerhouseProjectsManager {
                 }
             }
 
-            // Set up event listener for service output
+            // Set up event listener for service output (for logging only, not for readiness detection)
             const outputHandler = (event: any) => {
                 if (!this.runningProject || event.serviceId !== this.runningProject.serviceHandle?.id) {
                     return;
@@ -512,34 +540,6 @@ export class PowerhouseProjectsManager {
                 const logPrefix = event.type === 'stdout' ? '[stdout]' : '[stderr]';
                 
                 this.runningProject.logs.push(`${logPrefix} ${data}`);
-                
-                // Check for Drive URL in the output
-                if (!this.runningProject.driveUrl && data.includes('Drive URL:')) {
-                    const urlMatch = data.match(/Drive URL:\s*(https?:\/\/[^\s]+)/);
-                    if (urlMatch && urlMatch[1]) {
-                        this.runningProject.driveUrl = urlMatch[1].trim();
-                        this.runningProject.isFullyStarted = true;
-                        
-                        // Update GraphQL with runtime info including Drive URL
-                        if (this.graphqlClient) {
-                                    this.graphqlClient.updateProjectRuntime(
-                                        this.runningProject.name,
-                                        {
-                                            pid: this.runningProject.process?.pid,
-                                            startedAt: this.runningProject.startedAt.toISOString(),
-                                            driveUrl: this.runningProject.driveUrl
-                                        }
-                                    ).catch(error => console.warn('Failed to update runtime in GraphQL:', error));
-                                    
-                                    this.graphqlClient.addLogEntry(
-                                        this.runningProject.name,
-                                        LogLevel.INFO,
-                                        `Project fully started. Drive URL: ${this.runningProject.driveUrl}`,
-                                        LogSource.SYSTEM
-                                    ).catch(error => console.warn('Failed to add log entry to GraphQL:', error));
-                        }
-                    }
-                }
                 
                 // Send log to GraphQL (throttled)
                 const logLevel = event.type === 'stdout' ? LogLevel.INFO : LogLevel.WARNING;
@@ -558,8 +558,77 @@ export class PowerhouseProjectsManager {
                 }
             };
             
-            // Register the output handler
+            // Set up promise to wait for service readiness
+            let serviceReadyResolve: ((value: string | null) => void) | null = null;
+            const serviceReadyPromise = new Promise<string | null>((resolve) => {
+                serviceReadyResolve = resolve;
+                
+                // Set timeout for readiness
+                readinessTimeoutId = setTimeout(() => {
+                    resolve(null); // Resolve with null on timeout
+                }, effectiveOptions.startupTimeout);
+            });
+
+            // Listen for service-ready event
+            const readyHandler = (event: any) => {
+                if (event.handle.id === this.runningProject?.serviceHandle?.id) {
+                    // Extract the Drive URL from endpoints
+                    const driveUrl = event.handle.endpoints?.get('drive-url') || null;
+                    if (driveUrl && this.runningProject) {
+                        this.runningProject.driveUrl = driveUrl;
+                        this.runningProject.isFullyStarted = true;
+                        
+                        // Update GraphQL with runtime info including Drive URL
+                        if (this.graphqlClient) {
+                            this.graphqlClient.updateProjectRuntime(
+                                this.runningProject.name,
+                                {
+                                    pid: this.runningProject.process?.pid,
+                                    startedAt: this.runningProject.startedAt.toISOString(),
+                                    driveUrl: this.runningProject.driveUrl
+                                }
+                            ).catch(error => console.warn('Failed to update runtime in GraphQL:', error));
+                            
+                            this.graphqlClient.addLogEntry(
+                                this.runningProject.name,
+                                LogLevel.INFO,
+                                `Project fully started. Drive URL: ${this.runningProject.driveUrl}`,
+                                LogSource.SYSTEM
+                            ).catch(error => console.warn('Failed to add log entry to GraphQL:', error));
+                        }
+                    }
+                    
+                    // Resolve the promise with Drive URL (or null if not captured)
+                    if (serviceReadyResolve) {
+                        // Clear the timeout since we're resolving
+                        if (readinessTimeoutId) {
+                            clearTimeout(readinessTimeoutId);
+                            readinessTimeoutId = null;
+                        }
+                        serviceReadyResolve(driveUrl);
+                    }
+                }
+            };
+            
+            // Listen for boot-timeout event (fallback if patterns don't match)
+            const bootTimeoutHandler = (event: any) => {
+                if (event.handle.id === this.runningProject?.serviceHandle?.id) {
+                    console.warn(`Boot timeout for project '${project.name}': readiness patterns not matched within ${effectiveOptions.startupTimeout}ms`);
+                    if (serviceReadyResolve) {
+                        // Clear the timeout since we're resolving
+                        if (readinessTimeoutId) {
+                            clearTimeout(readinessTimeoutId);
+                            readinessTimeoutId = null;
+                        }
+                        serviceReadyResolve(null);
+                    }
+                }
+            };
+
+            // Register all handlers
             this.serviceExecutor.on('service-output', outputHandler);
+            this.serviceExecutor.once('service-ready', readyHandler);
+            this.serviceExecutor.once('boot-timeout', bootTimeoutHandler);
             
             // Start the service (no timeout!)
             const serviceHandle = await this.serviceExecutor.start(runTask);
@@ -574,19 +643,21 @@ export class PowerhouseProjectsManager {
             // Handle service exit
             this.serviceExecutor.once('service-exited', (event) => {
                 if (event.handle.id === serviceHandle.id) {
-                    console.log(`Project '${project.name}' stopped (code: ${event.code}, signal: ${event.signal})`);
                     this.runningProject = null;
+                    // Clean up all event listeners
                     this.serviceExecutor.removeListener('service-output', outputHandler);
+                    this.serviceExecutor.removeListener('service-ready', readyHandler);
+                    this.serviceExecutor.removeListener('boot-timeout', bootTimeoutHandler);
                 }
             });
 
-            // Wait for Drive URL to be captured (indicates vetra is fully started)
-            const driveUrl = await this.waitForDriveUrl(effectiveOptions.startupTimeout!);
+            // Wait for service to be ready (Drive URL captured)
+            const driveUrl = await serviceReadyPromise;
             
             if (!driveUrl) {
                 // Log warning but don't fail - project might still be starting
                 console.warn(
-                    `Warning: Drive URL not captured within ${effectiveOptions.startupTimeout!}ms. ` +
+                    `Warning: Drive URL not captured within ${effectiveOptions.startupTimeout}ms. ` +
                     `Project may still be starting up. Check logs with getProjectLogs() for details.`
                 );
             }
@@ -600,6 +671,11 @@ export class PowerhouseProjectsManager {
             };
 
         } catch (error) {
+            // Clean up timeout if it exists
+            if (readinessTimeoutId) {
+                clearTimeout(readinessTimeoutId);
+            }
+            
             this.runningProject = null;
             this.runningProcessPromise = null;
             return {
@@ -628,10 +704,13 @@ export class PowerhouseProjectsManager {
 
     /**
      * Wait for the Drive URL to be captured during project startup
+     * @deprecated This method is deprecated - Drive URL is now captured via readiness patterns in runProject()
      * @param timeout - Maximum time to wait in milliseconds (default: 60000)
      * @returns The Drive URL if captured, null if timeout reached
      */
     async waitForDriveUrl(timeout: number = 60000): Promise<string | null> {
+        console.warn('waitForDriveUrl() is deprecated. Drive URL is now captured automatically via readiness patterns.');
+        
         if (!this.runningProject) {
             return null;
         }
@@ -641,25 +720,17 @@ export class PowerhouseProjectsManager {
             return this.runningProject.driveUrl;
         }
 
+        // For backward compatibility, do a simple check with timeout
         const startTime = Date.now();
-        const pollInterval = 1000; // Check every 1 second
+        const pollInterval = 100; // Quick check interval
 
         while (Date.now() - startTime < timeout) {
-            // Check if project is still running
-            if (!this.runningProject) {
-                return null;
+            if (!this.runningProject || this.runningProject.driveUrl) {
+                return this.runningProject?.driveUrl || null;
             }
-
-            // Check if Drive URL has been captured
-            if (this.runningProject.driveUrl) {
-                return this.runningProject.driveUrl;
-            }
-
-            // Wait before checking again
             await new Promise(resolve => setTimeout(resolve, pollInterval));
         }
 
-        // Timeout reached
         return null;
     }
 

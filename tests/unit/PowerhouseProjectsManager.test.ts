@@ -17,6 +17,8 @@ describe('PowerhouseProjectsManager', () => {
     let serviceListeners: Map<string, Function[]>;
 
     beforeEach(async () => {
+        // Use fake timers to control setTimeout
+        jest.useFakeTimers();
         // Suppress console.warn and console.log in tests
         originalConsoleWarn = console.warn;
         originalConsoleLog = console.log;
@@ -72,12 +74,13 @@ describe('PowerhouseProjectsManager', () => {
         
         // Create manager instance with temp directory and mock executors
         manager = new PowerhouseProjectsManager(tempDir, mockCLIExecutor, mockServiceExecutor);
-        
-        // Mock waitForDriveUrl to resolve immediately in tests (avoid 60s timeout)
-        jest.spyOn(manager, 'waitForDriveUrl').mockImplementation(() => Promise.resolve(null));
     });
 
     afterEach(async () => {
+        // Clear all timers and restore real timers
+        jest.clearAllTimers();
+        jest.useRealTimers();
+        
         // Restore console
         console.warn = originalConsoleWarn;
         console.log = originalConsoleLog;
@@ -171,7 +174,17 @@ describe('PowerhouseProjectsManager', () => {
             };
             mockStart.mockResolvedValue(mockHandle);
 
-            const result = await manager.runProject('test-project');
+            const resultPromise = manager.runProject('test-project');
+            
+            // Emit boot-timeout to resolve the promise
+            setTimeout(() => {
+                mockServiceExecutor.emit('boot-timeout', { handle: mockHandle });
+            }, 10);
+            
+            // Advance timers to trigger the timeout
+            jest.advanceTimersByTime(10);
+
+            const result = await resultPromise;
 
             expect(result.success).toBe(true);
             expect(result.projectName).toBe('test-project');
@@ -203,10 +216,21 @@ describe('PowerhouseProjectsManager', () => {
             };
             mockStart.mockResolvedValue(mockHandle);
 
-            const result = await manager.runProject('test-project', {
+            const resultPromise = manager.runProject('test-project', {
                 connectPort: 8080,
-                switchboardPort: 8081
+                switchboardPort: 8081,
+                startupTimeout: 60000
             });
+            
+            // Emit boot-timeout to resolve
+            setTimeout(() => {
+                mockServiceExecutor.emit('boot-timeout', { handle: mockHandle });
+            }, 10);
+            
+            // Advance timers to trigger the timeout
+            jest.advanceTimersByTime(10);
+            
+            const result = await resultPromise;
 
             expect(result.success).toBe(true);
             expect(result.connectPort).toBe(8080);
@@ -240,7 +264,17 @@ describe('PowerhouseProjectsManager', () => {
             };
             mockStart.mockResolvedValue(mockHandle);
 
-            await manager.runProject('test-project');
+            const firstPromise = manager.runProject('test-project');
+            
+            // Emit boot-timeout to complete first project
+            setTimeout(() => {
+                mockServiceExecutor.emit('boot-timeout', { handle: mockHandle });
+            }, 10);
+            
+            // Advance timers to trigger the timeout
+            jest.advanceTimersByTime(10);
+            
+            await firstPromise;
 
             // Try to start another project
             const projectPath2 = path.join(tempDir, 'another-project');
@@ -277,7 +311,17 @@ describe('PowerhouseProjectsManager', () => {
             };
             mockStart.mockResolvedValue(mockHandle);
 
-            await manager.runProject('test-project');
+            const projectPromise = manager.runProject('test-project');
+            
+            // Emit boot-timeout to complete startup
+            setTimeout(() => {
+                mockServiceExecutor.emit('boot-timeout', { handle: mockHandle });
+            }, 10);
+            
+            // Advance timers to trigger the timeout
+            jest.advanceTimersByTime(10);
+            
+            await projectPromise;
 
             // Simulate service output events
             mockServiceExecutor.emit('service-output', {
@@ -314,7 +358,17 @@ describe('PowerhouseProjectsManager', () => {
             };
             mockStart.mockResolvedValue(mockHandle);
 
-            await manager.runProject('test-project');
+            const projectPromise = manager.runProject('test-project');
+            
+            // Emit boot-timeout to complete startup
+            setTimeout(() => {
+                mockServiceExecutor.emit('boot-timeout', { handle: mockHandle });
+            }, 10);
+            
+            // Advance timers to trigger the timeout
+            jest.advanceTimersByTime(10);
+            
+            await projectPromise;
 
             // Should always keep 500 logs maximum
             for (let i = 0; i < 600; i++) {
@@ -351,38 +405,45 @@ describe('PowerhouseProjectsManager', () => {
             expect(logs![499]).toContain('Log entry 699'); // Last entry
         });
 
-        it('should capture Drive URL from stdout and set isFullyStarted', async () => {
+        it('should capture Drive URL from service-ready event and set isFullyStarted', async () => {
             const mockHandle = {
                 id: 'service-123',
                 taskId: 'task-456',
                 status: 'running',
                 pid: 1234,
-                startedAt: new Date()
+                startedAt: new Date(),
+                endpoints: new Map([['drive-url', 'http://localhost:4001/drives/abc123']])
             };
             mockStart.mockResolvedValue(mockHandle);
 
-            await manager.runProject('test-project');
+            // Start the project - this will set up listeners
+            const projectPromise = manager.runProject('test-project');
 
+            // Wait a bit for the project to be initialized
+            await Promise.resolve(); // Use microtask instead of timer
+            
             // Initially, project should not be fully started
             let runningProject = manager.getRunningProject();
             expect(runningProject).toBeDefined();
             expect(runningProject!.isFullyStarted).toBe(false);
             expect(runningProject!.driveUrl).toBeUndefined();
 
-            // Simulate Drive URL appearing in stdout
-            mockServiceExecutor.emit('service-output', {
-                serviceId: mockHandle.id,
-                type: 'stdout',
-                data: 'Drive URL: http://localhost:4001/drives/abc123'
+            // Simulate service-ready event with Drive URL in endpoints
+            mockServiceExecutor.emit('service-ready', {
+                handle: mockHandle
             });
 
-            // After Drive URL, project should be fully started
+            // Wait for the project to complete startup
+            const result = await projectPromise;
+
+            // After service-ready, project should be fully started
             runningProject = manager.getRunningProject();
             expect(runningProject!.isFullyStarted).toBe(true);
             expect(runningProject!.driveUrl).toBe('http://localhost:4001/drives/abc123');
+            expect(result.driveUrl).toBe('http://localhost:4001/drives/abc123');
         });
 
-        it('should capture Drive URL from stderr', async () => {
+        it('should handle boot-timeout event when readiness patterns do not match', async () => {
             const mockHandle = {
                 id: 'service-123',
                 taskId: 'task-456',
@@ -392,21 +453,32 @@ describe('PowerhouseProjectsManager', () => {
             };
             mockStart.mockResolvedValue(mockHandle);
 
-            await manager.runProject('test-project');
+            // Start the project
+            const projectPromise = manager.runProject('test-project');
 
-            // Simulate Drive URL appearing in stderr
-            mockServiceExecutor.emit('service-output', {
-                serviceId: mockHandle.id,
-                type: 'stderr',
-                data: 'Some startup logs... Drive URL: http://localhost:4001/drives/xyz789 ... more logs'
-            });
+            // Simulate boot-timeout event (patterns not matched)
+            setTimeout(() => {
+                mockServiceExecutor.emit('boot-timeout', {
+                    handle: mockHandle
+                });
+            }, 10);
+            
+            // Advance timers to trigger the timeout
+            jest.advanceTimersByTime(10);
 
+            // Wait for project to complete startup
+            const result = await projectPromise;
+
+            // Project should succeed but without Drive URL
+            expect(result.success).toBe(true);
+            expect(result.driveUrl).toBeUndefined();
+            
             const runningProject = manager.getRunningProject();
-            expect(runningProject!.isFullyStarted).toBe(true);
-            expect(runningProject!.driveUrl).toBe('http://localhost:4001/drives/xyz789');
+            expect(runningProject!.isFullyStarted).toBe(false);
+            expect(runningProject!.driveUrl).toBeUndefined();
         });
 
-        it('should wait for Drive URL and include it in result', async () => {
+        it('should include Drive URL from service-ready event in result', async () => {
             // Create test project
             const projectPath = path.join(tempDir, 'test-project');
             await fs.mkdir(projectPath, { recursive: true });
@@ -415,22 +487,33 @@ describe('PowerhouseProjectsManager', () => {
                 JSON.stringify({ studio: { port: 3000 } })
             );
 
-            // Mock waitForDriveUrl to return a URL
-            (manager.waitForDriveUrl as jest.Mock).mockResolvedValue('http://localhost:4001/drives/test123');
             const mockHandle = {
                 id: 'service-123',
                 taskId: 'task-456',
                 status: 'running',
                 pid: 1234,
-                startedAt: new Date()
+                startedAt: new Date(),
+                endpoints: new Map([['drive-url', 'http://localhost:4001/drives/test123']])
             };
             mockStart.mockResolvedValue(mockHandle);
 
-            const result = await manager.runProject('test-project');
+            // Start the project
+            const projectPromise = manager.runProject('test-project');
+
+            // Emit service-ready event with Drive URL
+            setTimeout(() => {
+                mockServiceExecutor.emit('service-ready', {
+                    handle: mockHandle
+                });
+            }, 10);
+            
+            // Advance timers to trigger the timeout
+            jest.advanceTimersByTime(10);
+
+            const result = await projectPromise;
 
             expect(result.success).toBe(true);
             expect(result.driveUrl).toBe('http://localhost:4001/drives/test123');
-            expect(manager.waitForDriveUrl).toHaveBeenCalledWith(60000); // Default timeout
         });
 
         it('should use custom startup timeout from options', async () => {
@@ -442,26 +525,41 @@ describe('PowerhouseProjectsManager', () => {
                 JSON.stringify({ studio: { port: 3000 } })
             );
 
-            // Mock waitForDriveUrl
-            (manager.waitForDriveUrl as jest.Mock).mockResolvedValue('http://localhost:4001/drives/custom');
             const mockHandle = {
                 id: 'service-123',
                 taskId: 'task-456',
                 status: 'running',
                 pid: 1234,
-                startedAt: new Date()
+                startedAt: new Date(),
+                endpoints: new Map([['drive-url', 'http://localhost:6000/drives/custom']])
             };
             mockStart.mockResolvedValue(mockHandle);
 
-            const result = await manager.runProject('test-project', { 
+            // Start with custom timeout
+            const projectPromise = manager.runProject('test-project', { 
                 connectPort: 5000,
                 switchboardPort: 6000,
                 startupTimeout: 30000 
             });
 
+            // Emit service-ready
+            setTimeout(() => {
+                mockServiceExecutor.emit('service-ready', {
+                    handle: mockHandle
+                });
+            }, 10);
+            
+            // Advance timers to trigger the timeout
+            jest.advanceTimersByTime(10);
+
+            const result = await projectPromise;
+
             expect(result.success).toBe(true);
-            expect(result.driveUrl).toBe('http://localhost:4001/drives/custom');
-            expect(manager.waitForDriveUrl).toHaveBeenCalledWith(30000);
+            expect(result.driveUrl).toBe('http://localhost:6000/drives/custom');
+            
+            // Verify the task was created with correct readiness timeout
+            const taskCall = mockStart.mock.calls[0][0];
+            expect(taskCall.readiness.timeout).toBe(30000);
         });
 
         it('should use custom ports from options', async () => {
@@ -483,11 +581,21 @@ describe('PowerhouseProjectsManager', () => {
             mockStart.mockResolvedValue(mockHandle);
 
             // Use new signature with custom ports
-            const result = await manager.runProject('test-project', { 
+            const resultPromise = manager.runProject('test-project', { 
                 connectPort: 3500, 
                 switchboardPort: 4500,
                 startupTimeout: 60000
             });
+            
+            // Emit boot-timeout to resolve
+            setTimeout(() => {
+                mockServiceExecutor.emit('boot-timeout', { handle: mockHandle });
+            }, 10);
+            
+            // Advance timers to trigger the timeout
+            jest.advanceTimersByTime(10);
+
+            const result = await resultPromise;
 
             expect(result.success).toBe(true);
             expect(result.connectPort).toBe(3500);
@@ -535,7 +643,17 @@ describe('PowerhouseProjectsManager', () => {
             };
             mockStart.mockResolvedValue(mockHandle);
 
-            await manager.runProject('test-project');
+            const projectPromise = manager.runProject('test-project');
+            
+            // Emit boot-timeout to complete startup
+            setTimeout(() => {
+                mockServiceExecutor.emit('boot-timeout', { handle: mockHandle });
+            }, 10);
+            
+            // Advance timers to trigger the timeout
+            jest.advanceTimersByTime(10);
+            
+            await projectPromise;
 
             const running = manager.getRunningProject();
             expect(running).not.toBeNull();
@@ -567,7 +685,17 @@ describe('PowerhouseProjectsManager', () => {
             mockStart.mockResolvedValue(mockHandle);
             mockStop.mockResolvedValue(undefined);
 
-            await manager.runProject('test-project');
+            const projectPromise = manager.runProject('test-project');
+            
+            // Emit boot-timeout to complete startup
+            setTimeout(() => {
+                mockServiceExecutor.emit('boot-timeout', { handle: mockHandle });
+            }, 10);
+            
+            // Advance timers to trigger the timeout
+            jest.advanceTimersByTime(10);
+            
+            await projectPromise;
 
             // Shutdown the project
             const result = await manager.shutdownProject();
@@ -609,7 +737,17 @@ describe('PowerhouseProjectsManager', () => {
             mockStart.mockResolvedValue(mockHandle);
             mockStop.mockRejectedValue(new Error('Failed to stop service'));
 
-            await manager.runProject('test-project');
+            const projectPromise = manager.runProject('test-project');
+            
+            // Emit boot-timeout to complete startup
+            setTimeout(() => {
+                mockServiceExecutor.emit('boot-timeout', { handle: mockHandle });
+            }, 10);
+            
+            // Advance timers to trigger the timeout
+            jest.advanceTimersByTime(10);
+            
+            await projectPromise;
 
             // Try to shutdown - should handle error gracefully
             const result = await manager.shutdownProject();
