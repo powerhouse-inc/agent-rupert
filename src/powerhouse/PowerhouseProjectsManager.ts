@@ -397,7 +397,7 @@ export class PowerhouseProjectsManager {
         const effectiveOptions: RunProjectOptions = {
             connectPort: options?.connectPort || 3000,
             switchboardPort: options?.switchboardPort || 4001,  // Safe default port
-            startupTimeout: options?.startupTimeout || 60000 // Default 60 seconds
+            startupTimeout: options?.startupTimeout || 240000 // Default 240 seconds
         };
         // Check if a project is already running
         if (this.runningProject) {
@@ -477,7 +477,7 @@ export class PowerhouseProjectsManager {
                 readiness: {
                     patterns: [
                         {
-                            regex: '➜\\s+Local:\\s+http://localhost:(\\d+)',
+                            regex: 'Local:\\s*http://localhost:(\\d+)',
                             name: 'connect-port',
                             endpoints: [{
                                 endpointName: 'connect-studio',
@@ -487,7 +487,7 @@ export class PowerhouseProjectsManager {
                             }]
                         },
                         {
-                            regex: '➜\\s+Drive URL:\\s*(https?://[^\\s]+)',
+                            regex: 'Drive URL:\\s*(https?://[^\\s]+)',
                             name: 'drive-url',
                             endpoints: [{
                                 endpointName: 'drive-url',
@@ -705,10 +705,10 @@ export class PowerhouseProjectsManager {
     /**
      * Wait for the Drive URL to be captured during project startup
      * @deprecated This method is deprecated - Drive URL is now captured via readiness patterns in runProject()
-     * @param timeout - Maximum time to wait in milliseconds (default: 60000)
+     * @param timeout - Maximum time to wait in milliseconds (default: 240000)
      * @returns The Drive URL if captured, null if timeout reached
      */
-    async waitForDriveUrl(timeout: number = 60000): Promise<string | null> {
+    async waitForDriveUrl(timeout: number = 240000): Promise<string | null> {
         console.warn('waitForDriveUrl() is deprecated. Drive URL is now captured automatically via readiness patterns.');
         
         if (!this.runningProject) {

@@ -119,7 +119,7 @@ describe('PowerhouseProjectsManager Integration Tests', () => {
             const runResult = await manager.runProject(projectName, {
                 connectPort: customConnectPort,
                 switchboardPort: customSwitchboardPort,
-                startupTimeout: 60000
+                startupTimeout: 240000
             });
             
             // Note: This might fail if ph vetra is not available or ports are in use
@@ -144,7 +144,7 @@ describe('PowerhouseProjectsManager Integration Tests', () => {
                     const secondRunResult = await manager.runProject(projectName, {
                         connectPort: customConnectPort + 1,
                         switchboardPort: customSwitchboardPort + 1,
-                        startupTimeout: 60000
+                        startupTimeout: 240000
                     });
                     expect(secondRunResult.success).toBe(false);
                     expect(secondRunResult.error).toContain('already running');
@@ -157,6 +157,15 @@ describe('PowerhouseProjectsManager Integration Tests', () => {
                         expect(runResult.driveUrl).toMatch(/^http:\/\/localhost:\d+\/d\/vetra-.+/);
                     } else {
                         process.stderr.write(`  ⚠️ Drive URL not captured (may timeout in test environment)\n`);
+                        // Output logs to help debug why Drive URL wasn't captured
+                        const logs = manager.getProjectLogs();
+                        if (logs && logs.length > 0) {
+                            process.stderr.write(`  📋 Showing last 20 log entries to debug:\n`);
+                            const lastLogs = logs.slice(-20);
+                            lastLogs.forEach(log => {
+                                process.stderr.write(`    ${log}\n`);
+                            });
+                        }
                         // This is acceptable in test environments where vetra might not fully start
                     }
                     
@@ -236,7 +245,7 @@ describe('PowerhouseProjectsManager Integration Tests', () => {
             const nonExistentResult = await manager.runProject('non-existent-project', {
                 connectPort: customConnectPort + 2,
                 switchboardPort: customSwitchboardPort + 2,
-                startupTimeout: 60000
+                startupTimeout: 240000
             });
             expect(nonExistentResult.success).toBe(false);
             expect(nonExistentResult.error).toContain('not found');
@@ -268,6 +277,6 @@ describe('PowerhouseProjectsManager Integration Tests', () => {
             const logsWhenNotRunning = manager.getProjectLogs();
             expect(logsWhenNotRunning).toBeUndefined();
             
-        }, 180000); // 3 minute timeout for comprehensive test
+        }, 300000); // 5 minute timeout for comprehensive test
     });
 });
