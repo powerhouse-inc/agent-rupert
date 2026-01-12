@@ -1,5 +1,6 @@
 import { IAgentBrain } from './IAgentBrain.js';
 import { AgentBrain } from './AgentBrain.js';
+import { AgentClaudeBrain } from './AgentClaudeBrain.js';
 import Anthropic from '@anthropic-ai/sdk';
 
 /**
@@ -20,8 +21,8 @@ export interface BrainConfig {
     // Standard brain config
     model?: string;
     
-    // Claude SDK brain config (for future AgentClaudeBrain)
-    vetraMcpUrl?: string;
+    // Claude SDK brain config
+    agentManagerMcpUrl?: string;
     workingDirectory?: string;
     allowedTools?: string[];
     fileSystemPaths?: {
@@ -47,8 +48,15 @@ export class BrainFactory {
                 return new AgentBrain(anthropic);
             
             case BrainType.CLAUDE_SDK:
-                // TODO: Implement AgentClaudeBrain in Phase 2
-                throw new Error('Claude SDK brain not yet implemented. Please use BrainType.STANDARD for now.');
+                return new AgentClaudeBrain({
+                    apiKey: config.apiKey,
+                    agentManagerMcpUrl: config.agentManagerMcpUrl,
+                    workingDirectory: config.workingDirectory || './agent-workspace',
+                    allowedTools: config.allowedTools,
+                    fileSystemPaths: config.fileSystemPaths,
+                    model: config.model as any,
+                    maxTurns: config.maxTurns
+                });
             
             default:
                 throw new Error(`Unknown brain type: ${config.type}`);

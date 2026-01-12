@@ -99,14 +99,14 @@ export class BrainFactory {
 - Change brain property type from `AgentBrain` to `IAgentBrain`
 - Update constructor to accept `IAgentBrain` instead of `AgentBrain`
 
-### Phase 2: AgentClaudeBrain Implementation ⏳
+### Phase 2: AgentClaudeBrain Implementation ✅
 
-#### Step 2.1: Install Dependencies [x]
+#### Step 2.1: Install Dependencies [✅]
 ```bash
 pnpm add @anthropic-ai/claude-agent-sdk
 ```
 
-#### Step 2.2: Create AgentClaudeBrain Class [ ]
+#### Step 2.2: Create AgentClaudeBrain Class [✅]
 **File:** `src/agents/AgentClaudeBrain.ts`
 ```typescript
 import { query } from '@anthropic-ai/claude-agent-sdk';
@@ -154,17 +154,17 @@ export class AgentClaudeBrain implements IAgentBrain {
 }
 ```
 
-#### Step 2.3: Implement MCP Server Connection [ ]
+#### Step 2.3: Implement MCP Server Connection [✅]
 - Configure HTTP-based MCP connection for Vetra
 - Handle connection errors gracefully
 - Support optional MCP server (work without it if not available)
 
-#### Step 2.4: Implement File System Hooks [ ]
+#### Step 2.4: Implement File System Hooks [✅]
 - Create PreToolUse hooks for file operations
 - Validate paths against allowed read/write paths
 - Log file system operations for audit
 
-#### Step 2.5: Implement Core Methods [ ]
+#### Step 2.5: Implement Core Methods [✅]
 - Implement `describeWbsOperations` using Agent SDK
 - Implement `describeInboxOperations` using Agent SDK
 - Handle streaming responses and extract text content
@@ -255,12 +255,13 @@ const brain = BrainFactory.create({
 });
 ```
 
-### Claude SDK Brain with Vetra MCP
+### Claude SDK Brain with Dynamic MCP Server Management
 ```typescript
+// Create brain with optional agent manager MCP server
 const brain = BrainFactory.create({
   type: BrainType.CLAUDE_SDK,
   apiKey: process.env.ANTHROPIC_API_KEY!,
-  vetraMcpUrl: 'http://localhost:4001/mcp',
+  agentManagerMcpUrl: 'http://localhost:3100/mcp',  // Optional
   workingDirectory: './agent-workspace',
   allowedTools: ['Read', 'Write', 'Edit', 'Grep', 'Glob'],
   fileSystemPaths: {
@@ -270,6 +271,21 @@ const brain = BrainFactory.create({
   model: 'haiku',
   maxTurns: 100
 });
+
+// Dynamically add MCP servers (e.g., when Vetra starts)
+if (brain instanceof AgentClaudeBrain) {
+  brain.addMcpServer('vetra', {
+    type: 'http',
+    url: 'http://localhost:4001/mcp',
+    headers: { 'Authorization': 'Bearer token' }
+  });
+  
+  // List servers
+  console.log(brain.listMcpServers()); // ['agent-manager', 'vetra']
+  
+  // Remove server when done
+  brain.removeMcpServer('vetra');
+}
 ```
 
 ## Key Design Decisions
@@ -282,7 +298,7 @@ const brain = BrainFactory.create({
 
 4. **Programmatic Configuration**: Following SDK best practices with `settingSources: []` to avoid filesystem config dependencies.
 
-5. **MCP Server Integration**: Using HTTP-based connection to external Vetra MCP server rather than embedding MCP server.
+5. **MCP Server Integration**: Dynamic management of HTTP-based MCP servers. Vetra MCP integration handled by ReactorPackageDevAgent when projects start.
 
 6. **Backward Compatibility**: Existing AgentBrain continues to work unchanged, allowing gradual migration.
 
