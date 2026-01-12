@@ -143,6 +143,7 @@ async function startConfiguredProject(config: ServerConfig): Promise<void> {
       console.log(`✅ Project "${project}" started successfully`);
       console.log(`  📡 Vetra Studio: http://localhost:${result.connectPort}`);
       console.log(`  📡 Vetra Switchboard: http://localhost:${result.switchboardPort}`);
+      console.log(`  📡 Vetra MCP: ${result.mcpServer}`);
       if (result.driveUrl) {
         console.log(`  🌐 Drive URL: ${result.driveUrl}`);
       } else {

@@ -41,6 +41,8 @@ export interface RunningProject {
     logs: string[];
     /** The Drive URL once vetra has fully started (e.g., http://localhost:4001/drives/xyz) */
     driveUrl?: string;
+    /** The MCP server once vetra has fully started (e.g., http://localhost:4001/mcp) */
+    mcpServer?: string;
     /** Indicates whether vetra has fully started and is ready to accept connections */
     isFullyStarted: boolean;
 }
@@ -73,6 +75,13 @@ export interface RunProjectResult {
     switchboardPort?: number;
     /** The Drive URL if captured during startup (e.g., http://localhost:4001/drives/xyz) */
     driveUrl?: string;
+    /** The MCP server once vetra has fully started (e.g., http://localhost:4001/mcp) */
+    mcpServer?: string;
+}
+
+interface VetraRuntimeParams {
+    driveUrl: string | null;
+    mcpServer: string | null;
 }
 
 export class ReactorPackagesManager {
@@ -382,7 +391,17 @@ export class ReactorPackagesManager {
                                 endpointCaptureGroup: 1,
                                 monitorPortReleaseUponTermination: false
                             }]
-                        }
+                        },
+                        {
+                            regex: 'MCP server available at (https?://[^\\s]+)',
+                            name: 'mcp-server',
+                            endpoints: [{
+                                endpointName: 'mcp-server',
+                                endpointDefaultHostUrl: '',
+                                endpointCaptureGroup: 1,
+                                monitorPortReleaseUponTermination: false
+                            }]
+                        },
                     ],
                     timeout: effectiveOptions.startupTimeout
                 }
@@ -416,13 +435,14 @@ export class ReactorPackagesManager {
             };
             
             // Set up promise to wait for service readiness
-            let serviceReadyResolve: ((value: string | null) => void) | null = null;
-            const serviceReadyPromise = new Promise<string | null>((resolve) => {
+            let serviceReadyResolve: ((value: VetraRuntimeParams) => void) | null = null;
+            const serviceReadyPromise = new Promise<VetraRuntimeParams>((resolve) => {
                 serviceReadyResolve = resolve;
                 
                 // Set timeout for readiness
                 readinessTimeoutId = setTimeout(() => {
-                    resolve(null); // Resolve with null on timeout
+                    // Resolve with null on timeout
+                    resolve({driveUrl: null, mcpServer: null});
                 }, effectiveOptions.startupTimeout);
             });
 
@@ -431,8 +451,11 @@ export class ReactorPackagesManager {
                 if (event.handle.id === this.runningProject?.serviceHandle?.id) {
                     // Extract the Drive URL from endpoints
                     const driveUrl = event.handle.endpoints?.get('drive-url') || null;
+                    const mcpServer = event.handle.endpoints?.get('mcp-server') || null;
+
                     if (driveUrl && this.runningProject) {
                         this.runningProject.driveUrl = driveUrl;
+                        this.runningProject.mcpServer = mcpServer;
                         this.runningProject.isFullyStarted = true;
                     }
                     
@@ -443,7 +466,7 @@ export class ReactorPackagesManager {
                             clearTimeout(readinessTimeoutId);
                             readinessTimeoutId = null;
                         }
-                        serviceReadyResolve(driveUrl);
+                        serviceReadyResolve({ driveUrl, mcpServer });
                     }
                 }
             };
@@ -458,7 +481,7 @@ export class ReactorPackagesManager {
                             clearTimeout(readinessTimeoutId);
                             readinessTimeoutId = null;
                         }
-                        serviceReadyResolve(null);
+                        serviceReadyResolve({driveUrl: null, mcpServer: null});
                     }
                 }
             };
@@ -490,12 +513,18 @@ export class ReactorPackagesManager {
             });
 
             // Wait for service to be ready (Drive URL captured)
-            const driveUrl = await serviceReadyPromise;
+            const vetraOutputParams = await serviceReadyPromise;
             
-            if (!driveUrl) {
-                // Log warning but don't fail - project might still be starting
+            if (!vetraOutputParams.driveUrl) {
                 console.warn(
                     `Warning: Drive URL not captured within ${effectiveOptions.startupTimeout}ms. ` +
+                    `Project may still be starting up. Check logs with getProjectLogs() for details.`
+                );
+            }
+
+            if (!vetraOutputParams.mcpServer) {
+                console.warn(
+                    `Warning: MCP server not captured within ${effectiveOptions.startupTimeout}ms. ` +
                     `Project may still be starting up. Check logs with getProjectLogs() for details.`
                 );
             }
@@ -505,7 +534,8 @@ export class ReactorPackagesManager {
                 projectName: project.name,
                 connectPort: actualConnectPort,
                 switchboardPort: actualSwitchboardPort,
-                driveUrl: driveUrl || undefined
+                driveUrl: vetraOutputParams.driveUrl || undefined,
+                mcpServer: vetraOutputParams.mcpServer || undefined,
             };
 
         } catch (error) {

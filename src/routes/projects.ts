@@ -95,6 +95,7 @@ export function createProjectsRouter(
       connectPort: runningProject.connectPort,
       switchboardPort: runningProject.switchboardPort,
       driveUrl: runningProject.driveUrl || null,
+      mcpServer: runningProject.mcpServer || null,
       isFullyStarted: runningProject.isFullyStarted,
       startedAt: runningProject.startedAt.toISOString(),
       uptime
