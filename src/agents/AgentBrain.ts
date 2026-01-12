@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { IAgentBrain } from "./IAgentBrain.js";
 
-export class AgentBrain {
+export class AgentBrain implements IAgentBrain {
     private api: Anthropic;
 
     constructor(api: Anthropic) {

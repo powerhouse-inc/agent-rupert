@@ -3,7 +3,7 @@ import { ReactorPackagesManager, type RunProjectOptions } from "./ReactorPackage
 import { CLIExecutor } from "../../tasks/executors/cli-executor.js";
 import { ServiceExecutor } from "../../tasks/executors/service-executor.js";
 import type { ReactorPackageDevAgentConfig } from "../../types.js";
-import type { AgentBrain } from "../AgentBrain.js";
+import type { IAgentBrain } from "../IAgentBrain.js";
 
 /**
  *  The ReactorPackageAgent uses ReactorPackagesManager with a number of associated tools
@@ -14,7 +14,7 @@ export class ReactorPackageDevAgent extends AgentBase<ReactorPackageDevAgentConf
     private serviceExecutor: ServiceExecutor;
     private projectsDir: string;
     
-    constructor(config: ReactorPackageDevAgentConfig, logger: ILogger, brain?: AgentBrain) {
+    constructor(config: ReactorPackageDevAgentConfig, logger: ILogger, brain?: IAgentBrain) {
         super(config, logger, brain);
         this.projectsDir = config.reactorPackages.projectsDir;
         

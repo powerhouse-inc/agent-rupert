@@ -1,6 +1,6 @@
 import { AgentBase, type ILogger } from "../AgentBase.js";
 import type { PowerhouseArchitectAgentConfig } from "../../types.js";
-import type { AgentBrain } from "../AgentBrain.js";
+import type { IAgentBrain } from "../IAgentBrain.js";
 
 /**
  *  The PowerhouseArchitectAgent creates and manages a variety of architecture-related 
@@ -9,7 +9,7 @@ import type { AgentBrain } from "../AgentBrain.js";
  */
 export class PowerhouseArchitectAgent extends AgentBase<PowerhouseArchitectAgentConfig> {
     
-    constructor(config: PowerhouseArchitectAgentConfig, logger: ILogger, brain?: AgentBrain) {
+    constructor(config: PowerhouseArchitectAgentConfig, logger: ILogger, brain?: IAgentBrain) {
         super(config, logger, brain);
     }
     

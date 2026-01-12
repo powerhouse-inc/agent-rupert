@@ -5,7 +5,7 @@ import type { ReactorInstance, BaseAgentConfig } from '../types.js';
 import { documentModels } from 'powerhouse-agent';
 import { documentModelDocumentModelModule } from 'document-model';
 import { FilesystemStorage } from 'document-drive/storage/filesystem';
-import type { AgentBrain } from './AgentBrain.js';
+import type { IAgentBrain } from './IAgentBrain.js';
 
 // Logger interface for dependency injection
 export interface ILogger {
@@ -63,13 +63,13 @@ export abstract class AgentBase<TConfig extends BaseAgentConfig = BaseAgentConfi
     protected reactor?: ReactorInstance;
     protected config: TConfig;
     protected logger: ILogger;
-    protected brain?: AgentBrain;
+    protected brain?: IAgentBrain;
     
-    constructor(config: TConfig, logger: ILogger, brain?: AgentBrain) {
+    constructor(config: TConfig, logger: ILogger, brain?: IAgentBrain) {
         this.config = config;
         this.logger = logger;
         this.brain = brain;
-        this.logger.info(`${config.name}: Initialized${brain ? ' with AgentBrain' : ''}`);
+        this.logger.info(`${config.name}: Initialized${brain ? ' with brain' : ''}`);
     }
     
     /**

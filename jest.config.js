@@ -23,7 +23,8 @@ export default {
   ],
   testPathIgnorePatterns: [
     '/node_modules/',
-    '/dist/'
+    '/dist/',
+    '/claude-docs/'
   ],
   collectCoverageFrom: [
     'src/**/*.ts',

@@ -2,8 +2,8 @@ import { ReactorPackageDevAgent } from './ReactorPackageDevAgent/ReactorPackageD
 import { PowerhouseArchitectAgent } from './PowerhouseArchitectAgent/PowerhouseArchitectAgent.js';
 import type { AgentBase, ILogger } from './AgentBase.js';
 import type { ReactorPackageDevAgentConfig, PowerhouseArchitectAgentConfig } from '../types.js';
-import { AgentBrain } from './AgentBrain.js';
-import Anthropic from '@anthropic-ai/sdk';
+import { BrainFactory, BrainType, BrainConfig } from './BrainFactory.js';
+import type { IAgentBrain } from './IAgentBrain.js';
 
 export interface AgentsConfig {
     enableReactorPackageAgent?: boolean;
@@ -11,6 +11,7 @@ export interface AgentsConfig {
     reactorPackageConfig?: ReactorPackageDevAgentConfig;
     architectConfig?: PowerhouseArchitectAgentConfig;
     anthropicApiKey?: string | null;
+    brainType?: BrainType;  // Type of brain to use (defaults to STANDARD)
     logger?: ILogger;
 }
 
@@ -22,23 +23,9 @@ export class AgentsManager {
     private reactorPackageAgent?: ReactorPackageDevAgent;
     private architectAgent?: PowerhouseArchitectAgent;
     private logger: ILogger;
-    private brain?: AgentBrain;
     
     constructor(private config: AgentsConfig) {
         this.logger = config.logger || this.createDefaultLogger();
-        
-        // Initialize AgentBrain if API key is provided
-        if (config.anthropicApiKey) {
-            try {
-                const anthropic = new Anthropic({
-                    apiKey: config.anthropicApiKey
-                });
-                this.brain = new AgentBrain(anthropic);
-                this.logger.info("AgentsManager: AgentBrain initialized with Anthropic API");
-            } catch (error) {
-                this.logger.error("AgentsManager: Failed to initialize AgentBrain:", error);
-            }
-        }
     }
     
     private createDefaultLogger(): ILogger {
@@ -57,10 +44,27 @@ export class AgentsManager {
         // Initialize ReactorPackageAgent
         if (this.config.enableReactorPackageAgent && this.config.reactorPackageConfig) {
             this.logger.info("AgentsManager: Initializing ReactorPackageAgent");
+            
+            // Create brain instance for this agent
+            let brain: IAgentBrain | undefined;
+            if (this.config.anthropicApiKey) {
+                try {
+                    const brainConfig: BrainConfig = {
+                        type: this.config.brainType || BrainType.STANDARD,
+                        apiKey: this.config.anthropicApiKey,
+                        model: 'claude-3-haiku-20240307'
+                    };
+                    brain = BrainFactory.create(brainConfig);
+                    this.logger.info("AgentsManager: Created brain for ReactorPackageAgent");
+                } catch (error) {
+                    this.logger.error("AgentsManager: Failed to create brain for ReactorPackageAgent:", error);
+                }
+            }
+            
             this.reactorPackageAgent = new ReactorPackageDevAgent(
                 this.config.reactorPackageConfig,
                 this.logger,
-                this.brain
+                brain
             );
             await this.reactorPackageAgent.initialize();
             this.logger.info("AgentsManager: ReactorPackageAgent initialized successfully");
@@ -70,10 +74,27 @@ export class AgentsManager {
         // Initialize PowerhouseArchitectAgent
         if (this.config.enableArchitectAgent && this.config.architectConfig) {
             this.logger.info("AgentsManager: Initializing PowerhouseArchitectAgent");
+            
+            // Create brain instance for this agent
+            let brain: IAgentBrain | undefined;
+            if (this.config.anthropicApiKey) {
+                try {
+                    const brainConfig: BrainConfig = {
+                        type: this.config.brainType || BrainType.STANDARD,
+                        apiKey: this.config.anthropicApiKey,
+                        model: 'claude-3-haiku-20240307'
+                    };
+                    brain = BrainFactory.create(brainConfig);
+                    this.logger.info("AgentsManager: Created brain for PowerhouseArchitectAgent");
+                } catch (error) {
+                    this.logger.error("AgentsManager: Failed to create brain for PowerhouseArchitectAgent:", error);
+                }
+            }
+            
             this.architectAgent = new PowerhouseArchitectAgent(
                 this.config.architectConfig,
                 this.logger,
-                this.brain
+                brain
             );
             await this.architectAgent.initialize();
             this.logger.info("AgentsManager: PowerhouseArchitectAgent initialized successfully");
