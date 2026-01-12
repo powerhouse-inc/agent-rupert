@@ -1,11 +1,16 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { IAgentBrain } from "./IAgentBrain.js";
+import { IAgentBrain, IBrainLogger } from "./IAgentBrain.js";
 
 export class AgentBrain implements IAgentBrain {
     private api: Anthropic;
+    private logger?: IBrainLogger;
 
     constructor(api: Anthropic) {
         this.api = api;
+    }
+
+    public setLogger(logger: IBrainLogger): void {
+        this.logger = logger;
     }
 
     public getAnthropic(): Anthropic {

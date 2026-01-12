@@ -4,6 +4,7 @@ import { CLIExecutor } from "../../tasks/executors/cli-executor.js";
 import { ServiceExecutor } from "../../tasks/executors/service-executor.js";
 import type { ReactorPackageDevAgentConfig } from "../../types.js";
 import type { IAgentBrain } from "../IAgentBrain.js";
+import { BrainType, type BrainConfig } from "../BrainFactory.js";
 
 /**
  *  The ReactorPackageAgent uses ReactorPackagesManager with a number of associated tools
@@ -13,6 +14,27 @@ export class ReactorPackageDevAgent extends AgentBase<ReactorPackageDevAgentConf
     private cliExecutor: CLIExecutor;
     private serviceExecutor: ServiceExecutor;
     private projectsDir: string;
+    
+    /**
+     * Get the brain configuration for ReactorPackageDevAgent
+     * Uses Claude SDK brain for advanced capabilities
+     */
+    static getBrainConfig(apiKey?: string): BrainConfig | null {
+        if (!apiKey) return null;
+        
+        return {
+            type: BrainType.CLAUDE_SDK,  // Use new SDK for advanced capabilities
+            apiKey,
+            workingDirectory: './agent-workspace/reactor-package',
+            allowedTools: ['Read', 'Write', 'Edit', 'Bash', 'Grep', 'Glob'],
+            fileSystemPaths: {
+                allowedReadPaths: [process.cwd()],
+                allowedWritePaths: ['./agent-workspace/reactor-package']
+            },
+            model: 'haiku',
+            maxTurns: 100
+        };
+    }
     
     constructor(config: ReactorPackageDevAgentConfig, logger: ILogger, brain?: IAgentBrain) {
         super(config, logger, brain);
@@ -41,6 +63,7 @@ export class ReactorPackageDevAgent extends AgentBase<ReactorPackageDevAgentConf
             this.cliExecutor,
             this.serviceExecutor
         );
+
         this.logger.info(`${this.config.name}: ReactorPackagesManager created successfully`);
     }
     

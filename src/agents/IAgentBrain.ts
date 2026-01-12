@@ -1,8 +1,24 @@
 /**
+ * Logger interface for brain implementations
+ */
+export interface IBrainLogger {
+    info(message: string): void;
+    error(message: string, error?: any): void;
+    warn(message: string): void;
+    debug(message: string): void;
+}
+
+/**
  * Interface for agent brain implementations
  * Provides natural language processing capabilities for agent operations
  */
 export interface IAgentBrain {
+    /**
+     * Set the logger for the brain implementation
+     * @param logger Logger instance for logging operations
+     */
+    setLogger(logger: IBrainLogger): void;
+
     /**
      * Describe WBS operations in natural language
      * Analyzes the operations and returns a human-readable description

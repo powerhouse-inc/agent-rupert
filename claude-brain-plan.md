@@ -169,39 +169,64 @@ export class AgentClaudeBrain implements IAgentBrain {
 - Implement `describeInboxOperations` using Agent SDK
 - Handle streaming responses and extract text content
 
-### Phase 3: Configuration & Environment ⏳
+### Phase 3: Agent-Determined Brain Configuration ✅
 
-#### Step 3.1: Update Configuration Types [ ]
-**File:** `src/types.ts`
-- Add brain configuration types
-- Update agent configs to include brain settings
+#### Step 3.1: Add Abstract getBrainConfig Method to AgentBase [✅]
+**File:** `src/agents/AgentBase.ts`
+- Add abstract static method `getBrainConfig(apiKey?: string): BrainConfig | null`
+- Each agent class determines its own brain configuration
+- Returns null if no brain is needed
 
-#### Step 3.2: Update Environment Variables [ ]
-**File:** `.env.example`
-```env
-# Brain Configuration
-BRAIN_TYPE=claude-sdk  # or 'standard'
-ANTHROPIC_API_KEY=sk-ant-...
+#### Step 3.2: Update AgentsManager to Use Agent-Specific Config [✅]
+**File:** `src/agents/AgentsManager.ts`
+- Call agent's static `getBrainConfig` method
+- Create brain using returned configuration
+- Pass brain to agent constructor
 
-# Claude SDK Specific
-AGENT_WORKING_DIR=/path/to/agent/workspace
-AGENT_ALLOWED_TOOLS=Read,Write,Edit,Grep,Glob,Bash
-AGENT_MODEL=haiku
-AGENT_MAX_TURNS=100
-
-# File System Restrictions (comma-separated paths)
-AGENT_ALLOWED_READ_PATHS=/home/agent,/tmp
-AGENT_ALLOWED_WRITE_PATHS=/home/agent/outputs
-
-# Vetra Integration
-VETRA_MCP_SERVER_URL=http://localhost:4001/mcp
+#### Step 3.3: Implement getBrainConfig in ReactorPackageDevAgent [✅]
+**File:** `src/agents/ReactorPackageDevAgent/ReactorPackageDevAgent.ts`
+```typescript
+static getBrainConfig(apiKey?: string): BrainConfig | null {
+  if (!apiKey) return null;
+  
+  return {
+    type: BrainType.CLAUDE_SDK,  // Use new SDK for advanced capabilities
+    apiKey,
+    workingDirectory: './agent-workspace/reactor-package',
+    allowedTools: ['Read', 'Write', 'Edit', 'Bash', 'Grep', 'Glob'],
+    fileSystemPaths: {
+      allowedReadPaths: [process.cwd()],
+      allowedWritePaths: ['./agent-workspace/reactor-package']
+    },
+    model: 'haiku',
+    maxTurns: 100
+  };
+}
 ```
 
-#### Step 3.3: Update Config Loader [ ]
-**File:** `src/config.ts`
-- Add brain configuration loading
-- Support per-agent brain configuration
-- Provide sensible defaults
+#### Step 3.4: Implement getBrainConfig in PowerhouseArchitectAgent [✅]
+**File:** `src/agents/PowerhouseArchitectAgent/PowerhouseArchitectAgent.ts`
+```typescript
+static getBrainConfig(apiKey?: string): BrainConfig | null {
+  if (!apiKey) return null;
+  
+  return {
+    type: BrainType.STANDARD,  // Use standard brain for simple operations
+    apiKey,
+    model: 'claude-3-haiku-20240307'
+  };
+}
+```
+
+#### Step 3.5: Update Environment Variables [✅]
+**File:** `.env.example`
+```env
+# Simplified configuration - agents determine their own brain config
+ANTHROPIC_API_KEY=sk-ant-...
+
+# Optional: Agent Manager MCP Server
+AGENT_MANAGER_MCP_URL=http://localhost:3100/mcp
+```
 
 ### Phase 4: Integration & Testing ⏳
 

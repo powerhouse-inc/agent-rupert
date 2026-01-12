@@ -1,6 +1,7 @@
 import { AgentsManager } from './AgentsManager.js';
 import type { ServerConfig } from '../types.js';
 import type { ILogger } from './AgentBase.js';
+import { driveUrlToMcpUrl } from '../utils/url-utils.js';
 
 let agentsManager: AgentsManager | null = null;
 
@@ -37,12 +38,21 @@ export async function initializeAgents(config: ServerConfig): Promise<void> {
     const reactorPackageDev = config.agents.reactorPackageDev;
     const powerhouseArchitect = config.agents.powerhouseArchitect;
     
+    // Transform drive URL to MCP URL
+    const agentManagerDriveUrl = reactorPackageDev.workDrive.driveUrl || undefined;
+    const agentManagerMcpUrl = driveUrlToMcpUrl(agentManagerDriveUrl);
+    
+    if (agentManagerMcpUrl) {
+      logger.info(`🔗 Agent Manager MCP server: ${agentManagerMcpUrl}`);
+    }
+    
     agentsManager = new AgentsManager({
       enableReactorPackageAgent: true,
       enableArchitectAgent: true,
       reactorPackageConfig: reactorPackageDev,
       architectConfig: powerhouseArchitect,
       anthropicApiKey: config.anthropicApiKey,
+      agentManagerMcpUrl,
       logger
     });
     

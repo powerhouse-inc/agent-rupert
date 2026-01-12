@@ -10,7 +10,7 @@ describe('AgentClaudeBrain', () => {
             brain = new AgentClaudeBrain({
                 apiKey: mockApiKey,
                 workingDirectory: '/tmp/test-workspace'
-            });
+            }, undefined);
         });
 
         it('should start with no MCP servers when no agent manager URL provided', () => {
@@ -22,10 +22,10 @@ describe('AgentClaudeBrain', () => {
                 apiKey: mockApiKey,
                 workingDirectory: '/tmp/test-workspace',
                 agentManagerMcpUrl: 'http://localhost:3100/mcp'
-            });
+            }, undefined);
             
-            expect(brainWithManager.listMcpServers()).toContain('agent-manager');
-            const config = brainWithManager.getMcpServer('agent-manager');
+            expect(brainWithManager.listMcpServers()).toContain('agent-manager-drive');
+            const config = brainWithManager.getMcpServer('agent-manager-drive');
             expect(config).toBeDefined();
             expect(config?.type).toBe('http');
             expect(config?.url).toBe('http://localhost:3100/mcp');

@@ -6,6 +6,7 @@ import { documentModels } from 'powerhouse-agent';
 import { documentModelDocumentModelModule } from 'document-model';
 import { FilesystemStorage } from 'document-drive/storage/filesystem';
 import type { IAgentBrain } from './IAgentBrain.js';
+import type { BrainConfig } from './BrainFactory.js';
 
 // Logger interface for dependency injection
 export interface ILogger {
@@ -65,10 +66,27 @@ export abstract class AgentBase<TConfig extends BaseAgentConfig = BaseAgentConfi
     protected logger: ILogger;
     protected brain?: IAgentBrain;
     
+    /**
+     * Get the brain configuration for this agent type
+     * @param apiKey Optional Anthropic API key
+     * @returns BrainConfig or null if no brain is needed
+     */
+    static getBrainConfig(apiKey?: string): BrainConfig | null {
+        // Default implementation returns null (no brain)
+        // Subclasses should override this to provide their specific configuration
+        return null;
+    }
+    
     constructor(config: TConfig, logger: ILogger, brain?: IAgentBrain) {
         this.config = config;
         this.logger = logger;
         this.brain = brain;
+        
+        // Set logger on brain if provided
+        if (brain) {
+            brain.setLogger(logger);
+        }
+        
         this.logger.info(`${config.name}: Initialized${brain ? ' with brain' : ''}`);
     }
     

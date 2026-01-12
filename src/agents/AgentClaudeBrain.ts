@@ -1,6 +1,6 @@
 import { query } from '@anthropic-ai/claude-agent-sdk';
 import type { HookJSONOutput, SDKMessage } from '@anthropic-ai/claude-agent-sdk';
-import { IAgentBrain } from './IAgentBrain.js';
+import { IAgentBrain, IBrainLogger } from './IAgentBrain.js';
 import * as path from 'path';
 
 /**
@@ -36,19 +36,36 @@ export interface McpServerConfig {
 export class AgentClaudeBrain implements IAgentBrain {
     private config: AgentClaudeBrainConfig;
     private mcpServers: Map<string, McpServerConfig> = new Map();
+    private logger?: IBrainLogger;
 
-    constructor(config: AgentClaudeBrainConfig) {
+    constructor(config: AgentClaudeBrainConfig, logger?: IBrainLogger) {
         this.config = config;
+        this.logger = logger;
+        
         // Set API key for the SDK
         process.env.ANTHROPIC_API_KEY = config.apiKey;
         
+        if (this.logger) {
+            this.logger.debug(`AgentClaudeBrain: Initializing with model: ${config.model || 'haiku'}, working directory: ${config.workingDirectory}`);
+        }
+        
         // Add agent manager MCP server if provided
         if (config.agentManagerMcpUrl) {
-            this.addMcpServer('agent-manager', {
+            this.addMcpServer('agent-manager-drive', {
                 type: 'http',
                 url: config.agentManagerMcpUrl,
                 headers: {}
             });
+        }
+    }
+
+    /**
+     * Set the logger for this brain implementation
+     */
+    public setLogger(logger: IBrainLogger): void {
+        this.logger = logger;
+        if (this.logger) {
+            this.logger.debug(`AgentClaudeBrain: Logger updated`);
         }
     }
 
@@ -58,7 +75,16 @@ export class AgentClaudeBrain implements IAgentBrain {
      * @param config Server configuration
      */
     public addMcpServer(name: string, config: McpServerConfig): void {
+        const existingServer = this.mcpServers.get(name);
         this.mcpServers.set(name, config);
+        
+        if (this.logger) {
+            if (existingServer) {
+                this.logger.info(`AgentClaudeBrain: Updated MCP server '${name}' - Type: ${config.type}, URL: ${config.url || 'N/A'}`);
+            } else {
+                this.logger.info(`AgentClaudeBrain: Added MCP server '${name}' - Type: ${config.type}, URL: ${config.url || 'N/A'}`);
+            }
+        }
     }
 
     /**
@@ -67,7 +93,17 @@ export class AgentClaudeBrain implements IAgentBrain {
      * @returns true if server was removed, false if not found
      */
     public removeMcpServer(name: string): boolean {
-        return this.mcpServers.delete(name);
+        const removed = this.mcpServers.delete(name);
+        
+        if (this.logger) {
+            if (removed) {
+                this.logger.info(`AgentClaudeBrain: Removed MCP server '${name}'`);
+            } else {
+                this.logger.warn(`AgentClaudeBrain: Attempted to remove non-existent MCP server '${name}'`);
+            }
+        }
+        
+        return removed;
     }
 
     /**
@@ -112,7 +148,9 @@ Provide a concise summary of what happened.`;
 
             return description || "WBS document was updated";
         } catch (error) {
-            console.error("Failed to describe WBS operations:", error);
+            if (this.logger) {
+                this.logger.error("AgentClaudeBrain: Failed to describe WBS operations", error);
+            }
             return `WBS document was updated with ${operations.length} operation(s)`;
         }
     }
@@ -142,7 +180,9 @@ Provide a concise summary of what was received.`;
 
             return description || "Inbox received new content";
         } catch (error) {
-            console.error("Failed to describe inbox operations:", error);
+            if (this.logger) {
+                this.logger.error("AgentClaudeBrain: Failed to describe inbox operations", error);
+            }
             return `Inbox received ${operations.length} operation(s)`;
         }
     }

@@ -1,4 +1,4 @@
-import { IAgentBrain } from './IAgentBrain.js';
+import { IAgentBrain, IBrainLogger } from './IAgentBrain.js';
 import { AgentBrain } from './AgentBrain.js';
 import { AgentClaudeBrain } from './AgentClaudeBrain.js';
 import Anthropic from '@anthropic-ai/sdk';
@@ -39,13 +39,18 @@ export class BrainFactory {
     /**
      * Create a brain instance based on configuration
      * @param config Brain configuration
+     * @param logger Optional logger for brain initialization
      * @returns IAgentBrain instance
      */
-    static create(config: BrainConfig): IAgentBrain {
+    static create(config: BrainConfig, logger?: IBrainLogger): IAgentBrain {
         switch (config.type) {
             case BrainType.STANDARD:
                 const anthropic = new Anthropic({ apiKey: config.apiKey });
-                return new AgentBrain(anthropic);
+                const standardBrain = new AgentBrain(anthropic);
+                if (logger) {
+                    standardBrain.setLogger(logger);
+                }
+                return standardBrain;
             
             case BrainType.CLAUDE_SDK:
                 return new AgentClaudeBrain({
@@ -56,7 +61,7 @@ export class BrainFactory {
                     fileSystemPaths: config.fileSystemPaths,
                     model: config.model as any,
                     maxTurns: config.maxTurns
-                });
+                }, logger);
             
             default:
                 throw new Error(`Unknown brain type: ${config.type}`);

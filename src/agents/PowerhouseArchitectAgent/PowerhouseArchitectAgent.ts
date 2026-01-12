@@ -1,6 +1,7 @@
 import { AgentBase, type ILogger } from "../AgentBase.js";
 import type { PowerhouseArchitectAgentConfig } from "../../types.js";
 import type { IAgentBrain } from "../IAgentBrain.js";
+import { BrainType, type BrainConfig } from "../BrainFactory.js";
 
 /**
  *  The PowerhouseArchitectAgent creates and manages a variety of architecture-related 
@@ -8,6 +9,20 @@ import type { IAgentBrain } from "../IAgentBrain.js";
  *  to develop and roll out Powerhouse-based cloud platforms. 
  */
 export class PowerhouseArchitectAgent extends AgentBase<PowerhouseArchitectAgentConfig> {
+    
+    /**
+     * Get the brain configuration for PowerhouseArchitectAgent
+     * Uses standard brain for simple operations
+     */
+    static getBrainConfig(apiKey?: string): BrainConfig | null {
+        if (!apiKey) return null;
+        
+        return {
+            type: BrainType.STANDARD,  // Use standard brain for simple operations
+            apiKey,
+            model: 'claude-3-haiku-20240307'
+        };
+    }
     
     constructor(config: PowerhouseArchitectAgentConfig, logger: ILogger, brain?: IAgentBrain) {
         super(config, logger, brain);

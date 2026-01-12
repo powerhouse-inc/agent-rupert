@@ -2,7 +2,7 @@ import { ReactorPackageDevAgent } from './ReactorPackageDevAgent/ReactorPackageD
 import { PowerhouseArchitectAgent } from './PowerhouseArchitectAgent/PowerhouseArchitectAgent.js';
 import type { AgentBase, ILogger } from './AgentBase.js';
 import type { ReactorPackageDevAgentConfig, PowerhouseArchitectAgentConfig } from '../types.js';
-import { BrainFactory, BrainType, BrainConfig } from './BrainFactory.js';
+import { BrainFactory, type BrainConfig } from './BrainFactory.js';
 import type { IAgentBrain } from './IAgentBrain.js';
 
 export interface AgentsConfig {
@@ -11,7 +11,7 @@ export interface AgentsConfig {
     reactorPackageConfig?: ReactorPackageDevAgentConfig;
     architectConfig?: PowerhouseArchitectAgentConfig;
     anthropicApiKey?: string | null;
-    brainType?: BrainType;  // Type of brain to use (defaults to STANDARD)
+    agentManagerMcpUrl?: string;  // Optional Agent Manager MCP server URL
     logger?: ILogger;
 }
 
@@ -45,17 +45,20 @@ export class AgentsManager {
         if (this.config.enableReactorPackageAgent && this.config.reactorPackageConfig) {
             this.logger.info("AgentsManager: Initializing ReactorPackageAgent");
             
-            // Create brain instance for this agent
+            // Get agent-specific brain configuration
             let brain: IAgentBrain | undefined;
-            if (this.config.anthropicApiKey) {
+            const brainConfig = ReactorPackageDevAgent.getBrainConfig(this.config.anthropicApiKey || undefined);
+            
+            if (brainConfig) {
                 try {
-                    const brainConfig: BrainConfig = {
-                        type: this.config.brainType || BrainType.STANDARD,
-                        apiKey: this.config.anthropicApiKey,
-                        model: 'claude-3-haiku-20240307'
-                    };
-                    brain = BrainFactory.create(brainConfig);
-                    this.logger.info("AgentsManager: Created brain for ReactorPackageAgent");
+                    // Add agent manager MCP URL if provided
+                    if (this.config.agentManagerMcpUrl) {
+                        brainConfig.agentManagerMcpUrl = this.config.agentManagerMcpUrl;
+                    }
+                    
+                    // Pass logger as separate parameter
+                    brain = BrainFactory.create(brainConfig, this.logger);
+                    this.logger.info(`AgentsManager: Created ${brainConfig.type} brain for ReactorPackageAgent`);
                 } catch (error) {
                     this.logger.error("AgentsManager: Failed to create brain for ReactorPackageAgent:", error);
                 }
@@ -75,17 +78,20 @@ export class AgentsManager {
         if (this.config.enableArchitectAgent && this.config.architectConfig) {
             this.logger.info("AgentsManager: Initializing PowerhouseArchitectAgent");
             
-            // Create brain instance for this agent
+            // Get agent-specific brain configuration
             let brain: IAgentBrain | undefined;
-            if (this.config.anthropicApiKey) {
+            const brainConfig = PowerhouseArchitectAgent.getBrainConfig(this.config.anthropicApiKey || undefined);
+            
+            if (brainConfig) {
                 try {
-                    const brainConfig: BrainConfig = {
-                        type: this.config.brainType || BrainType.STANDARD,
-                        apiKey: this.config.anthropicApiKey,
-                        model: 'claude-3-haiku-20240307'
-                    };
-                    brain = BrainFactory.create(brainConfig);
-                    this.logger.info("AgentsManager: Created brain for PowerhouseArchitectAgent");
+                    // Add agent manager MCP URL if provided
+                    if (this.config.agentManagerMcpUrl) {
+                        brainConfig.agentManagerMcpUrl = this.config.agentManagerMcpUrl;
+                    }
+                    
+                    // Pass logger as separate parameter
+                    brain = BrainFactory.create(brainConfig, this.logger);
+                    this.logger.info(`AgentsManager: Created ${brainConfig.type} brain for PowerhouseArchitectAgent`);
                 } catch (error) {
                     this.logger.error("AgentsManager: Failed to create brain for PowerhouseArchitectAgent:", error);
                 }
