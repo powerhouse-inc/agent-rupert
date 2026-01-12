@@ -5,6 +5,7 @@ import { ServiceExecutor } from "../../tasks/executors/service-executor.js";
 import type { ReactorPackageDevAgentConfig } from "../../types.js";
 import type { IAgentBrain } from "../IAgentBrain.js";
 import { BrainType, type BrainConfig } from "../BrainFactory.js";
+import type { AgentBrainPromptContext } from "../../types/prompt-context.js";
 
 /**
  *  The ReactorPackageAgent uses ReactorPackagesManager with a number of associated tools
@@ -33,6 +34,41 @@ export class ReactorPackageDevAgent extends AgentBase<ReactorPackageDevAgentConf
             },
             model: 'haiku',
             maxTurns: 100
+        };
+    }
+    
+    /**
+     * Get the prompt template paths for ReactorPackageDevAgent
+     */
+    static getPromptTemplatePaths(): string[] {
+        return [
+            'prompts/AgentBase.md',
+            'prompts/ReactorPackageDevAgent.md'
+        ];
+    }
+    
+    /**
+     * Build the prompt context for ReactorPackageDevAgent
+     */
+    static buildPromptContext(
+        config: ReactorPackageDevAgentConfig,
+        serverPort: number,
+        mcpServers: string[] = []
+    ): AgentBrainPromptContext {
+        const baseContext = AgentBase.buildPromptContext(config, serverPort, mcpServers);
+        
+        return {
+            ...baseContext,
+            agentType: 'ReactorPackageDevAgent',
+            projectsDir: config.reactorPackages.projectsDir,
+            defaultProjectName: config.reactorPackages.defaultProjectName,
+            vetraConfig: config.vetraConfig,
+            capabilities: [
+                'reactor-package-management',
+                'project-initialization',
+                'service-execution',
+                'cli-command-execution'
+            ]
         };
     }
     

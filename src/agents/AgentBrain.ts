@@ -1,9 +1,14 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { IAgentBrain, IBrainLogger } from "./IAgentBrain.js";
+import { writeFileSync, mkdirSync } from "fs";
+import { join } from "path";
+
+const WRITE_PROMPT_TO_FILE = true;
 
 export class AgentBrain implements IAgentBrain {
     private api: Anthropic;
     private logger?: IBrainLogger;
+    private systemPrompt?: string;
 
     constructor(api: Anthropic) {
         this.api = api;
@@ -11,6 +16,31 @@ export class AgentBrain implements IAgentBrain {
 
     public setLogger(logger: IBrainLogger): void {
         this.logger = logger;
+    }
+
+    public setSystemPrompt(prompt: string, agentName?: string): void {
+        this.systemPrompt = prompt;
+        if (this.logger) {
+            this.logger.debug(`   AgentBrain: System prompt set (${prompt.length} chars)`);
+        }
+        
+        if (WRITE_PROMPT_TO_FILE) {
+            try {
+                const promptsDir = join(process.cwd(), 'tmp', 'prompts');
+                mkdirSync(promptsDir, { recursive: true });
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                const agentPart = agentName ? `_${agentName.replace(/\s+/g, '')}` : '';
+                const filename = join(promptsDir, `R${agentPart}_${timestamp}.md`);
+                writeFileSync(filename, prompt, 'utf-8');
+                console.log(`   DEBUG: Regular brain system prompt written to ${filename}`);
+            } catch (error) {
+                console.error('   DEBUG: Failed to write regular brain prompt to file:', error);
+            }
+        }
+    }
+
+    public getSystemPrompt(): string | undefined {
+        return this.systemPrompt;
     }
 
     public getAnthropic(): Anthropic {
@@ -24,7 +54,7 @@ export class AgentBrain implements IAgentBrain {
     public async describeWbsOperations(operations: any[]): Promise<string> {
         try {
             // Create a prompt with the operations data
-            const prompt = `Analyze these Work Breakdown Structure (WBS) operations and describe what changes occurred in simple, clear English. Focus on the business meaning, not technical details.
+            const userPrompt = `Analyze these Work Breakdown Structure (WBS) operations and describe what changes occurred in simple, clear English. Focus on the business meaning, not technical details.
 
 Operations data:
 ${JSON.stringify(operations, null, 2)}
@@ -34,11 +64,14 @@ Provide a concise summary of what happened.`;
             const response = await this.api.messages.create({
                 model: "claude-3-haiku-20240307",
                 max_tokens: 200,
-                messages: [{
-                    role: "user",
-                    content: prompt
-                }],
-                temperature: 0.3
+                messages: [
+                    {
+                        role: "user",
+                        content: userPrompt
+                    }
+                ],
+                temperature: 0.3,
+                ...(this.systemPrompt ? { system: this.systemPrompt } : {})
             });
 
             // Extract text content from response
@@ -63,7 +96,7 @@ Provide a concise summary of what happened.`;
     public async describeInboxOperations(operations: any[]): Promise<string> {
         try {
             // Create a prompt with the operations data
-            const prompt = `Analyze these inbox document operations and describe what messages or requests were received in simple, clear English. Focus on the business meaning.
+            const userPrompt = `Analyze these inbox document operations and describe what messages or requests were received in simple, clear English. Focus on the business meaning.
 
 Operations data:
 ${JSON.stringify(operations, null, 2)}
@@ -73,11 +106,14 @@ Provide a concise summary of what was received.`;
             const response = await this.api.messages.create({
                 model: "claude-3-haiku-20240307",
                 max_tokens: 200,
-                messages: [{
-                    role: "user",
-                    content: prompt
-                }],
-                temperature: 0.3
+                messages: [
+                    {
+                        role: "user",
+                        content: userPrompt
+                    }
+                ],
+                temperature: 0.3,
+                ...(this.systemPrompt ? { system: this.systemPrompt } : {})
             });
 
             // Extract text content from response

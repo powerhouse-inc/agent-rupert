@@ -53,6 +53,7 @@ export async function initializeAgents(config: ServerConfig): Promise<void> {
       architectConfig: powerhouseArchitect,
       anthropicApiKey: config.anthropicApiKey,
       agentManagerMcpUrl,
+      serverPort: config.serverPort,
       logger
     });
     

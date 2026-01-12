@@ -12,6 +12,7 @@ export interface AgentsConfig {
     architectConfig?: PowerhouseArchitectAgentConfig;
     anthropicApiKey?: string | null;
     agentManagerMcpUrl?: string;  // Optional Agent Manager MCP server URL
+    serverPort?: number;  // Server port for prompt context
     logger?: ILogger;
 }
 
@@ -56,9 +57,24 @@ export class AgentsManager {
                         brainConfig.agentManagerMcpUrl = this.config.agentManagerMcpUrl;
                     }
                     
-                    // Pass logger as separate parameter
-                    brain = BrainFactory.create(brainConfig, this.logger);
-                    this.logger.info(`AgentsManager: Created ${brainConfig.type} brain for ReactorPackageAgent`);
+                    // Get template paths and build context
+                    const templatePaths = ReactorPackageDevAgent.getPromptTemplatePaths();
+                    const promptContext = ReactorPackageDevAgent.buildPromptContext(
+                        this.config.reactorPackageConfig,
+                        this.config.serverPort || 3100,
+                        this.config.agentManagerMcpUrl ? ['agent-manager-drive'] : []
+                    );
+                    // Override anthropicApiKey flag
+                    promptContext.anthropicApiKey = !!this.config.anthropicApiKey;
+                    
+                    // Create brain with templates and context
+                    brain = await BrainFactory.create(
+                        brainConfig, 
+                        this.logger,
+                        templatePaths,
+                        promptContext
+                    );
+                    this.logger.info(`AgentsManager: Created ${brainConfig.type} brain for ReactorPackageAgent with system prompt`);
                 } catch (error) {
                     this.logger.error("AgentsManager: Failed to create brain for ReactorPackageAgent:", error);
                 }
@@ -89,9 +105,24 @@ export class AgentsManager {
                         brainConfig.agentManagerMcpUrl = this.config.agentManagerMcpUrl;
                     }
                     
-                    // Pass logger as separate parameter
-                    brain = BrainFactory.create(brainConfig, this.logger);
-                    this.logger.info(`AgentsManager: Created ${brainConfig.type} brain for PowerhouseArchitectAgent`);
+                    // Get template paths and build context
+                    const templatePaths = PowerhouseArchitectAgent.getPromptTemplatePaths();
+                    const promptContext = PowerhouseArchitectAgent.buildPromptContext(
+                        this.config.architectConfig,
+                        this.config.serverPort || 3100,
+                        this.config.agentManagerMcpUrl ? ['agent-manager-drive'] : []
+                    );
+                    // Override anthropicApiKey flag
+                    promptContext.anthropicApiKey = !!this.config.anthropicApiKey;
+                    
+                    // Create brain with templates and context
+                    brain = await BrainFactory.create(
+                        brainConfig, 
+                        this.logger,
+                        templatePaths,
+                        promptContext
+                    );
+                    this.logger.info(`AgentsManager: Created ${brainConfig.type} brain for PowerhouseArchitectAgent with system prompt`);
                 } catch (error) {
                     this.logger.error("AgentsManager: Failed to create brain for PowerhouseArchitectAgent:", error);
                 }

@@ -2,6 +2,9 @@ import { query } from '@anthropic-ai/claude-agent-sdk';
 import type { HookJSONOutput, SDKMessage } from '@anthropic-ai/claude-agent-sdk';
 import { IAgentBrain, IBrainLogger } from './IAgentBrain.js';
 import * as path from 'path';
+import { writeFileSync, mkdirSync } from 'fs';
+
+const WRITE_PROMPT_TO_FILE = true;
 
 /**
  * Configuration for AgentClaudeBrain
@@ -37,6 +40,7 @@ export class AgentClaudeBrain implements IAgentBrain {
     private config: AgentClaudeBrainConfig;
     private mcpServers: Map<string, McpServerConfig> = new Map();
     private logger?: IBrainLogger;
+    private systemPrompt?: string;
 
     constructor(config: AgentClaudeBrainConfig, logger?: IBrainLogger) {
         this.config = config;
@@ -46,7 +50,7 @@ export class AgentClaudeBrain implements IAgentBrain {
         process.env.ANTHROPIC_API_KEY = config.apiKey;
         
         if (this.logger) {
-            this.logger.debug(`AgentClaudeBrain: Initializing with model: ${config.model || 'haiku'}, working directory: ${config.workingDirectory}`);
+            this.logger.debug(`   AgentClaudeBrain: Initializing with model: ${config.model || 'haiku'}, working directory: ${config.workingDirectory}`);
         }
         
         // Add agent manager MCP server if provided
@@ -65,8 +69,39 @@ export class AgentClaudeBrain implements IAgentBrain {
     public setLogger(logger: IBrainLogger): void {
         this.logger = logger;
         if (this.logger) {
-            this.logger.debug(`AgentClaudeBrain: Logger updated`);
+            this.logger.debug(`   AgentClaudeBrain: Logger updated`);
         }
+    }
+
+    /**
+     * Set the system prompt for this brain
+     */
+    public setSystemPrompt(prompt: string, agentName?: string): void {
+        this.systemPrompt = prompt;
+        if (this.logger) {
+            this.logger.debug(`   AgentClaudeBrain: System prompt set (${prompt.length} chars)`);
+        }
+        
+        if (WRITE_PROMPT_TO_FILE) {
+            try {
+                const promptsDir = path.join(process.cwd(), 'tmp', 'prompts');
+                mkdirSync(promptsDir, { recursive: true });
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                const agentPart = agentName ? `_${agentName.replace(/\s+/g, '')}` : '';
+                const filename = path.join(promptsDir, `C${agentPart}_${timestamp}.md`);
+                writeFileSync(filename, prompt, 'utf-8');
+                console.log(`   DEBUG: Claude brain system prompt written to ${filename}`);
+            } catch (error) {
+                console.error('   DEBUG: Failed to write Claude brain prompt to file:', error);
+            }
+        }
+    }
+
+    /**
+     * Get the current system prompt
+     */
+    public getSystemPrompt(): string | undefined {
+        return this.systemPrompt;
     }
 
     /**
@@ -80,9 +115,9 @@ export class AgentClaudeBrain implements IAgentBrain {
         
         if (this.logger) {
             if (existingServer) {
-                this.logger.info(`AgentClaudeBrain: Updated MCP server '${name}' - Type: ${config.type}, URL: ${config.url || 'N/A'}`);
+                this.logger.info(`   AgentClaudeBrain: Updated MCP server '${name}' - Type: ${config.type}, URL: ${config.url || 'N/A'}`);
             } else {
-                this.logger.info(`AgentClaudeBrain: Added MCP server '${name}' - Type: ${config.type}, URL: ${config.url || 'N/A'}`);
+                this.logger.info(`   AgentClaudeBrain: Added MCP server '${name}' - Type: ${config.type}, URL: ${config.url || 'N/A'}`);
             }
         }
     }
@@ -97,9 +132,9 @@ export class AgentClaudeBrain implements IAgentBrain {
         
         if (this.logger) {
             if (removed) {
-                this.logger.info(`AgentClaudeBrain: Removed MCP server '${name}'`);
+                this.logger.info(`   AgentClaudeBrain: Removed MCP server '${name}'`);
             } else {
-                this.logger.warn(`AgentClaudeBrain: Attempted to remove non-existent MCP server '${name}'`);
+                this.logger.warn(`   AgentClaudeBrain: Attempted to remove non-existent MCP server '${name}'`);
             }
         }
         
@@ -149,7 +184,7 @@ Provide a concise summary of what happened.`;
             return description || "WBS document was updated";
         } catch (error) {
             if (this.logger) {
-                this.logger.error("AgentClaudeBrain: Failed to describe WBS operations", error);
+                this.logger.error("   AgentClaudeBrain: Failed to describe WBS operations", error);
             }
             return `WBS document was updated with ${operations.length} operation(s)`;
         }
@@ -181,7 +216,7 @@ Provide a concise summary of what was received.`;
             return description || "Inbox received new content";
         } catch (error) {
             if (this.logger) {
-                this.logger.error("AgentClaudeBrain: Failed to describe inbox operations", error);
+                this.logger.error("   AgentClaudeBrain: Failed to describe inbox operations", error);
             }
             return `Inbox received ${operations.length} operation(s)`;
         }
@@ -208,7 +243,8 @@ Provide a concise summary of what was received.`;
                 model: this.config.model || 'haiku',
                 allowedTools: this.config.allowedTools || [],  // No tools needed for description tasks
                 mcpServers,
-                hooks: this.createFileSystemHooks()
+                hooks: this.createFileSystemHooks(),
+                systemPrompt: this.systemPrompt  // Add system prompt if available
             }
         });
 

@@ -20,6 +20,20 @@ export interface IAgentBrain {
     setLogger(logger: IBrainLogger): void;
 
     /**
+     * Set the system prompt for the brain
+     * This prompt provides context and instructions for all operations
+     * @param prompt System prompt text
+     * @param agentName Optional agent name for debugging
+     */
+    setSystemPrompt?(prompt: string, agentName?: string): void;
+
+    /**
+     * Get the current system prompt
+     * @returns Current system prompt or undefined if not set
+     */
+    getSystemPrompt?(): string | undefined;
+
+    /**
      * Describe WBS operations in natural language
      * Analyzes the operations and returns a human-readable description
      * @param operations Array of WBS operations to analyze

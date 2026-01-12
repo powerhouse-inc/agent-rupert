@@ -1,6 +1,7 @@
 import { IAgentBrain, IBrainLogger } from './IAgentBrain.js';
 import { AgentBrain } from './AgentBrain.js';
 import { AgentClaudeBrain } from './AgentClaudeBrain.js';
+import { PromptParser } from '../utils/PromptParser.js';
 import Anthropic from '@anthropic-ai/sdk';
 
 /**
@@ -40,20 +41,29 @@ export class BrainFactory {
      * Create a brain instance based on configuration
      * @param config Brain configuration
      * @param logger Optional logger for brain initialization
-     * @returns IAgentBrain instance
+     * @param promptTemplatePaths Optional paths to prompt template files
+     * @param promptContext Optional context data for prompt templates
+     * @returns Promise<IAgentBrain> instance
      */
-    static create(config: BrainConfig, logger?: IBrainLogger): IAgentBrain {
+    static async create<TContext = any>(
+        config: BrainConfig, 
+        logger?: IBrainLogger,
+        promptTemplatePaths?: string[],
+        promptContext?: TContext
+    ): Promise<IAgentBrain> {
+        let brain: IAgentBrain;
+        
         switch (config.type) {
             case BrainType.STANDARD:
                 const anthropic = new Anthropic({ apiKey: config.apiKey });
-                const standardBrain = new AgentBrain(anthropic);
+                brain = new AgentBrain(anthropic);
                 if (logger) {
-                    standardBrain.setLogger(logger);
+                    brain.setLogger(logger);
                 }
-                return standardBrain;
+                break;
             
             case BrainType.CLAUDE_SDK:
-                return new AgentClaudeBrain({
+                brain = new AgentClaudeBrain({
                     apiKey: config.apiKey,
                     agentManagerMcpUrl: config.agentManagerMcpUrl,
                     workingDirectory: config.workingDirectory || './agent-workspace',
@@ -62,9 +72,23 @@ export class BrainFactory {
                     model: config.model as any,
                     maxTurns: config.maxTurns
                 }, logger);
+                break;
             
             default:
                 throw new Error(`Unknown brain type: ${config.type}`);
         }
+        
+        // If prompt templates are provided, parse and set system prompt
+        if (promptTemplatePaths && promptTemplatePaths.length > 0 && promptContext) {
+            const parser = new PromptParser<TContext>();
+            const systemPrompt = await parser.parseMultiple(promptTemplatePaths, promptContext);
+            if (brain.setSystemPrompt) {
+                // Extract agent name from context if available
+                const agentName = (promptContext as any).agentName;
+                brain.setSystemPrompt(systemPrompt, agentName);
+            }
+        }
+        
+        return brain;
     }
 }

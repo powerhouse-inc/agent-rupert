@@ -36,7 +36,7 @@ describe('AgentClaudeBrain Logging', () => {
         it('should log initialization details', () => {
             expect(loggedMessages).toContainEqual({
                 level: 'debug',
-                message: 'AgentClaudeBrain: Initializing with model: haiku, working directory: /tmp/test-workspace'
+                message: '   AgentClaudeBrain: Initializing with model: haiku, working directory: /tmp/test-workspace'
             });
         });
         
@@ -48,7 +48,7 @@ describe('AgentClaudeBrain Logging', () => {
             
             expect(loggedMessages).toContainEqual({
                 level: 'info',
-                message: "AgentClaudeBrain: Added MCP server 'test-server' - Type: http, URL: http://localhost:4001/mcp"
+                message: "   AgentClaudeBrain: Added MCP server 'test-server' - Type: http, URL: http://localhost:4001/mcp"
             });
         });
         
@@ -65,7 +65,7 @@ describe('AgentClaudeBrain Logging', () => {
             
             expect(loggedMessages).toContainEqual({
                 level: 'info',
-                message: "AgentClaudeBrain: Updated MCP server 'test-server' - Type: http, URL: http://localhost:4002/mcp"
+                message: "   AgentClaudeBrain: Updated MCP server 'test-server' - Type: http, URL: http://localhost:4002/mcp"
             });
         });
         
@@ -79,7 +79,7 @@ describe('AgentClaudeBrain Logging', () => {
             
             expect(loggedMessages).toContainEqual({
                 level: 'info',
-                message: "AgentClaudeBrain: Removed MCP server 'test-server'"
+                message: "   AgentClaudeBrain: Removed MCP server 'test-server'"
             });
         });
         
@@ -88,7 +88,7 @@ describe('AgentClaudeBrain Logging', () => {
             
             expect(loggedMessages).toContainEqual({
                 level: 'warn',
-                message: "AgentClaudeBrain: Attempted to remove non-existent MCP server 'non-existent'"
+                message: "   AgentClaudeBrain: Attempted to remove non-existent MCP server 'non-existent'"
             });
         });
         

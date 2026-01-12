@@ -2,6 +2,7 @@ import { AgentBase, type ILogger } from "../AgentBase.js";
 import type { PowerhouseArchitectAgentConfig } from "../../types.js";
 import type { IAgentBrain } from "../IAgentBrain.js";
 import { BrainType, type BrainConfig } from "../BrainFactory.js";
+import type { AgentBrainPromptContext } from "../../types/prompt-context.js";
 
 /**
  *  The PowerhouseArchitectAgent creates and manages a variety of architecture-related 
@@ -21,6 +22,38 @@ export class PowerhouseArchitectAgent extends AgentBase<PowerhouseArchitectAgent
             type: BrainType.STANDARD,  // Use standard brain for simple operations
             apiKey,
             model: 'claude-3-haiku-20240307'
+        };
+    }
+    
+    /**
+     * Get the prompt template paths for PowerhouseArchitectAgent
+     */
+    static getPromptTemplatePaths(): string[] {
+        return [
+            'prompts/AgentBase.md',
+            'prompts/PowerhouseArchitectAgent.md'
+        ];
+    }
+    
+    /**
+     * Build the prompt context for PowerhouseArchitectAgent
+     */
+    static buildPromptContext(
+        config: PowerhouseArchitectAgentConfig,
+        serverPort: number,
+        mcpServers: string[] = []
+    ): AgentBrainPromptContext {
+        const baseContext = AgentBase.buildPromptContext(config, serverPort, mcpServers);
+        
+        return {
+            ...baseContext,
+            agentType: 'PowerhouseArchitectAgent',
+            capabilities: [
+                'architecture-analysis',
+                'blueprint-generation',
+                'design-documentation',
+                'task-delegation'
+            ]
         };
     }
     

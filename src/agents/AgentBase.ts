@@ -7,6 +7,7 @@ import { documentModelDocumentModelModule } from 'document-model';
 import { FilesystemStorage } from 'document-drive/storage/filesystem';
 import type { IAgentBrain } from './IAgentBrain.js';
 import type { BrainConfig } from './BrainFactory.js';
+import type { AgentBrainPromptContext } from '../types/prompt-context.js';
 
 // Logger interface for dependency injection
 export interface ILogger {
@@ -75,6 +76,45 @@ export abstract class AgentBase<TConfig extends BaseAgentConfig = BaseAgentConfi
         // Default implementation returns null (no brain)
         // Subclasses should override this to provide their specific configuration
         return null;
+    }
+    
+    /**
+     * Get the prompt template paths for this agent type
+     * @returns Array of template file paths or empty array if no templates
+     */
+    static getPromptTemplatePaths(): string[] {
+        // Default implementation returns base template only
+        return ['prompts/AgentBase.md'];
+    }
+    
+    /**
+     * Build the prompt context for this agent
+     * @param config Agent configuration
+     * @param serverPort Server port number
+     * @param mcpServers List of MCP server names
+     * @returns Prompt context data
+     */
+    static buildPromptContext(
+        config: BaseAgentConfig,
+        serverPort: number,
+        mcpServers: string[] = []
+    ): AgentBrainPromptContext {
+        // Base implementation builds minimal context
+        return {
+            serverPort,
+            anthropicApiKey: false, // Will be set by subclass or manager
+            agentName: config.name,
+            agentType: 'ReactorPackageDevAgent', // Will be overridden by subclasses
+            timestamp: new Date().toISOString(),
+            mcpServers,
+            model: 'haiku',
+            driveUrl: config.workDrive?.driveUrl || undefined,
+            documentIds: {
+                inbox: config.workDrive?.documents?.inbox?.documentId || undefined,
+                wbs: config.workDrive?.documents?.wbs?.documentId || undefined
+            },
+            storageType: config.workDrive?.reactorStorage?.type
+        };
     }
     
     constructor(config: TConfig, logger: ILogger, brain?: IAgentBrain) {
