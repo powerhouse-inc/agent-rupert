@@ -48,4 +48,11 @@ export interface IAgentBrain {
      * @returns Promise with human-readable description of the operations
      */
     describeInboxOperations(operations: any[]): Promise<string>;
+
+    /**
+     * Send a message to the brain for processing
+     * @param message The message to send
+     * @returns Promise with the response from the brain
+     */
+    sendMessage?(message: string): Promise<string>;
 }

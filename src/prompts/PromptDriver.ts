@@ -85,6 +85,10 @@ export class PromptDriver {
     const taskPrompt = this.buildTaskPrompt(task);
     
     // Send to agent and get response
+    if (!this.agent.sendMessage) {
+      throw new Error('Agent does not support sendMessage method');
+    }
+    
     const response = await this.agent.sendMessage(taskPrompt);
     
     return response;
