@@ -7,4 +7,4 @@ dist/
 /.claude/settings.local.json
 tmp/
 coverage/
-claude-docs/
+claude-docs/build/

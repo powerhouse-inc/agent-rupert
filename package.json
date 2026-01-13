@@ -6,9 +6,10 @@
   "type": "module",
   "scripts": {
     "dev": "nodemon --exec tsx src/server.ts",
-    "build": "tsc",
+    "build": "pnpm build:prompts && tsc",
+    "build:prompts": "tsx scripts/build-prompts.ts",
     "start": "node dist/server.js",
-    "clean": "rm -rf dist .ph",
+    "clean": "rm -rf dist .ph build",
     "test": "NODE_OPTIONS=\"--experimental-vm-modules\" jest",
     "test:integration": "NODE_OPTIONS=\"--experimental-vm-modules\" jest tests/integration -i",
     "test:unit": "NODE_OPTIONS=\"--experimental-vm-modules\" jest tests/unit",
@@ -41,11 +42,18 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/jest": "^30.0.0",
+    "@types/mdast": "^4.0.4",
     "@types/node": "^25.0.3",
+    "fs-extra": "^11.3.3",
+    "glob": "^13.0.0",
     "jest": "^30.2.0",
     "nodemon": "^3.1.11",
+    "remark-parse": "^11.0.0",
+    "remark-stringify": "^11.0.0",
     "ts-jest": "^29.4.6",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "unified": "^11.0.5",
+    "unist-util-visit": "^5.0.0"
   }
 }
