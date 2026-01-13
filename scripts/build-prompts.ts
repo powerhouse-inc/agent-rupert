@@ -281,6 +281,9 @@ async function buildPrompts() {
   
   console.log(`Found ${mdFiles.length} scenario markdown files`);
   
+  // Track skills for non-verbose output
+  const skills = new Set<string>();
+  
   for (const relativePath of mdFiles) {
     const inputPath = path.join(promptsDir, relativePath);
     const outputPath = path.join(outputDir, relativePath.replace('.md', '.json'));
@@ -293,6 +296,12 @@ async function buildPrompts() {
       const promptDoc = await parseMdFile(inputPath);
       
       if (promptDoc) {
+        // Track skill from directory path
+        const skillName = path.dirname(relativePath);
+        if (skillName !== '.') {
+          skills.add(skillName);
+        }
+        
         // Ensure output directory exists
         await fs.ensureDir(path.dirname(outputPath));
         
@@ -314,7 +323,7 @@ async function buildPrompts() {
   }
   
   if (!verbose) {
-    console.log(`✓ Built ${mdFiles.length} scenario files`);
+    console.log(`✓ Built ${mdFiles.length} scenario files across ${skills.size} skills`);
   } else {
     console.log('\nBuild complete!');
   }
