@@ -390,4 +390,151 @@ Reply to this prompt with a very short sentence summary of what you did.
             ]
         };
     }
+
+    /**
+     * Send a message to Claude for processing
+     */
+    public async sendMessage(message: string): Promise<string> {
+        if (this.logger) {
+            this.logger.debug(`   AgentClaudeBrain: Sending message (${message.length} chars)`);
+        }
+
+        // Log conversation to tmp directory for debugging
+        const tmpDir = path.join(process.cwd(), 'tmp', 'conversations');
+        mkdirSync(tmpDir, { recursive: true });
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const logFile = path.join(tmpDir, `conversation_${timestamp}.md`);
+
+        try {
+            // Build MCP servers configuration
+            const mcpServers: any = {};
+            for (const [name, config] of this.mcpServers) {
+                mcpServers[name] = config;
+            }
+
+            // Ensure working directory exists
+            const workingDir = this.config.workingDirectory;
+            if (!existsSync(workingDir)) {
+                mkdirSync(workingDir, { recursive: true });
+            }
+            
+            // Log the request
+            let logContent = `# Conversation Log - ${new Date().toISOString()}\n\n`;
+            logContent += `## System Prompt\n\`\`\`\n${this.systemPrompt || 'No system prompt'}\n\`\`\`\n\n`;
+            logContent += `## User Message\n\`\`\`\n${message}\n\`\`\`\n\n`;
+            logContent += `## Configuration\n`;
+            logContent += `- Model: ${this.config.model || 'haiku'}\n`;
+            logContent += `- MaxTurns: 5\n`;
+            logContent += `- AllowedTools: none\n\n`;
+
+            const q = query({
+                prompt: message,
+                options: {
+                    settingSources: [],  // No filesystem config lookups
+                    maxTurns: 5,  // Allow multiple turns for better responses
+                    cwd: workingDir,
+                    model: this.config.model || 'haiku',
+                    allowedTools: [],  // No tools for simple messages
+                    mcpServers,
+                    hooks: this.createFileSystemHooks(),
+                    systemPrompt: this.systemPrompt,  // Add system prompt if available
+                    // Workaround for spawn node ENOENT issue
+                    env: {
+                        PATH: process.env.PATH,
+                        ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+                        HOME: process.env.HOME,
+                        USER: process.env.USER
+                    },
+                    permissionMode: 'default'
+                }
+            });
+
+            // Collect the response
+            let response = '';
+            let messageCount = 0;
+            logContent += `## Messages Stream\n`;
+            
+            for await (const msg of q) {
+                messageCount++;
+                logContent += `\n### Message ${messageCount} (type: ${msg.type})\n`;
+                
+                // Log full message details
+                if (msg.type === 'assistant' && msg.message) {
+                    logContent += `Assistant message with ${msg.message.content.length} content blocks\n`;
+                    for (const block of msg.message.content) {
+                        if (block.type === 'text') {
+                            response += block.text;
+                            logContent += `#### Text block:\n${block.text}\n`;
+                        } else if (block.type === 'tool_use') {
+                            logContent += `#### Tool use block:\n`;
+                            logContent += `- Tool: ${block.name}\n`;
+                            logContent += `- Input: ${JSON.stringify(block.input, null, 2)}\n`;
+                        } else {
+                            logContent += `#### ${block.type} block:\n`;
+                            logContent += `${JSON.stringify(block, null, 2)}\n`;
+                        }
+                    }
+                } else if (msg.type === 'user' && (msg as any).message) {
+                    logContent += `User message:\n`;
+                    const userMsg = (msg as any).message;
+                    if (typeof userMsg === 'string') {
+                        logContent += `${userMsg}\n`;
+                    } else {
+                        logContent += `${JSON.stringify(userMsg, null, 2)}\n`;
+                    }
+                } else if (msg.type === 'system') {
+                    logContent += `System message:\n`;
+                    if ((msg as any).subtype) {
+                        logContent += `- Subtype: ${(msg as any).subtype}\n`;
+                    }
+                    if ((msg as any).content) {
+                        logContent += `- Content: ${JSON.stringify((msg as any).content, null, 2)}\n`;
+                    }
+                } else if (msg.type === 'result') {
+                    logContent += `Result message:\n`;
+                    if ((msg as any).subtype) {
+                        logContent += `- Subtype: ${(msg as any).subtype}\n`;
+                    }
+                    if ((msg as any).content) {
+                        logContent += `- Content: ${JSON.stringify((msg as any).content, null, 2).substring(0, 500)}...\n`;
+                    }
+                } else {
+                    // Log any other message type
+                    logContent += `Full message: ${JSON.stringify(msg, null, 2).substring(0, 1000)}...\n`;
+                }
+            }
+            
+            logContent += `\n## Final Response\n\`\`\`\n${response || 'No response generated'}\n\`\`\`\n`;
+            logContent += `\nTotal messages: ${messageCount}\n`;
+            logContent += `Response length: ${response.length} chars\n`;
+            
+            // Write log file
+            writeFileSync(logFile, logContent);
+            console.log(`   Conversation logged to: ${logFile}`);
+            
+            if (this.logger) {
+                this.logger.debug(`   AgentClaudeBrain: Received ${messageCount} messages, response length: ${response.length}`);
+            }
+
+            return response || 'No response generated';
+        } catch (error) {
+            if (this.logger) {
+                this.logger.error(`   AgentClaudeBrain: Error sending message`, error);
+            }
+            throw error;
+        }
+    }
+
+    /**
+     * Cleanup resources
+     */
+    public async cleanup(): Promise<void> {
+        // Clear any references that might prevent garbage collection
+        this.mcpServers.clear();
+        this.systemPrompt = undefined;
+        
+        if (this.logger) {
+            this.logger.debug('   AgentClaudeBrain: Cleaned up resources');
+        }
+    }
 }

@@ -54,5 +54,11 @@ export interface IAgentBrain {
      * @param message The message to send
      * @returns Promise with the response from the brain
      */
-    sendMessage?(message: string): Promise<string>;
+    sendMessage(message: string): Promise<string>;
+
+    /**
+     * Cleanup any resources used by the brain
+     * Called when the brain is no longer needed
+     */
+    cleanup?(): Promise<void>;
 }

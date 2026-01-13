@@ -45,8 +45,8 @@ export class ReactorPackageDevAgent extends AgentBase<ReactorPackageDevAgentConf
      */
     static getPromptTemplatePaths(): string[] {
         return [
-            'prompts/AgentBase.md',
-            'prompts/ReactorPackageDevAgent.md'
+            'prompts/agent-profiles/AgentBase.md',
+            'prompts/agent-profiles/ReactorPackageDevAgent.md'
         ];
     }
     

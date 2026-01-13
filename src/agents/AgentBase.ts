@@ -84,7 +84,7 @@ export abstract class AgentBase<TConfig extends BaseAgentConfig = BaseAgentConfi
      */
     static getPromptTemplatePaths(): string[] {
         // Default implementation returns base template only
-        return ['prompts/AgentBase.md'];
+        return ['prompts/agent-profiles/AgentBase.md'];
     }
     
     /**

@@ -8,7 +8,7 @@ export interface AgentBrainPromptContext {
     
     // Agent identification
     agentName: string;
-    agentType: 'ReactorPackageDevAgent' | 'PowerhouseArchitectAgent';
+    agentType: 'ReactorPackageDevAgent' | 'PowerhouseArchitectAgent' | 'CreativeWriterAgent';
     
     // Agent workspace
     workingDirectory?: string;
@@ -40,6 +40,9 @@ export interface AgentBrainPromptContext {
     
     // Additional capabilities or features
     capabilities?: string[];
+    
+    // CreativeWriterAgent specific
+    genre?: string;
 }
 
 /**

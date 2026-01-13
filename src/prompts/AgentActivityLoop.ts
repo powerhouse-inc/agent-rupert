@@ -74,10 +74,12 @@ export class AgentActivityLoop {
       this.startCheckpointing();
     }
     
-    // Initialize agent session
+    // Append scenario prompt to existing agent profile
     if (this.agent.setSystemPrompt) {
-      const systemPrompt = this.buildSystemPrompt(scenario);
-      this.agent.setSystemPrompt(systemPrompt);
+      const existingPrompt = this.agent.getSystemPrompt ? this.agent.getSystemPrompt() : '';
+      const scenarioPrompt = this.buildSystemPrompt(scenario);
+      const combinedPrompt = existingPrompt ? `${existingPrompt}\n\n---\n\n${scenarioPrompt}` : scenarioPrompt;
+      this.agent.setSystemPrompt(combinedPrompt);
     }
   }
 
@@ -88,7 +90,7 @@ export class AgentActivityLoop {
     await this.initialize(scenario);
     
     // Send preamble if exists
-    if (scenario.preamble && this.agent.sendMessage) {
+    if (scenario.preamble) {
       await this.agent.sendMessage(scenario.preamble);
     }
     
@@ -100,10 +102,7 @@ export class AgentActivityLoop {
         break;
       }
       
-      if (result.state === TaskExecutionState.BLOCKED) {
-        // Wait for unblock or timeout
-        await this.waitForUnblock(task);
-      }
+      // Skip blocked task handling for now
     }
     
     return this.generateProgressReport();
@@ -144,19 +143,6 @@ export class AgentActivityLoop {
           
           if (this.callbacks.onTaskComplete) {
             await this.callbacks.onTaskComplete(task, result);
-          }
-          break;
-        } else if (taskResult.isBlocked) {
-          result.state = TaskExecutionState.BLOCKED;
-          result.blockedReason = {
-            taskId: task.id,
-            reason: taskResult.blockedReason || 'Unknown reason',
-            timestamp: new Date()
-          };
-          this.blockedTasks.set(task.id, result.blockedReason);
-          
-          if (this.callbacks.onTaskBlocked) {
-            await this.callbacks.onTaskBlocked(task, result.blockedReason);
           }
           break;
         } else if (taskResult.isFailed) {
@@ -210,10 +196,6 @@ export class AgentActivityLoop {
    * Execute a task and monitor for completion
    */
   private async executeTask(task: ScenarioTask): Promise<TaskStatus> {
-    if (!this.agent.sendMessage) {
-      throw new Error('Agent does not support sendMessage');
-    }
-    
     // Build and send task prompt
     const taskPrompt = this.buildTaskPrompt(task);
     const response = await this.agent.sendMessage(taskPrompt);
@@ -227,7 +209,7 @@ export class AgentActivityLoop {
   /**
    * Analyze agent response to determine task status
    */
-  private analyzeTaskResponse(response: string, task: ScenarioTask): TaskStatus {
+  private analyzeTaskResponse(response: string, _task: ScenarioTask): TaskStatus {
     const status: TaskStatus = {
       isComplete: false,
       isBlocked: false,
@@ -235,91 +217,28 @@ export class AgentActivityLoop {
       response
     };
     
-    // Check for completion indicators
-    const completionIndicators = [
-      'completed',
-      'finished',
-      'done',
-      'successfully',
-      'created',
-      'implemented',
-      'added',
-      'updated'
-    ];
-    
     const lowerResponse = response.toLowerCase();
-    status.isComplete = completionIndicators.some(indicator => 
-      lowerResponse.includes(indicator)
-    );
     
-    // Check for blocked indicators
-    const blockedIndicators = [
-      'blocked',
-      'waiting for',
-      'need input',
-      'require clarification',
-      'cannot proceed'
-    ];
-    
-    if (blockedIndicators.some(indicator => lowerResponse.includes(indicator))) {
-      status.isBlocked = true;
-      status.blockedReason = this.extractBlockedReason(response);
-    }
-    
-    // Check for failure indicators
-    const failureIndicators = [
-      'failed',
-      'error',
+    // Check for error/failure indicators
+    const errorIndicators = [
+      'error:',
+      'failed:',
       'unable to',
-      'could not',
-      'exception'
+      'cannot complete'
     ];
     
-    if (!status.isComplete && failureIndicators.some(indicator => 
-      lowerResponse.includes(indicator)
-    )) {
+    if (errorIndicators.some(indicator => lowerResponse.includes(indicator))) {
       status.isFailed = true;
-      status.error = new Error(`Task failed: ${response.substring(0, 200)}`);
+      status.error = new Error(response);
+      return status;
     }
     
-    // Default to complete if response seems substantial and no issues detected
-    if (!status.isBlocked && !status.isFailed && response.length > 50) {
+    // For any other non-empty response, consider it complete
+    if (response && response.trim().length > 0) {
       status.isComplete = true;
     }
     
     return status;
-  }
-
-  /**
-   * Extract blocked reason from response
-   */
-  private extractBlockedReason(response: string): string {
-    // Try to extract the reason from common patterns
-    const patterns = [
-      /blocked\s+because\s+(.+)/i,
-      /waiting\s+for\s+(.+)/i,
-      /need\s+(.+)\s+to\s+proceed/i,
-      /require\s+(.+)\s+from/i
-    ];
-    
-    for (const pattern of patterns) {
-      const match = response.match(pattern);
-      if (match) {
-        return match[1].trim();
-      }
-    }
-    
-    return 'Task is blocked - manual intervention required';
-  }
-
-  /**
-   * Wait for a blocked task to be unblocked
-   */
-  private async waitForUnblock(task: ScenarioTask): Promise<void> {
-    // In a real implementation, this would wait for external input
-    // For now, we'll just wait a bit and continue
-    await this.delay(5000);
-    this.blockedTasks.delete(task.id);
   }
 
   /**
@@ -329,9 +248,15 @@ export class AgentActivityLoop {
     return `You are executing a structured sequence of tasks from the "${scenario.id}" scenario.
 Scenario: ${scenario.title}
 
+CRITICAL INSTRUCTIONS:
+- You must NEVER use any tools (no Write, Edit, Bash, or any other tools)
+- Provide all responses as plain text or markdown directly in your message
+- Do NOT attempt to write to files or execute commands
+- Simply respond with the requested content as text
+
 ${scenario.preamble ? `Instructions:\n${scenario.preamble}\n\n` : ''}
 You will receive tasks one by one. Complete each task thoroughly before moving to the next.
-Indicate clearly when a task is completed or if you are blocked and need additional input.`;
+Respond directly with the content requested. Do not use any tools.`;
   }
 
   /**
@@ -342,7 +267,8 @@ Indicate clearly when a task is completed or if you are blocked and need additio
 
 ${task.content}
 
-Please complete this task and indicate when you are finished.`;
+REMEMBER: Do NOT use any tools. Respond directly with the requested content as plain text or markdown.
+Please complete this task by providing your response directly and indicate when you are finished.`;
   }
 
   /**

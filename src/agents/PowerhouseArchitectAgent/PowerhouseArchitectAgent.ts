@@ -30,8 +30,8 @@ export class PowerhouseArchitectAgent extends AgentBase<PowerhouseArchitectAgent
      */
     static getPromptTemplatePaths(): string[] {
         return [
-            'prompts/AgentBase.md',
-            'prompts/PowerhouseArchitectAgent.md'
+            'prompts/agent-profiles/AgentBase.md',
+            'prompts/agent-profiles/PowerhouseArchitectAgent.md'
         ];
     }
     

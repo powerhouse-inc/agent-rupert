@@ -130,4 +130,43 @@ Provide a concise summary of what was received.`;
             return `Inbox received ${operations.length} operation(s)`;
         }
     }
+
+    /**
+     * Send a message to the brain for processing
+     */
+    public async sendMessage(message: string): Promise<string> {
+        if (this.logger) {
+            this.logger.debug(`   AgentBrain: Sending message (${message.length} chars)`);
+        }
+
+        try {
+            const response = await this.api.messages.create({
+                model: "claude-3-haiku-20240307",
+                max_tokens: 1000,
+                messages: [
+                    {
+                        role: "user",
+                        content: message
+                    }
+                ],
+                temperature: 0.7,
+                ...(this.systemPrompt ? { system: this.systemPrompt } : {})
+            });
+
+            // Extract text content from response
+            let result = "";
+            for (const block of response.content) {
+                if (block.type === "text") {
+                    result += block.text;
+                }
+            }
+
+            return result || "No response generated";
+        } catch (error) {
+            if (this.logger) {
+                this.logger.error(`   AgentBrain: Error sending message`, error);
+            }
+            throw error;
+        }
+    }
 }
