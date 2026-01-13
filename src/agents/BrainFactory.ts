@@ -53,11 +53,8 @@ export class BrainFactory {
     ): Promise<IAgentBrain> {
         let brain: IAgentBrain;
         
-        console.log(`BrainFactory: Creating brain of type ${config.type}`);
-        
         switch (config.type) {
             case BrainType.STANDARD:
-                console.log("BrainFactory: Creating standard AgentBrain");
                 const anthropic = new Anthropic({ apiKey: config.apiKey });
                 brain = new AgentBrain(anthropic);
                 if (logger) {
@@ -66,7 +63,6 @@ export class BrainFactory {
                 break;
             
             case BrainType.CLAUDE_SDK:
-                console.log("BrainFactory: Creating AgentClaudeBrain with Claude SDK");
                 brain = new AgentClaudeBrain({
                     apiKey: config.apiKey,
                     agentManagerMcpUrl: config.agentManagerMcpUrl,
