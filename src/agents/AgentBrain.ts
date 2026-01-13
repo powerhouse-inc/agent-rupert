@@ -134,9 +134,14 @@ Provide a concise summary of what was received.`;
     /**
      * Send a message to the brain for processing
      */
-    public async sendMessage(message: string): Promise<string> {
+    public async sendMessage(message: string, sessionId?: string): Promise<{response: string; sessionId?: string}> {
         if (this.logger) {
             this.logger.debug(`   AgentBrain: Sending message (${message.length} chars)`);
+        }
+
+        // This implementation doesn't support sessions, ignore sessionId parameter
+        if (sessionId && this.logger) {
+            this.logger.debug('   AgentBrain: This implementation does not support sessions, ignoring sessionId');
         }
 
         try {
@@ -161,7 +166,10 @@ Provide a concise summary of what was received.`;
                 }
             }
 
-            return result || "No response generated";
+            return {
+                response: result || "No response generated",
+                sessionId: undefined  // This implementation doesn't support sessions
+            };
         } catch (error) {
             if (this.logger) {
                 this.logger.error(`   AgentBrain: Error sending message`, error);

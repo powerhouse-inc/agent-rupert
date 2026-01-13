@@ -89,9 +89,9 @@ export class PromptDriver {
       throw new Error('Agent does not support sendMessage method');
     }
     
-    const response = await this.agent.sendMessage(taskPrompt);
+    const result = await this.agent.sendMessage(taskPrompt);
     
-    return response;
+    return result.response;
   }
 
   /**

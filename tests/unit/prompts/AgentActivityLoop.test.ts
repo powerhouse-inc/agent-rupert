@@ -111,23 +111,25 @@ describe('AgentActivityLoop', () => {
   describe('task execution', () => {
     it('should execute tasks sequentially', async () => {
       mockAgent.sendMessage
-        .mockResolvedValueOnce('Preamble acknowledged')  // For preamble
-        .mockResolvedValueOnce('Task TEST.01.1 completed successfully')
-        .mockResolvedValueOnce('Task TEST.01.2 completed successfully')
-        .mockResolvedValueOnce('Task TEST.01.3 completed successfully');
+        .mockResolvedValueOnce({ response: 'Preamble acknowledged', sessionId: 'test-session-1' })  // For preamble
+        .mockResolvedValueOnce({ response: 'Task TEST.01.1 completed successfully', sessionId: 'test-session-1' })
+        .mockResolvedValueOnce({ response: 'Task TEST.01.2 completed successfully', sessionId: 'test-session-1' })
+        .mockResolvedValueOnce({ response: 'Task TEST.01.3 completed successfully', sessionId: 'test-session-1' });
 
       const report = await loop.processScenario(testScenario);
 
       expect(mockAgent.sendMessage).toHaveBeenCalledTimes(4); // preamble + 3 tasks
-      // First call should be the preamble
-      expect(mockAgent.sendMessage).toHaveBeenNthCalledWith(1, 'This is a test scenario');
+      // First call should be the preamble with no session
+      expect(mockAgent.sendMessage).toHaveBeenNthCalledWith(1, 'This is a test scenario', undefined);
+      // Subsequent calls should use the session ID
+      expect(mockAgent.sendMessage).toHaveBeenNthCalledWith(2, expect.any(String), 'test-session-1');
       expect(report.completedTasks).toBe(3);
       expect(report.failedTasks).toBe(0);
       expect(report.blockedTasks).toBe(0);
     });
 
     it('should call task callbacks', async () => {
-      mockAgent.sendMessage.mockResolvedValue('Task completed');
+      mockAgent.sendMessage.mockResolvedValue({ response: 'Task completed', sessionId: 'test-session-1' });
 
       await loop.processScenario(testScenario);
 
@@ -140,10 +142,10 @@ describe('AgentActivityLoop', () => {
 
     it('should detect completed tasks', async () => {
       mockAgent.sendMessage
-        .mockResolvedValueOnce('Preamble acknowledged')  // For preamble
-        .mockResolvedValueOnce('I have successfully completed the task')
-        .mockResolvedValueOnce('Task is now finished')
-        .mockResolvedValueOnce('Done with this task');
+        .mockResolvedValueOnce({ response: 'Preamble acknowledged', sessionId: 'test-session-1' })  // For preamble
+        .mockResolvedValueOnce({ response: 'I have successfully completed the task', sessionId: 'test-session-1' })
+        .mockResolvedValueOnce({ response: 'Task is now finished', sessionId: 'test-session-1' })
+        .mockResolvedValueOnce({ response: 'Done with this task', sessionId: 'test-session-1' });
 
       const report = await loop.processScenario(testScenario);
 
@@ -154,10 +156,10 @@ describe('AgentActivityLoop', () => {
 
     it('should detect failed tasks', async () => {
       mockAgent.sendMessage
-        .mockResolvedValueOnce('Preamble acknowledged')  // For preamble
-        .mockResolvedValueOnce('Task completed')
-        .mockResolvedValueOnce('Error: Unable to complete task')
-        .mockResolvedValueOnce('Task completed');
+        .mockResolvedValueOnce({ response: 'Preamble acknowledged', sessionId: 'test-session-1' })  // For preamble
+        .mockResolvedValueOnce({ response: 'Task completed', sessionId: 'test-session-1' })
+        .mockResolvedValueOnce({ response: 'Error: Unable to complete task', sessionId: 'test-session-1' })
+        .mockResolvedValueOnce({ response: 'Task completed', sessionId: 'test-session-1' });
 
       const report = await loop.processScenario(testScenario);
 
@@ -168,7 +170,7 @@ describe('AgentActivityLoop', () => {
     it('should retry failed tasks', async () => {
       mockAgent.sendMessage
         .mockRejectedValueOnce(new Error('Network error'))
-        .mockResolvedValueOnce('Task completed after retry');
+        .mockResolvedValueOnce({ response: 'Task completed after retry', sessionId: 'test-session-1' });
 
       await loop.processTask(testScenario.tasks[0]);
 
@@ -191,7 +193,7 @@ describe('AgentActivityLoop', () => {
 
   describe('state management', () => {
     it('should track state changes', async () => {
-      mockAgent.sendMessage.mockResolvedValue('Task completed');
+      mockAgent.sendMessage.mockResolvedValue({ response: 'Task completed', sessionId: 'test-session-1' });
 
       await loop.processTask(testScenario.tasks[0]);
 
@@ -218,8 +220,8 @@ describe('AgentActivityLoop', () => {
   describe('progress reporting', () => {
     it('should generate progress reports', async () => {
       mockAgent.sendMessage
-        .mockResolvedValueOnce('Task 1 completed')
-        .mockResolvedValueOnce('Task 2 completed');
+        .mockResolvedValueOnce({ response: 'Task 1 completed', sessionId: 'test-session-1' })
+        .mockResolvedValueOnce({ response: 'Task 2 completed', sessionId: 'test-session-1' });
 
       // Process first two tasks
       await loop.processTask(testScenario.tasks[0]);
@@ -235,7 +237,7 @@ describe('AgentActivityLoop', () => {
     it('should estimate completion time', async () => {
       await loop.initialize(testScenario);
       
-      mockAgent.sendMessage.mockResolvedValue('Task completed');
+      mockAgent.sendMessage.mockResolvedValue({ response: 'Task completed', sessionId: 'test-session-1' });
 
       // Complete first task
       await loop.processTask(testScenario.tasks[0]);
@@ -252,7 +254,7 @@ describe('AgentActivityLoop', () => {
     it('should save checkpoints', async () => {
       await loop.initialize(testScenario);
       
-      mockAgent.sendMessage.mockResolvedValue('Task completed');
+      mockAgent.sendMessage.mockResolvedValue({ response: 'Task completed', sessionId: 'test-session-1' });
       await loop.processTask(testScenario.tasks[0]);
 
       const checkpoint = await loop.saveCheckpoint();

@@ -83,7 +83,8 @@ export class CreativeWriterAgent extends AgentBase<CreativeWriterConfig> {
         const genreContext = `Write in the ${this.config.genre} genre.`;
         const fullPrompt = `${genreContext}\n\n${prompt}`;
         
-        return await this.brain.sendMessage(fullPrompt);
+        const result = await this.brain.sendMessage(fullPrompt);
+        return result.response;
     }
     
     /**

@@ -10,12 +10,18 @@ class MockAgentBrain implements Partial<IAgentBrain> {
   public sendMessage: jest.Mock;
 
   constructor() {
-    this.sendMessage = jest.fn(async (message: string) => {
+    this.sendMessage = jest.fn(async (message: string, sessionId?: string) => {
       // Return pre-configured responses or a default
       if (this.responseIndex < this.responses.length) {
-        return this.responses[this.responseIndex++];
+        return {
+          response: this.responses[this.responseIndex++],
+          sessionId: sessionId || 'test-session-1'
+        };
       }
-      return `Response to: ${message.substring(0, 50)}...`;
+      return {
+        response: `Response to: ${message.substring(0, 50)}...`,
+        sessionId: sessionId || 'test-session-1'
+      };
     });
   }
 

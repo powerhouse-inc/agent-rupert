@@ -41,6 +41,8 @@ export class AgentClaudeBrain implements IAgentBrain {
     private mcpServers: Map<string, McpServerConfig> = new Map();
     private logger?: IBrainLogger;
     private systemPrompt?: string;
+    private conversationHistory: Array<{role: 'user' | 'assistant', content: string}> = [];
+    private sessionId: string | null = null;  // SDK session ID for multi-turn conversations
 
     constructor(config: AgentClaudeBrainConfig, logger?: IBrainLogger) {
         this.config = config;
@@ -394,7 +396,7 @@ Reply to this prompt with a very short sentence summary of what you did.
     /**
      * Send a message to Claude for processing
      */
-    public async sendMessage(message: string): Promise<string> {
+    public async sendMessage(message: string, sessionId?: string): Promise<{response: string; sessionId?: string}> {
         if (this.logger) {
             this.logger.debug(`   AgentClaudeBrain: Sending message (${message.length} chars)`);
         }
@@ -425,19 +427,19 @@ Reply to this prompt with a very short sentence summary of what you did.
             logContent += `## Configuration\n`;
             logContent += `- Model: ${this.config.model || 'haiku'}\n`;
             logContent += `- MaxTurns: 5\n`;
+            logContent += `- Session: ${sessionId ? `Resuming ${sessionId}` : 'New session'}\n`;
             logContent += `- AllowedTools: none\n\n`;
 
-            const q = query({
-                prompt: message,
-                options: {
-                    settingSources: [],  // No filesystem config lookups
-                    maxTurns: 5,  // Allow multiple turns for better responses
-                    cwd: workingDir,
-                    model: this.config.model || 'haiku',
-                    allowedTools: [],  // No tools for simple messages
-                    mcpServers,
-                    hooks: this.createFileSystemHooks(),
-                    systemPrompt: this.systemPrompt,  // Add system prompt if available
+            // Build options with resume if sessionId provided
+            const queryOptions: any = {
+                settingSources: [],  // No filesystem config lookups
+                maxTurns: 5,  // Allow multiple turns for better responses
+                cwd: workingDir,
+                model: this.config.model || 'haiku',
+                allowedTools: [],  // No tools for simple messages
+                mcpServers,
+                hooks: this.createFileSystemHooks(),
+                systemPrompt: this.systemPrompt,  // Add system prompt if available
                     // Workaround for spawn node ENOENT issue
                     env: {
                         PATH: process.env.PATH,
@@ -446,11 +448,21 @@ Reply to this prompt with a very short sentence summary of what you did.
                         USER: process.env.USER
                     },
                     permissionMode: 'default'
-                }
+                };
+            
+            // Add resume option if sessionId is provided
+            if (sessionId) {
+                queryOptions.resume = sessionId;
+            }
+            
+            const q = query({
+                prompt: message,
+                options: queryOptions
             });
 
             // Collect the response
             let response = '';
+            let capturedSessionId: string | undefined;
             let messageCount = 0;
             logContent += `## Messages Stream\n`;
             
@@ -486,6 +498,11 @@ Reply to this prompt with a very short sentence summary of what you did.
                     logContent += `System message:\n`;
                     if ((msg as any).subtype) {
                         logContent += `- Subtype: ${(msg as any).subtype}\n`;
+                        // Capture session ID from init message
+                        if ((msg as any).subtype === 'init' && (msg as any).session_id) {
+                            capturedSessionId = (msg as any).session_id;
+                            logContent += `- Session ID: ${capturedSessionId}\n`;
+                        }
                     }
                     if ((msg as any).content) {
                         logContent += `- Content: ${JSON.stringify((msg as any).content, null, 2)}\n`;
@@ -516,7 +533,10 @@ Reply to this prompt with a very short sentence summary of what you did.
                 this.logger.debug(`   AgentClaudeBrain: Received ${messageCount} messages, response length: ${response.length}`);
             }
 
-            return response || 'No response generated';
+            return {
+                response: response || 'No response generated',
+                sessionId: capturedSessionId
+            };
         } catch (error) {
             if (this.logger) {
                 this.logger.error(`   AgentClaudeBrain: Error sending message`, error);

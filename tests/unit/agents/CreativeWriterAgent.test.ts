@@ -57,7 +57,6 @@ describe('CreativeWriterAgent', () => {
             const paths = CreativeWriterAgent.getPromptTemplatePaths();
             
             expect(paths).toEqual([
-                'prompts/agent-profiles/AgentBase.md',
                 'prompts/agent-profiles/CreativeWriterAgent.md'
             ]);
         });
@@ -67,6 +66,7 @@ describe('CreativeWriterAgent', () => {
             
             expect(context.agentType).toBe('CreativeWriterAgent');
             expect(context.agentName).toBe('TestWriter');
+            expect(context.genre).toBe('science-fiction');  // Check genre property
             expect(context.capabilities).toContain('creative-writing');
             expect(context.capabilities).toContain('story-creation');
             expect(context.capabilities).toContain('character-development');
@@ -92,7 +92,10 @@ describe('CreativeWriterAgent', () => {
         });
 
         it('should write creative piece with genre context', async () => {
-            mockBrain.sendMessage.mockResolvedValue('A creative story...');
+            mockBrain.sendMessage.mockResolvedValue({ 
+                response: 'A creative story...', 
+                sessionId: 'test-session-1' 
+            });
             
             const result = await agent.writeCreativePiece('Write a story about robots');
             

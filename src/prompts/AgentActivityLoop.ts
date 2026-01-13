@@ -26,6 +26,7 @@ export class AgentActivityLoop {
   private currentScenario: PromptScenario | null = null;
   private sessionContext: Map<string, any> = new Map();
   private completedTasks: Set<string> = new Set();
+  private sessionId: string | undefined;  // Track session ID for conversation continuity
   private blockedTasks: Map<string, BlockedReason> = new Map();
   private taskResults: Map<string, TaskExecutionResult> = new Map();
   
@@ -64,6 +65,9 @@ export class AgentActivityLoop {
     this.loopStartTime = new Date();
     this.setState(TaskExecutionState.IDLE);
     
+    // Reset session for new scenario to start fresh conversation
+    this.sessionId = undefined;
+    
     // Start progress reporting if configured
     if (this.config.progressReportInterval > 0) {
       this.startProgressReporting();
@@ -89,9 +93,10 @@ export class AgentActivityLoop {
   async processScenario(scenario: PromptScenario): Promise<ProgressReport> {
     await this.initialize(scenario);
     
-    // Send preamble if exists
+    // Send preamble if exists - starts a new session
     if (scenario.preamble) {
-      await this.agent.sendMessage(scenario.preamble);
+      const result = await this.agent.sendMessage(scenario.preamble, this.sessionId);
+      this.sessionId = result.sessionId;  // Capture session ID for subsequent tasks
     }
     
     // Process each task sequentially
@@ -196,12 +201,15 @@ export class AgentActivityLoop {
    * Execute a task and monitor for completion
    */
   private async executeTask(task: ScenarioTask): Promise<TaskStatus> {
-    // Build and send task prompt
+    // Build and send task prompt - use existing session to maintain conversation context
     const taskPrompt = this.buildTaskPrompt(task);
-    const response = await this.agent.sendMessage(taskPrompt);
+    const result = await this.agent.sendMessage(taskPrompt, this.sessionId);
+    
+    // Update session ID (in case it changed)
+    this.sessionId = result.sessionId;
     
     // Analyze response for completion status
-    const status = this.analyzeTaskResponse(response, task);
+    const status = this.analyzeTaskResponse(result.response, task);
     
     return status;
   }

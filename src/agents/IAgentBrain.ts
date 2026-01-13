@@ -52,9 +52,10 @@ export interface IAgentBrain {
     /**
      * Send a message to the brain for processing
      * @param message The message to send
-     * @returns Promise with the response from the brain
+     * @param sessionId Optional session ID to resume a previous conversation
+     * @returns Promise with the response and session ID for continuing the conversation
      */
-    sendMessage(message: string): Promise<string>;
+    sendMessage(message: string, sessionId?: string): Promise<{response: string; sessionId?: string}>;
 
     /**
      * Cleanup any resources used by the brain
