@@ -27,7 +27,10 @@ export class ReactorPackageDevAgent extends AgentBase<ReactorPackageDevAgentConf
             type: BrainType.CLAUDE_SDK,  // Use new SDK for advanced capabilities
             apiKey,
             workingDirectory: './agent-workspace/reactor-package',
-            allowedTools: ['Read', 'Write', 'Edit', 'Bash', 'Grep', 'Glob'],
+            allowedTools: [
+                'Read', 'Write', 'Edit', 'Bash', 'Grep', 'Glob',
+                'mcp__agent-manager-drive__*'  // Allow all MCP tools from agent-manager-drive
+            ],
             fileSystemPaths: {
                 allowedReadPaths: [process.cwd()],
                 allowedWritePaths: ['./agent-workspace/reactor-package']

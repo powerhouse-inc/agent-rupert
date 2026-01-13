@@ -6,8 +6,8 @@ describe('BrainFactory', () => {
     const mockApiKey = 'sk-ant-test-key';
 
     describe('create', () => {
-        it('should create a standard brain when type is STANDARD', () => {
-            const brain = BrainFactory.create({
+        it('should create a standard brain when type is STANDARD', async () => {
+            const brain = await BrainFactory.create({
                 type: BrainType.STANDARD,
                 apiKey: mockApiKey
             });
@@ -15,8 +15,8 @@ describe('BrainFactory', () => {
             expect(brain).toBeInstanceOf(AgentBrain);
         });
 
-        it('should create a Claude SDK brain when type is CLAUDE_SDK', () => {
-            const brain = BrainFactory.create({
+        it('should create a Claude SDK brain when type is CLAUDE_SDK', async () => {
+            const brain = await BrainFactory.create({
                 type: BrainType.CLAUDE_SDK,
                 apiKey: mockApiKey,
                 workingDirectory: '/tmp/test-workspace'
@@ -25,8 +25,8 @@ describe('BrainFactory', () => {
             expect(brain).toBeInstanceOf(AgentClaudeBrain);
         });
 
-        it('should create Claude SDK brain with agent manager MCP server URL', () => {
-            const brain = BrainFactory.create({
+        it('should create Claude SDK brain with agent manager MCP server URL', async () => {
+            const brain = await BrainFactory.create({
                 type: BrainType.CLAUDE_SDK,
                 apiKey: mockApiKey,
                 workingDirectory: '/tmp/test-workspace',
@@ -36,8 +36,8 @@ describe('BrainFactory', () => {
             expect(brain).toBeInstanceOf(AgentClaudeBrain);
         });
 
-        it('should create Claude SDK brain with file system restrictions', () => {
-            const brain = BrainFactory.create({
+        it('should create Claude SDK brain with file system restrictions', async () => {
+            const brain = await BrainFactory.create({
                 type: BrainType.CLAUDE_SDK,
                 apiKey: mockApiKey,
                 workingDirectory: '/tmp/test-workspace',
@@ -50,13 +50,13 @@ describe('BrainFactory', () => {
             expect(brain).toBeInstanceOf(AgentClaudeBrain);
         });
 
-        it('should throw error for unknown brain type', () => {
-            expect(() => {
+        it('should throw error for unknown brain type', async () => {
+            await expect(
                 BrainFactory.create({
                     type: 'unknown' as any,
                     apiKey: mockApiKey
-                });
-            }).toThrow('Unknown brain type: unknown');
+                })
+            ).rejects.toThrow('Unknown brain type: unknown');
         });
     });
 });

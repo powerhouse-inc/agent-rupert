@@ -2,7 +2,7 @@ import { query } from '@anthropic-ai/claude-agent-sdk';
 import type { HookJSONOutput, SDKMessage } from '@anthropic-ai/claude-agent-sdk';
 import { IAgentBrain, IBrainLogger } from './IAgentBrain.js';
 import * as path from 'path';
-import { writeFileSync, mkdirSync } from 'fs';
+import { writeFileSync, mkdirSync, existsSync } from 'fs';
 
 const WRITE_PROMPT_TO_FILE = true;
 
@@ -48,6 +48,22 @@ export class AgentClaudeBrain implements IAgentBrain {
         
         // Set API key for the SDK
         process.env.ANTHROPIC_API_KEY = config.apiKey;
+        
+        // Ensure node is in PATH for Claude Agent SDK
+        if (!process.env.PATH?.includes('/usr/local/bin')) {
+            process.env.PATH = `/usr/local/bin:${process.env.PATH}`;
+        }
+        // Add common node locations to PATH
+        const nodePaths = [
+            '/usr/bin',
+            '/bin',
+            '/home/wouter/.nvm/versions/node/v22.13.1/bin'
+        ];
+        for (const nodePath of nodePaths) {
+            if (!process.env.PATH?.includes(nodePath)) {
+                process.env.PATH = `${nodePath}:${process.env.PATH}`;
+            }
+        }
         
         if (this.logger) {
             this.logger.debug(`   AgentClaudeBrain: Initializing with model: ${config.model || 'haiku'}, working directory: ${config.workingDirectory}`);
@@ -162,6 +178,7 @@ export class AgentClaudeBrain implements IAgentBrain {
      * Describe WBS operations in natural language using Agent SDK
      */
     async describeWbsOperations(operations: any[]): Promise<string> {
+        console.log("   AgentClaudeBrain: describeWbsOperations called with", operations.length, "operations");
         try {
             const prompt = `Analyze these Work Breakdown Structure (WBS) operations and describe what changes occurred in simple, clear English. Focus on the business meaning, not technical details.
 
@@ -183,8 +200,9 @@ Provide a concise summary of what happened.`;
 
             return description || "WBS document was updated";
         } catch (error) {
+            console.error("ERROR in describeWbsOperations:", error);
             if (this.logger) {
-                this.logger.error("   AgentClaudeBrain: Failed to describe WBS operations", error);
+                this.logger.error(`   AgentClaudeBrain: Failed to describe WBS operations: ${error instanceof Error ? error.message : String(error)}`, error);
             }
             return `WBS document was updated with ${operations.length} operation(s)`;
         }
@@ -194,17 +212,29 @@ Provide a concise summary of what happened.`;
      * Describe inbox operations in natural language using Agent SDK
      */
     async describeInboxOperations(operations: any[]): Promise<string> {
+        console.log("   AgentClaudeBrain: describeInboxOperations called with", operations.length, "operations");
         try {
-            const prompt = `Analyze these inbox document operations and describe what messages or requests were received in simple, clear English. Focus on the business meaning.
+            const prompt = `
+A data update to your inbox document was synchronized:
 
-Operations data:
+---
 ${JSON.stringify(operations, null, 2)}
+---
 
-Provide a concise summary of what was received.`;
+Fetch your inbox document in agent-manager-drive through the MCP to have the full picture.
+- Mark new stakeholder messages always as read immediately in your inbox document so that the stakeholder knows you're on it.
+- Reply to new stakeholder messages if needed. Consider submitting other operations through the MCP, other than just SEND_AGENT_MESSAGE. Esp. workflow changes.
+- Apply stakeholder requests to your WBS document where needed.
+- Consider updating your WBS document by breaking down goals.
+- Make sure your agent profile in the inbox doc is up-to-date.
+
+Reply to this prompt with a very short sentence summary of what you did.
+`;
 
             let description = "";
             
-            for await (const message of this.queryStream(prompt)) {
+            // Use full turns since we're asking the agent to perform actions
+            for await (const message of this.queryStream(prompt, true)) {
                 if (message.type === 'assistant' && message.message) {
                     const textContent = message.message.content.find((c: any) => c.type === 'text');
                     if (textContent && 'text' in textContent) {
@@ -215,8 +245,9 @@ Provide a concise summary of what was received.`;
 
             return description || "Inbox received new content";
         } catch (error) {
+            console.error("ERROR in describeInboxOperations:", error);
             if (this.logger) {
-                this.logger.error("   AgentClaudeBrain: Failed to describe inbox operations", error);
+                this.logger.error(`   AgentClaudeBrain: Failed to describe inbox operations: ${error instanceof Error ? error.message : String(error)}`, error);
             }
             return `Inbox received ${operations.length} operation(s)`;
         }
@@ -225,7 +256,7 @@ Provide a concise summary of what was received.`;
     /**
      * Stream query results from Claude Agent SDK
      */
-    private async *queryStream(prompt: string): AsyncIterable<SDKMessage> {
+    private async *queryStream(prompt: string, useFullTurns: boolean = false): AsyncIterable<SDKMessage> {
         // Build MCP servers configuration from the map
         const mcpServers: any = {};
         
@@ -234,17 +265,31 @@ Provide a concise summary of what was received.`;
             mcpServers[name] = config;
         }
 
+        // Ensure working directory exists
+        const workingDir = this.config.workingDirectory;
+        if (!existsSync(workingDir)) {
+            mkdirSync(workingDir, { recursive: true });
+        }
+        
         const q = query({
             prompt,
             options: {
                 settingSources: [],  // No filesystem config lookups
-                maxTurns: this.config.maxTurns || 1,  // Single turn for descriptions
-                cwd: this.config.workingDirectory,
+                maxTurns: useFullTurns ? (this.config.maxTurns || 100) : 1,  // Use full turns for action tasks
+                cwd: workingDir,
                 model: this.config.model || 'haiku',
-                allowedTools: this.config.allowedTools || [],  // No tools needed for description tasks
+                allowedTools: useFullTurns ? this.config.allowedTools : [],  // Enable tools for action tasks
                 mcpServers,
                 hooks: this.createFileSystemHooks(),
-                systemPrompt: this.systemPrompt  // Add system prompt if available
+                systemPrompt: this.systemPrompt,  // Add system prompt if available
+                // Workaround for spawn node ENOENT issue
+                env: {
+                    PATH: process.env.PATH,
+                    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+                    HOME: process.env.HOME,
+                    USER: process.env.USER
+                },
+                permissionMode: 'default'  // Changed from bypassPermissions as suggested
             }
         });
 
