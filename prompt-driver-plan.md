@@ -243,7 +243,18 @@ const result = await driver.executePromptSequence(
 
 ## Next Steps
 
-1. Implement the build-time MD to JSON converter script
+1. ~~Implement the build-time MD to JSON converter script~~ ✅
+   - Created `scripts/build-prompts.ts` with ID validation
+   - Added `build:prompts` npm script
+   - Generates JSON files in `build/prompts/`
+
+1b. ~~Create PromptRepository for loading and managing prompts~~ ✅
+   - Implemented `src/prompts/PromptRepository.ts`
+   - Loads all JSON files from `build/prompts/`
+   - Provides querying by category, ID, pattern
+   - Includes metadata tracking and task retrieval
+   - Full test coverage with actual file loading
+
 2. Create the PromptDriver core orchestration logic
 3. Build the AgentActivityLoop with state management
 4. Implement continuous session management
