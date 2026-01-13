@@ -263,7 +263,7 @@ function nodeToMarkdown(node: any): string {
 }
 
 async function buildPrompts() {
-  const promptsDir = path.join(process.cwd(), 'prompts');
+  const promptsDir = path.join(process.cwd(), 'prompts', 'scenarios');
   const outputDir = path.join(process.cwd(), 'build', 'prompts');
   
   // Ensure output directory exists
@@ -275,7 +275,7 @@ async function buildPrompts() {
     absolute: false
   });
   
-  console.log(`Found ${mdFiles.length} markdown files`);
+  console.log(`Found ${mdFiles.length} scenario markdown files`);
   
   for (const relativePath of mdFiles) {
     const inputPath = path.join(promptsDir, relativePath);
