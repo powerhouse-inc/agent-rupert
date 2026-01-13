@@ -106,7 +106,7 @@ export class PromptRepository {
   /**
    * Generate a unique key for a scenario
    */
-  private generateScenarioKey(skill: string, id: string): string {
+  generateScenarioKey(skill: string, id: string): string {
     return skill === 'default' ? id : `${skill}/${id}`;
   }
 
