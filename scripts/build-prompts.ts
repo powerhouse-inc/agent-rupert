@@ -263,10 +263,14 @@ function nodeToMarkdown(node: any): string {
 }
 
 async function buildPrompts() {
+  // Parse command line arguments
+  const verbose = process.argv.includes('--verbose');
+  
   const promptsDir = path.join(process.cwd(), 'prompts', 'scenarios');
   const outputDir = path.join(process.cwd(), 'build', 'prompts');
   
-  // Ensure output directory exists
+  // Clear and recreate output directory
+  await fs.remove(outputDir);
   await fs.ensureDir(outputDir);
   
   // Find all markdown files in prompts directory
@@ -281,7 +285,9 @@ async function buildPrompts() {
     const inputPath = path.join(promptsDir, relativePath);
     const outputPath = path.join(outputDir, relativePath.replace('.md', '.json'));
     
-    console.log(`Processing: ${relativePath}`);
+    if (verbose) {
+      console.log(`Processing: ${relativePath}`);
+    }
     
     try {
       const promptDoc = await parseMdFile(inputPath);
@@ -292,18 +298,26 @@ async function buildPrompts() {
         
         // Write JSON file
         await fs.writeJson(outputPath, promptDoc, { spaces: 2 });
-        console.log(`  ✓ Generated: ${outputPath}`);
-        console.log(`    Main task: ${promptDoc.id} - ${promptDoc.title}`);
-        console.log(`    Subtasks: ${promptDoc.tasks.length}`);
+        if (verbose) {
+          console.log(`  ✓ Generated: ${outputPath}`);
+          console.log(`    Main task: ${promptDoc.id} - ${promptDoc.title}`);
+          console.log(`    Subtasks: ${promptDoc.tasks.length}`);
+        }
       } else {
-        console.log(`  ⚠ Skipped: No valid prompt structure found`);
+        if (verbose) {
+          console.log(`  ⚠ Skipped: No valid prompt structure found`);
+        }
       }
     } catch (error) {
       console.error(`  ✗ Error processing ${relativePath}:`, error);
     }
   }
   
-  console.log('\nBuild complete!');
+  if (!verbose) {
+    console.log(`✓ Built ${mdFiles.length} scenario files`);
+  } else {
+    console.log('\nBuild complete!');
+  }
 }
 
 // Run the build

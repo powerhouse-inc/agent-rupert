@@ -61,16 +61,16 @@ describe('PromptDriver', () => {
       expect(driver.isReady()).toBe(true);
     });
 
-    it('should list available prompts', () => {
-      const prompts = driver.getAvailablePrompts();
-      expect(prompts.length).toBeGreaterThan(0);
-      expect(prompts).toContain('document-modeling/DM.00');
-      expect(prompts).toContain('document-modeling/DM.01');
+    it('should list available scenarios', () => {
+      const scenarios = driver.getAvailableScenarios();
+      expect(scenarios.length).toBeGreaterThan(0);
+      expect(scenarios).toContain('document-modeling/DM.00');
+      expect(scenarios).toContain('document-modeling/DM.01');
     });
   });
 
-  describe('executePromptSequence', () => {
-    it('should execute a complete prompt sequence', async () => {
+  describe('executeScenarioSequence', () => {
+    it('should execute a complete scenario sequence', async () => {
       // Set up mock responses for each task
       const expectedResponses = [
         'Completed task DM.00.1',
@@ -82,10 +82,10 @@ describe('PromptDriver', () => {
       ];
       mockAgent.setResponses(expectedResponses);
 
-      const result = await driver.executePromptSequence('document-modeling/DM.00');
+      const result = await driver.executeScenarioSequence('document-modeling/DM.00');
 
       expect(result).toBeDefined();
-      expect(result.promptId).toBe('DM.00');
+      expect(result.scenarioId).toBe('DM.00');
       expect(result.totalTasks).toBe(6);
       expect(result.completedTasks).toBe(6);
       expect(result.responses).toHaveLength(6);
@@ -97,8 +97,8 @@ describe('PromptDriver', () => {
       expect(result.responses[5].response).toBe('Completed task DM.00.6');
     });
 
-    it('should set system prompt with document context', async () => {
-      await driver.executePromptSequence('document-modeling/DM.00');
+    it('should set system prompt with scenario context', async () => {
+      await driver.executeScenarioSequence('document-modeling/DM.00');
 
       const systemPrompt = mockAgent.getSystemPrompt();
       expect(systemPrompt).toBeDefined();
@@ -106,10 +106,10 @@ describe('PromptDriver', () => {
       expect(systemPrompt).toContain('Check the prerequisites for creating a document model');
     });
 
-    it('should throw error for non-existent prompt', async () => {
+    it('should throw error for non-existent scenario', async () => {
       await expect(
-        driver.executePromptSequence('non-existent/prompt')
-      ).rejects.toThrow('Prompt not found: non-existent/prompt');
+        driver.executeScenarioSequence('non-existent/scenario')
+      ).rejects.toThrow('Scenario not found: non-existent/scenario');
     });
 
     it('should maintain session across tasks', async () => {
@@ -124,7 +124,7 @@ describe('PromptDriver', () => {
         return response;
       });
 
-      const result = await driver.executePromptSequence('document-modeling/DM.01');
+      const result = await driver.executeScenarioSequence('document-modeling/DM.01');
 
       // DM.01 has 5 tasks
       expect(callCount).toBe(5);
@@ -136,7 +136,7 @@ describe('PromptDriver', () => {
   });
 
   describe('executeMultipleSequences', () => {
-    it('should execute multiple prompt sequences in order', async () => {
+    it('should execute multiple scenario sequences in order', async () => {
       const responses: string[] = [];
       
       mockAgent.sendMessage = jest.fn(async () => {
@@ -153,11 +153,11 @@ describe('PromptDriver', () => {
       expect(results).toHaveLength(2);
       
       // First sequence (DM.00)
-      expect(results[0].promptId).toBe('DM.00');
+      expect(results[0].scenarioId).toBe('DM.00');
       expect(results[0].completedTasks).toBe(6);
       
       // Second sequence (DM.01)
-      expect(results[1].promptId).toBe('DM.01');
+      expect(results[1].scenarioId).toBe('DM.01');
       expect(results[1].completedTasks).toBe(5);
       
       // Total tasks executed
@@ -191,7 +191,7 @@ describe('PromptDriver', () => {
         return 'Task completed';
       });
 
-      await driver.executePromptSequence('document-modeling/DM.00');
+      await driver.executeScenarioSequence('document-modeling/DM.00');
 
       // Check first task prompt format
       expect(capturedMessages[0]).toContain('## Task DM.00.1:');
@@ -204,7 +204,7 @@ describe('PromptDriver', () => {
     it('should include timestamps in responses', async () => {
       const beforeTime = new Date();
       
-      const result = await driver.executePromptSequence('document-modeling/DM.01');
+      const result = await driver.executeScenarioSequence('document-modeling/DM.01');
       
       const afterTime = new Date();
 
@@ -221,7 +221,7 @@ describe('PromptDriver', () => {
       mockAgent.sendMessage = jest.fn().mockRejectedValueOnce(new Error('Agent error'));
 
       await expect(
-        driver.executePromptSequence('document-modeling/DM.00')
+        driver.executeScenarioSequence('document-modeling/DM.00')
       ).rejects.toThrow('Agent error');
     });
   });

@@ -1,25 +1,25 @@
-export interface PromptTask {
+export interface ScenarioTask {
   id: string;
   title: string;
   content: string;
 }
 
-export interface PromptDocument {
+export interface PromptScenario {
   id: string;
   title: string;
   preamble?: string;
-  tasks: PromptTask[];
+  tasks: ScenarioTask[];
 }
 
-export interface PromptCategory {
+export interface ScenarioSkill {
   name: string;
-  documents: PromptDocument[];
+  scenarios: PromptScenario[];
 }
 
-export interface PromptMetadata {
+export interface ScenarioMetadata {
   id: string;
   title: string;
-  category: string;
+  skill: string;
   taskCount: number;
   filePath: string;
 }

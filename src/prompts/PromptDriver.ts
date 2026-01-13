@@ -1,9 +1,9 @@
 import { IAgentBrain } from '../agents/IAgentBrain.js';
 import { PromptRepository } from './PromptRepository.js';
-import { PromptDocument, PromptTask } from './types.js';
+import { PromptScenario, ScenarioTask } from './types.js';
 
 export interface ExecutionResult {
-  promptId: string;
+  scenarioId: string;
   totalTasks: number;
   completedTasks: number;
   responses: TaskResponse[];
@@ -34,15 +34,15 @@ export class PromptDriver {
   }
 
   /**
-   * Execute a complete prompt sequence
-   * @param promptKey The key or path to the prompt document
+   * Execute a complete scenario sequence
+   * @param scenarioKey The key or path to the scenario document
    * @returns ExecutionResult with all task responses
    */
-  async executePromptSequence(promptKey: string): Promise<ExecutionResult> {
-    // Load the prompt document
-    const promptDoc = this.repository.getPrompt(promptKey);
-    if (!promptDoc) {
-      throw new Error(`Prompt not found: ${promptKey}`);
+  async executeScenarioSequence(scenarioKey: string): Promise<ExecutionResult> {
+    // Load the scenario document
+    const scenario = this.repository.getScenario(scenarioKey);
+    if (!scenario) {
+      throw new Error(`Scenario not found: ${scenarioKey}`);
     }
 
     const responses: TaskResponse[] = [];
@@ -50,11 +50,11 @@ export class PromptDriver {
     try {
       // Start a new session if not active
       if (!this.sessionActive) {
-        await this.startSession(promptDoc);
+        await this.startSession(scenario);
       }
 
       // Execute each task sequentially
-      for (const task of promptDoc.tasks) {
+      for (const task of scenario.tasks) {
         const response = await this.executeTask(task);
         
         responses.push({
@@ -66,8 +66,8 @@ export class PromptDriver {
       }
 
       return {
-        promptId: promptDoc.id,
-        totalTasks: promptDoc.tasks.length,
+        scenarioId: scenario.id,
+        totalTasks: scenario.tasks.length,
         completedTasks: responses.length,
         responses
       };
@@ -80,7 +80,7 @@ export class PromptDriver {
   /**
    * Execute a single task
    */
-  private async executeTask(task: PromptTask): Promise<string> {
+  private async executeTask(task: ScenarioTask): Promise<string> {
     // Build the prompt for this task
     const taskPrompt = this.buildTaskPrompt(task);
     
@@ -97,7 +97,7 @@ export class PromptDriver {
   /**
    * Build prompt string for a task
    */
-  private buildTaskPrompt(task: PromptTask): string {
+  private buildTaskPrompt(task: ScenarioTask): string {
     // Include task ID and title as context
     let prompt = `## Task ${task.id}: ${task.title}\n\n`;
     
@@ -110,13 +110,13 @@ export class PromptDriver {
   /**
    * Start a new session with preamble if available
    */
-  private async startSession(promptDoc: PromptDocument): Promise<void> {
+  private async startSession(scenario: PromptScenario): Promise<void> {
     // Set system prompt with document context
-    let systemPrompt = `You are executing a structured sequence of tasks from the "${promptDoc.id}" prompt document.\n`;
-    systemPrompt += `Document: ${promptDoc.title}\n\n`;
+    let systemPrompt = `You are executing a structured sequence of tasks from the "${scenario.id}" scenario.\n`;
+    systemPrompt += `Scenario: ${scenario.title}\n\n`;
     
-    if (promptDoc.preamble) {
-      systemPrompt += `Instructions:\n${promptDoc.preamble}\n\n`;
+    if (scenario.preamble) {
+      systemPrompt += `Instructions:\n${scenario.preamble}\n\n`;
     }
     
     systemPrompt += `You will receive tasks one by one. Complete each task thoroughly before moving to the next.`;
@@ -139,13 +139,13 @@ export class PromptDriver {
   }
 
   /**
-   * Execute multiple prompt sequences in order
+   * Execute multiple scenario sequences in order
    */
-  async executeMultipleSequences(promptKeys: string[]): Promise<ExecutionResult[]> {
+  async executeMultipleSequences(scenarioKeys: string[]): Promise<ExecutionResult[]> {
     const results: ExecutionResult[] = [];
     
-    for (const key of promptKeys) {
-      const result = await this.executePromptSequence(key);
+    for (const key of scenarioKeys) {
+      const result = await this.executeScenarioSequence(key);
       results.push(result);
     }
     
@@ -153,11 +153,11 @@ export class PromptDriver {
   }
 
   /**
-   * Get available prompts
+   * Get available scenarios
    */
-  getAvailablePrompts(): string[] {
+  getAvailableScenarios(): string[] {
     return this.repository.getAllMetadata().map(m => {
-      return m.category === 'default' ? m.id : `${m.category}/${m.id}`;
+      return m.skill === 'default' ? m.id : `${m.skill}/${m.id}`;
     });
   }
 

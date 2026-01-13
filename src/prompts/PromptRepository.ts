@@ -2,16 +2,16 @@ import fs from 'fs-extra';
 import path from 'path';
 import { glob } from 'glob';
 import { 
-  PromptDocument, 
-  PromptCategory, 
-  PromptMetadata,
-  PromptTask
+  PromptScenario, 
+  ScenarioSkill, 
+  ScenarioMetadata,
+  ScenarioTask
 } from './types.js';
 
 export class PromptRepository {
-  private prompts: Map<string, PromptDocument> = new Map();
-  private categories: Map<string, PromptCategory> = new Map();
-  private metadata: Map<string, PromptMetadata> = new Map();
+  private scenarios: Map<string, PromptScenario> = new Map();
+  private skills: Map<string, ScenarioSkill> = new Map();
+  private metadata: Map<string, ScenarioMetadata> = new Map();
   private basePath: string;
 
   constructor(basePath: string = './build/prompts') {
@@ -19,12 +19,12 @@ export class PromptRepository {
   }
 
   /**
-   * Load all prompt JSON files from the repository
+   * Load all scenario JSON files from the repository
    */
   async load(): Promise<void> {
     // Clear existing data
-    this.prompts.clear();
-    this.categories.clear();
+    this.scenarios.clear();
+    this.skills.clear();
     this.metadata.clear();
 
     // Ensure base path exists
@@ -40,139 +40,139 @@ export class PromptRepository {
     });
 
     if (jsonFiles.length === 0) {
-      console.warn(`No prompt files found in ${this.basePath}`);
+      console.warn(`No scenario files found in ${this.basePath}`);
       return;
     }
 
     // Load each JSON file
     for (const relativePath of jsonFiles) {
-      await this.loadPromptFile(relativePath);
+      await this.loadScenarioFile(relativePath);
     }
   }
 
   /**
-   * Load a single prompt file
+   * Load a single scenario file
    */
-  private async loadPromptFile(relativePath: string): Promise<void> {
+  private async loadScenarioFile(relativePath: string): Promise<void> {
     const fullPath = path.join(this.basePath, relativePath);
     
     try {
-      const content = await fs.readJson(fullPath) as PromptDocument;
+      const content = await fs.readJson(fullPath) as PromptScenario;
       
       // Validate structure
       if (!content.id || !content.title || !Array.isArray(content.tasks)) {
-        console.warn(`Invalid prompt document structure in ${relativePath}`);
+        console.warn(`Invalid scenario structure in ${relativePath}`);
         return;
       }
 
-      // Determine category from directory structure
-      const category = this.getCategoryFromPath(relativePath);
+      // Determine skill from directory structure
+      const skill = this.getSkillFromPath(relativePath);
       
-      // Store the prompt document
-      const promptKey = this.generatePromptKey(category, content.id);
-      this.prompts.set(promptKey, content);
+      // Store the scenario
+      const scenarioKey = this.generateScenarioKey(skill, content.id);
+      this.scenarios.set(scenarioKey, content);
 
-      // Update category
-      if (!this.categories.has(category)) {
-        this.categories.set(category, {
-          name: category,
-          documents: []
+      // Update skill
+      if (!this.skills.has(skill)) {
+        this.skills.set(skill, {
+          name: skill,
+          scenarios: []
         });
       }
-      this.categories.get(category)!.documents.push(content);
+      this.skills.get(skill)!.scenarios.push(content);
 
       // Store metadata
-      this.metadata.set(promptKey, {
+      this.metadata.set(scenarioKey, {
         id: content.id,
         title: content.title,
-        category,
+        skill,
         taskCount: content.tasks.length,
         filePath: fullPath
       });
 
     } catch (error) {
-      console.error(`Failed to load prompt file ${relativePath}:`, error);
+      console.error(`Failed to load scenario file ${relativePath}:`, error);
     }
   }
 
   /**
-   * Extract category from file path
+   * Extract skill from file path
    */
-  private getCategoryFromPath(relativePath: string): string {
+  private getSkillFromPath(relativePath: string): string {
     const dir = path.dirname(relativePath);
     return dir === '.' ? 'default' : dir.replace(/\\/g, '/');
   }
 
   /**
-   * Generate a unique key for a prompt document
+   * Generate a unique key for a scenario
    */
-  private generatePromptKey(category: string, id: string): string {
-    return category === 'default' ? id : `${category}/${id}`;
+  private generateScenarioKey(skill: string, id: string): string {
+    return skill === 'default' ? id : `${skill}/${id}`;
   }
 
   /**
-   * Get all loaded prompt documents
+   * Get all loaded scenarios
    */
-  getAllPrompts(): PromptDocument[] {
-    return Array.from(this.prompts.values());
+  getAllScenarios(): PromptScenario[] {
+    return Array.from(this.scenarios.values());
   }
 
   /**
-   * Get a specific prompt document by key
+   * Get a specific scenario by key
    */
-  getPrompt(key: string): PromptDocument | undefined {
-    return this.prompts.get(key);
+  getScenario(key: string): PromptScenario | undefined {
+    return this.scenarios.get(key);
   }
 
   /**
-   * Get a prompt document by category and ID
+   * Get a scenario by skill and ID
    */
-  getPromptByCategoryAndId(category: string, id: string): PromptDocument | undefined {
-    const key = this.generatePromptKey(category, id);
-    return this.prompts.get(key);
+  getScenarioBySkillAndId(skill: string, id: string): PromptScenario | undefined {
+    const key = this.generateScenarioKey(skill, id);
+    return this.scenarios.get(key);
   }
 
   /**
-   * Get all categories
+   * Get all skills
    */
-  getCategories(): string[] {
-    return Array.from(this.categories.keys());
+  getSkills(): string[] {
+    return Array.from(this.skills.keys());
   }
 
   /**
-   * Get all prompts in a category
+   * Get all scenarios in a skill
    */
-  getPromptsByCategory(category: string): PromptDocument[] {
-    return this.categories.get(category)?.documents || [];
+  getScenariosBySkill(skill: string): PromptScenario[] {
+    return this.skills.get(skill)?.scenarios || [];
   }
 
   /**
-   * Get metadata for all prompts
+   * Get metadata for all scenarios
    */
-  getAllMetadata(): PromptMetadata[] {
+  getAllMetadata(): ScenarioMetadata[] {
     return Array.from(this.metadata.values());
   }
 
   /**
-   * Get metadata for a specific prompt
+   * Get metadata for a specific scenario
    */
-  getMetadata(key: string): PromptMetadata | undefined {
+  getMetadata(key: string): ScenarioMetadata | undefined {
     return this.metadata.get(key);
   }
 
   /**
-   * Search for prompts by ID pattern
+   * Search for scenarios by ID pattern
    */
-  findPromptsByPattern(pattern: string): PromptDocument[] {
+  findScenariosByPattern(pattern: string): PromptScenario[] {
     const regex = new RegExp(pattern, 'i');
-    return this.getAllPrompts().filter(p => regex.test(p.id));
+    return this.getAllScenarios().filter(s => regex.test(s.id));
   }
 
   /**
-   * Get next prompt in sequence (e.g., DM.00 -> DM.01)
+   * Get next scenario in sequence (e.g., DM.00 -> DM.01)
    */
-  getNextPrompt(currentKey: string): PromptDocument | undefined {
-    const current = this.getPrompt(currentKey);
+  getNextScenario(currentKey: string): PromptScenario | undefined {
+    const current = this.getScenario(currentKey);
     if (!current) return undefined;
 
     // Parse current ID to find next
@@ -183,34 +183,34 @@ export class PromptRepository {
     const currentNum = parseInt(match[2], 10);
     const nextId = `${prefix}.${String(currentNum + 1).padStart(2, '0')}`;
 
-    // Try to find in same category first
+    // Try to find in same skill first
     const metadata = this.getMetadata(currentKey);
     if (metadata) {
-      const nextInCategory = this.getPromptByCategoryAndId(metadata.category, nextId);
-      if (nextInCategory) return nextInCategory;
+      const nextInSkill = this.getScenarioBySkillAndId(metadata.skill, nextId);
+      if (nextInSkill) return nextInSkill;
     }
 
-    // Try default category
-    return this.getPrompt(nextId);
+    // Try default skill
+    return this.getScenario(nextId);
   }
 
   /**
-   * Get a specific task from a prompt
+   * Get a specific task from a scenario
    */
-  getTask(promptKey: string, taskId: string): PromptTask | undefined {
-    const prompt = this.getPrompt(promptKey);
-    return prompt?.tasks.find(t => t.id === taskId);
+  getTask(scenarioKey: string, taskId: string): ScenarioTask | undefined {
+    const scenario = this.getScenario(scenarioKey);
+    return scenario?.tasks.find(t => t.id === taskId);
   }
 
   /**
    * Check if repository has been loaded
    */
   isLoaded(): boolean {
-    return this.prompts.size > 0;
+    return this.scenarios.size > 0;
   }
 
   /**
-   * Reload all prompts from disk
+   * Reload all scenarios from disk
    */
   async reload(): Promise<void> {
     await this.load();
