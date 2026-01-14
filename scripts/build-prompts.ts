@@ -42,10 +42,10 @@ async function parseMdFile(filePath: string): Promise<PromptDocument | null> {
       const heading = node as Heading;
       
       if (heading.depth === 1) {
-        // Main task (# header)
+        // Main task (# header) - should match PREFIX.NUM (e.g., CRP.03)
         collectingPreamble = false;
         const headingText = extractText(heading);
-        const match = headingText.match(/^([\w.]+)\s+(.+)$/);
+        const match = headingText.match(/^([A-Z]+\.\d+)\s+(.+)$/);
         if (match) {
           mainTask = {
             id: match[1],
@@ -67,13 +67,19 @@ async function parseMdFile(filePath: string): Promise<PromptDocument | null> {
         
         // Start new task
         const headingText = extractText(heading);
-        const match = headingText.match(/^([\w.]+)\s+(.+)$/);
+        // Match task IDs that follow the pattern: PREFIX.NUM.NUM (e.g., CRP.03.1)
+        const match = headingText.match(/^([A-Z]+\.\d+\.\d+)\s+(.+)$/);
         if (match) {
           currentTask = {
             id: match[1],
             title: match[2],
             contentNodes: []
           };
+        } else {
+          // Skip headers that don't match the expected pattern and warn
+          console.warn(`  ⚠ WARNING: Skipping invalid task header: "## ${headingText}"`);
+          // Set currentTask to null to ignore content until the next valid task
+          currentTask = null;
         }
       } else if (currentTask) {
         // Level 3+ headers are part of the task content
