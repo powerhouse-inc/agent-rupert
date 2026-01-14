@@ -1,35 +1,30 @@
 import { Router } from 'express';
-import type { ReactorInstance } from '../types.js';
-import { config } from '../config.js';
-import { ReactorPackagesManager } from '../agents/ReactorPackageDevAgent/ReactorPackagesManager.js';
+import type { AgentsService } from '../services/AgentsService.js';
 
-export function createHealthRouter(
-  getReactorInstance: () => ReactorInstance | null,
-  getProjectsManager: () => ReactorPackagesManager | null
-): Router {
+export function createHealthRouter(agentsService: AgentsService): Router {
   const router = Router();
 
   router.get('/health', async (_req, res) => {
-    const reactorInstance = getReactorInstance();
-    const drives = reactorInstance ? await reactorInstance.driveServer.getDrives() : [];
-    const projectsManager = getProjectsManager();
-    const runningProject = projectsManager?.getRunningProject();
+    const reactor = agentsService.getReactor();
+    const packagesManager = agentsService.getPackagesManager();
+    const runningProject = packagesManager?.getRunningProject();
+    const agents = agentsService.getAgents();
     
     res.json({
       status: 'ok',
       message: 'Powerhouse Agent is running',
       timestamp: new Date().toISOString(),
-      reactor: reactorInstance ? 'initialized' : 'not initialized',
-      drives: drives.length,
-      remoteDrives: drives.filter((drive: any) => drive.state?.remote).length,
-      models: reactorInstance ? reactorInstance.driveServer.getDocumentModelModules().length : 0,
-      ReactorPackage: {
-        configured: config.agents.reactorPackageDev.reactorPackages.autoStartDefaultProject,
-        running: !!runningProject,
-        name: runningProject?.name || config.agents.reactorPackageDev.reactorPackages.defaultProjectName || null,
-        ready: runningProject?.isFullyStarted || false,
-        driveUrl: runningProject?.driveUrl || null
-      }
+      uptime: Date.now() - agentsService.getServiceInfo().startTime.getTime(),
+      agents: {
+        total: agents.length,
+        initialized: agents.filter(a => a.initialized).length
+      },
+      reactor: reactor ? 'initialized' : 'not initialized',
+      project: runningProject ? {
+        name: runningProject.name,
+        ready: runningProject.isFullyStarted,
+        driveUrl: runningProject.driveUrl
+      } : null
     });
   });
 

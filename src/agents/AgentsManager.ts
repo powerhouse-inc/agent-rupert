@@ -4,6 +4,7 @@ import type { AgentBase, ILogger } from './AgentBase.js';
 import type { ReactorPackageDevAgentConfig, PowerhouseArchitectAgentConfig } from '../types.js';
 import { BrainFactory, type BrainConfig } from './BrainFactory.js';
 import type { IAgentBrain } from './IAgentBrain.js';
+import type { CommonAgentInfo } from '../services/AgentsService.js';
 
 export interface AgentsConfig {
     enableReactorPackageAgent?: boolean;
@@ -196,5 +197,32 @@ export class AgentsManager {
      */
     hasArchitectAgent(): boolean {
         return !!this.architectAgent;
+    }
+    
+    /**
+     * Get basic information about all configured agents
+     */
+    getAgentsInfo(): CommonAgentInfo[] {
+        const agents = [];
+        
+        // Check ReactorPackageAgent
+        if (this.config.enableReactorPackageAgent) {
+            agents.push({
+                name: 'reactor-dev',
+                type: 'ReactorPackageDevAgent',
+                initialized: this.reactorPackageAgent !== undefined
+            });
+        }
+        
+        // Check ArchitectAgent
+        if (this.config.enableArchitectAgent) {
+            agents.push({
+                name: 'architect',
+                type: 'PowerhouseArchitectAgent',
+                initialized: this.architectAgent !== undefined
+            });
+        }
+        
+        return agents;
     }
 }

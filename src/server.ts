@@ -6,68 +6,52 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import { config } from './config.js';
-import { initializeAgentsAndStartProject, getAgentsManager, shutdownAgents, getAutoStartState } from './agents/AgentInitializer.js';
+import { AgentsService } from './services/AgentsService.js';
 import {
   createHealthRouter,
-  createModelsRouter,
-  createDrivesRouter,
-  createProjectsRouter,
-  createInfoRouter
+  createInfoRouter,
+  createAgentsRouter
 } from './routes/index.js';
 
 const app: express.Application = express();
 const PORT = config.serverPort;
 
+// Create the centralized agents service
+const agentsService = new AgentsService();
 
-// Helper function to get reactor instance (may be null if agents not initialized)
-const getReactorInstance = () => {
-  const agentsManager = getAgentsManager();
-  if (agentsManager?.hasReactorPackageAgent()) {
-    try {
-      return agentsManager.getReactorPackageAgent().getReactor();
-    } catch {
-      return null;
-    }
-  }
-  return null;
-};
-
-// Helper function to get packages manager (may be null if agents not initialized)
-const getPackagesManager = () => {
-  const agentsManager = getAgentsManager();
-  if (agentsManager?.hasReactorPackageAgent()) {
-    try {
-      return agentsManager.getReactorPackageAgent().getPackagesManager();
-    } catch {
-      return null;
-    }
-  }
-  return null;
-};
+// Store server instance for cleanup
+let server: any = null;
 
 
 app.use(cors());
 app.use(express.json());
 
-// Mount basic route handlers (work without agents)
-app.use(createInfoRouter(getPackagesManager));
-app.use(createHealthRouter(getReactorInstance, getPackagesManager));
-app.use(createModelsRouter(getReactorInstance));
-app.use(createDrivesRouter(getReactorInstance));
-app.use(createProjectsRouter(getPackagesManager, getAutoStartState));
+// Prettify JSON responses
+app.set('json spaces', 2);
+
+// Mount route handlers
+app.use(createInfoRouter(agentsService));
+app.use('/agents', createAgentsRouter(agentsService));
+app.use(createHealthRouter(agentsService));
 
 
 async function start() {
-  try {
-    // Start Express server FIRST so API endpoints are immediately available
-    app.listen(PORT, () => {
-      console.log(`🚀 Powerhouse Agent running: http://localhost:${PORT}/`);
-      initializeAgentsAndStartProject(config);
-    });
-  } catch (error) {
-    console.error('Failed to start server:', error);
+  // Start Express server FIRST so API endpoints are immediately available
+  server = app.listen(PORT);
+  
+  server.on('listening', () => {
+    console.log(`🚀 Powerhouse Agent running: http://localhost:${PORT}/`);
+    agentsService.initialize(config);
+  });
+  
+  server.on('error', (error: any) => {
+    if (error.code === 'EADDRINUSE') {
+      console.error(`❌ Port ${PORT} is already in use. Please stop the other process or use a different port.`);
+    } else {
+      console.error('❌ Failed to start server:', error);
+    }
     process.exit(1);
-  }
+  });
 }
 
 start();
@@ -77,7 +61,18 @@ async function gracefulShutdown(signal: string): Promise<void> {
   console.log(`\n📛 Received ${signal}, starting graceful shutdown...`);
   
   try {
-    await shutdownAgents();
+    // Close the HTTP server first
+    if (server) {
+      await new Promise<void>((resolve) => {
+        server.close(() => {
+          console.log('📪 HTTP server closed');
+          resolve();
+        });
+      });
+    }
+    
+    // Then shutdown agents
+    await agentsService.shutdown();
     console.log('👋 Graceful shutdown complete');
     process.exit(0);
 
