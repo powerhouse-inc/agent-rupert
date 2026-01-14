@@ -9,6 +9,34 @@ import type { AgentBrainPromptContext } from "../../types/prompt-context.js";
 import { createReactorProjectsManagerMcpServer, getReactorMcpToolNames } from "../../tools/reactorMcpServer.js";
 import { getSelfReflectionMcpToolNames } from "../../tools/selfReflectionMcpServer.js";
 import { AgentClaudeBrain } from "../AgentClaudeBrain.js";
+import { AgentSkillApplication } from "../../prompts/AgentSkillApplication.js";
+import type { AgentInboxDocument } from "powerhouse-agent/document-models/agent-inbox";
+
+/**
+ * Context type for the handle-stakeholder-message skill
+ */
+interface HandleStakeholderMessageContext {
+    stakeholder: {
+        name: string;
+    };
+    thread: {
+        id: string;
+        topic: string | null;
+    };
+    message: {
+        id: string;
+        content: string;
+    };
+    documents: {
+        driveId: string;
+        inbox: {
+            id: string;
+        };
+        wbs: {
+            id: string;
+        };
+    };
+}
 
 /**
  *  The ReactorPackageAgent uses ReactorPackagesManager with a number of associated tools
@@ -30,6 +58,7 @@ export class ReactorPackageDevAgent extends AgentBase<IAgentBrain> {
     private cliExecutor: CLIExecutor;
     private serviceExecutor: ServiceExecutor;
     private projectsDir: string;
+    private skillApplication?: AgentSkillApplication;
     
     /**
      * Get the brain configuration for ReactorPackageDevAgent
@@ -74,7 +103,8 @@ export class ReactorPackageDevAgent extends AgentBase<IAgentBrain> {
         return [
             'create-reactor-package',
             'document-modeling',
-            'document-editor-implementation'
+            'document-editor-implementation',
+            'handle-stakeholder-message'
         ];
     }
     
@@ -190,23 +220,123 @@ export class ReactorPackageDevAgent extends AgentBase<IAgentBrain> {
      * Handle updates to the inbox document
      * This is where new tasks/requests from stakeholders arrive
      */
-    protected async handleInboxUpdate(_documentId: string, operations: any[]): Promise<void> {
+    protected async handleInboxUpdate(documentId: string, operations: any[]): Promise<void> {
         this.logger.info(`${this.config.name}: Processing inbox update with ${operations.length} operations`);
         
-        // Use brain to describe the operations if available
-        if (this.brain) {
+        // Initialize skill application if not already done
+        if (!this.skillApplication && this.brain) {
             try {
-                const description = await this.brain.describeInboxOperations(operations);
-                this.logger.info(`${this.config.name}: Brain analysis: ${description}`);
+                this.skillApplication = new AgentSkillApplication(
+                    this.brain,
+                    './build/prompts',
+                    { 
+                        continueOnError: false,  // Stop if any scenario fails
+                        logProgress: true        // Log progress for debugging
+                    }
+                );
+                await this.skillApplication.initialize();
+                this.logger.info(`${this.config.name}: Initialized AgentSkillApplication for inbox handling`);
             } catch (error) {
-                this.logger.warn(`${this.config.name}: Failed to get brain analysis of inbox operations`);
+                this.logger.error(`${this.config.name}: Failed to initialize AgentSkillApplication`, error as Error);
+                return;
             }
         }
         
-        // TODO: Process inbox operations
-        // - Extract new tasks/requests
-        // - Create work items in WBS
-        // - Trigger task execution based on priority
+        // Check if we have the inbox document
+        const inbox = this.documents.inbox as AgentInboxDocument | null;
+        if (!inbox) {
+            this.logger.warn(`${this.config.name}: No inbox document available`);
+            return;
+        }
+        
+        // Get the inbox state
+        const inboxState = inbox.state.global;
+        
+        // Find the most recent unread message from a stakeholder
+        let latestUnreadMessage: {
+            thread: typeof inboxState.threads[0];
+            message: typeof inboxState.threads[0]['messages'][0];
+            stakeholder: typeof inboxState.stakeholders[0];
+        } | null = null;
+        
+        for (const thread of inboxState.threads) {
+            // Skip archived threads
+            if (thread.status === 'Archived') continue;
+            
+            // Find the stakeholder for this thread
+            const stakeholder = inboxState.stakeholders.find(s => s.id === thread.stakeholder);
+            if (!stakeholder) continue;
+            
+            // Look for unread incoming messages
+            for (const message of thread.messages) {
+                if (!message.read && message.flow === 'Incoming') {
+                    if (!latestUnreadMessage || message.when > latestUnreadMessage.message.when) {
+                        latestUnreadMessage = { thread, message, stakeholder };
+                    }
+                }
+            }
+        }
+        
+        // If we found an unread message, process it with the handle-stakeholder-message skill
+        if (latestUnreadMessage && this.skillApplication) {
+            this.logger.info(`${this.config.name}: Found unread message from ${latestUnreadMessage.stakeholder.name}`);
+            
+            // Get drive ID from config or use the first drive's ID
+            const driveId = this.config.workDrive.driveUrl || 'default-drive';
+            
+            // Create context for the handle-stakeholder-message skill
+            const context: HandleStakeholderMessageContext = {
+                stakeholder: {
+                    name: latestUnreadMessage.stakeholder.name
+                },
+                thread: {
+                    id: latestUnreadMessage.thread.id,
+                    topic: latestUnreadMessage.thread.topic || ''
+                },
+                message: {
+                    id: latestUnreadMessage.message.id,
+                    content: latestUnreadMessage.message.content
+                },
+                documents: {
+                    driveId: driveId,
+                    inbox: {
+                        id: documentId
+                    },
+                    wbs: {
+                        id: this.config.workDrive.documents.wbs?.documentId || ''
+                    }
+                }
+            };
+            
+            try {
+                // Execute all scenarios in the handle-stakeholder-message skill
+                this.logger.info(`${this.config.name}: Executing handle-stakeholder-message skill`);
+                const result = await this.skillApplication.executeSkill<HandleStakeholderMessageContext>(
+                    'handle-stakeholder-message',
+                    context
+                );
+                
+                // Check if all scenarios completed successfully
+                if (result.success && result.completedScenarios === result.totalScenarios) {
+                    this.logger.info(`${this.config.name}: Successfully handled stakeholder message (${result.completedScenarios}/${result.totalScenarios} scenarios completed)`);
+                    
+                    // Log details of each scenario
+                    for (const scenarioResult of result.scenarioResults) {
+                        if (scenarioResult.completed) {
+                            this.logger.debug(`  - ${scenarioResult.scenarioId}: ${scenarioResult.completedTasks}/${scenarioResult.totalTasks} tasks`);
+                        } else {
+                            this.logger.warn(`  - ${scenarioResult.scenarioId}: Failed - ${scenarioResult.error?.message}`);
+                        }
+                    }
+                } else {
+                    this.logger.warn(`${this.config.name}: Partially handled stakeholder message (${result.completedScenarios}/${result.totalScenarios} scenarios completed)`);
+                }
+            } catch (error) {
+                this.logger.error(`${this.config.name}: Error executing handle-stakeholder-message skill`, error as Error);
+            }
+        } else if (!latestUnreadMessage) {
+            this.logger.info(`${this.config.name}: No unread messages found in inbox`);
+        }
     }
     
     /**
