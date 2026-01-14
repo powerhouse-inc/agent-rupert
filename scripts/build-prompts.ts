@@ -266,7 +266,7 @@ async function buildPrompts() {
   // Parse command line arguments
   const verbose = process.argv.includes('--verbose');
   
-  const promptsDir = path.join(process.cwd(), 'prompts', 'scenarios');
+  const promptsDir = path.join(process.cwd(), 'prompts', 'skills');
   const outputDir = path.join(process.cwd(), 'build', 'prompts');
   
   // Clear and recreate output directory
