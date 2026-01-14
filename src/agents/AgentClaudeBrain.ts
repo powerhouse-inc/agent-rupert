@@ -20,6 +20,7 @@ export interface AgentClaudeBrainConfig {
     };
     model?: 'opus' | 'sonnet' | 'haiku';
     maxTurns?: number;
+    bypassPermissions?: boolean;  // For testing - bypasses tool permission requests
 }
 
 /**
@@ -314,7 +315,7 @@ Reply to this prompt with a very short sentence summary of what you did.
                     HOME: process.env.HOME,
                     USER: process.env.USER
                 },
-                permissionMode: 'default'  // Changed from bypassPermissions as suggested
+                permissionMode: this.config.bypassPermissions ? 'bypassPermissions' : 'default'
             }
         });
 
@@ -434,7 +435,14 @@ Reply to this prompt with a very short sentence summary of what you did.
             // Build MCP servers configuration
             const mcpServers: any = {};
             for (const [name, config] of this.mcpServers) {
-                mcpServers[name] = config;
+                // Check if this is an SDK server (has type: 'sdk' and server property)
+                if ((config as any).type === 'sdk' && (config as any).server) {
+                    // SDK servers are passed directly
+                    mcpServers[name] = (config as any).server;
+                } else {
+                    // Regular config-based servers
+                    mcpServers[name] = config;
+                }
             }
 
             // Ensure working directory exists
@@ -459,7 +467,7 @@ Reply to this prompt with a very short sentence summary of what you did.
                 maxTurns: 5,  // Allow multiple turns for better responses
                 cwd: workingDir,
                 model: this.config.model || 'haiku',
-                allowedTools: [],  // No tools for simple messages
+                allowedTools: this.config.allowedTools || [],  // Use configured allowed tools
                 mcpServers,
                 hooks: this.createFileSystemHooks(),
                 systemPrompt: this.systemPrompt,  // Add system prompt if available
@@ -470,12 +478,19 @@ Reply to this prompt with a very short sentence summary of what you did.
                         HOME: process.env.HOME,
                         USER: process.env.USER
                     },
-                    permissionMode: 'default'
+                    permissionMode: this.config.bypassPermissions ? 'bypassPermissions' : 'default'
                 };
             
             // Add resume option if sessionId is provided
             if (sessionId) {
                 queryOptions.resume = sessionId;
+            }
+            
+            // Log the MCP servers being passed
+            console.log('MCP Servers being passed to query:', Object.keys(mcpServers));
+            if (mcpServers['reactor_prjmgr']) {
+                console.log('reactor_prjmgr server type:', typeof mcpServers['reactor_prjmgr']);
+                console.log('reactor_prjmgr server keys:', mcpServers['reactor_prjmgr'] ? Object.keys(mcpServers['reactor_prjmgr']) : 'null');
             }
             
             const q = query({
@@ -492,6 +507,15 @@ Reply to this prompt with a very short sentence summary of what you did.
             for await (const msg of q) {
                 messageCount++;
                 logContent += `\n### Message ${messageCount} (type: ${msg.type})\n`;
+                
+                // Log error messages for debugging
+                if (msg.type === 'result' && 'subtype' in msg && msg.subtype !== 'success') {
+                    console.error('Claude SDK Error Message:', msg);
+                    logContent += `#### ERROR:\n${JSON.stringify(msg, null, 2)}\n`;
+                    if (this.logger) {
+                        this.logger.error(`   AgentClaudeBrain: Claude SDK error:`, msg);
+                    }
+                }
                 
                 // Log full message details
                 if (msg.type === 'assistant' && msg.message) {
@@ -532,11 +556,27 @@ Reply to this prompt with a very short sentence summary of what you did.
                     }
                 } else if (msg.type === 'result') {
                     logContent += `Result message:\n`;
-                    if ((msg as any).subtype) {
-                        logContent += `- Subtype: ${(msg as any).subtype}\n`;
+                    const resultMsg = msg as any;
+                    if (resultMsg.subtype) {
+                        logContent += `- Subtype: ${resultMsg.subtype}\n`;
                     }
-                    if ((msg as any).content) {
-                        logContent += `- Content: ${JSON.stringify((msg as any).content, null, 2).substring(0, 500)}...\n`;
+                    
+                    // Check for errors in result message
+                    if (resultMsg.is_error) {
+                        console.error('Claude SDK Result Error:', {
+                            subtype: resultMsg.subtype,
+                            errors: resultMsg.errors,
+                            permission_denials: resultMsg.permission_denials,
+                            fullMessage: resultMsg
+                        });
+                        if (this.logger) {
+                            this.logger.error(`   AgentClaudeBrain: Result error: ${resultMsg.errors?.join(', ')}`);
+                        }
+                        logContent += `- ERRORS: ${resultMsg.errors?.join(', ')}\n`;
+                    }
+                    
+                    if (resultMsg.content) {
+                        logContent += `- Content: ${JSON.stringify(resultMsg.content, null, 2).substring(0, 500)}...\n`;
                     }
                 } else {
                     // Log any other message type

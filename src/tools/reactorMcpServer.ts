@@ -46,11 +46,21 @@ export function createReactorProjectsManagerMcpServer(
     logger?.info(`Registered ${tools.length} tools for ReactorProjectsManager MCP server`);
     
     // Create and return the MCP server
-    return createSdkMcpServer({
+    const server = createSdkMcpServer({
         name: 'reactor_prjmgr',
         version: '1.0.0',
         tools: tools
     });
+    
+    // Log what the SDK server returns for debugging
+    console.log('Created SDK MCP Server:', {
+        type: typeof server,
+        keys: server ? Object.keys(server) : 'null',
+        name: (server as any)?.name,
+        hasTools: !!(server as any)?.tools
+    });
+    
+    return server;
 }
 
 /**
