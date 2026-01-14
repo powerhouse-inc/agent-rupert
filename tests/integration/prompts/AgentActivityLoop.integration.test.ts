@@ -170,16 +170,21 @@ describe('AgentActivityLoop Integration Tests', () => {
         });
                 
         describe('with real Claude API', () => {
-            it('should complete flash fiction scenario', async () => {
+            it('should complete flash fiction scenario with Al Dente as main character', async () => {
                 if (!scenario) {
                     throw new Error('Scenario not loaded');
                 }
                 
-                // Execute the scenario
-                const report: ProgressReport = await activityLoop.processScenario(scenario);
+                // Create context with Al Dente as the character
+                // This will be injected into the skill preamble if the skill has a .preamble.md file
+                // For example: "Name your main character '{{character}}'" becomes "Name your main character 'Al Dente'"
+                const context = { character: 'Al Dente' };
+                
+                // Execute the scenario with context - Al Dente will be the main character
+                const report: ProgressReport = await activityLoop.processScenario(scenario, context);
                 
                 // Output the actual story content
-                console.log('\n=== FLASH FICTION STORY ===\n');
+                console.log('\n=== FLASH FICTION STORY FEATURING AL DENTE ===\n');
                 
                 // Get the complete story task result (SS.00.6 - Review and polish the complete story)
                 const storyTask = report.taskResults.get('SS.00.6');
@@ -210,6 +215,15 @@ describe('AgentActivityLoop Integration Tests', () => {
                 expect(report.totalTasks).toBe(6);
                 expect(report.completedTasks).toBeGreaterThan(0);
                 expect(report.failedTasks).toBe(0);
+                
+                // Verify that Al Dente appears in the story
+                const fullStory = storyTask?.response || '';
+                const hasCharacter = fullStory.toLowerCase().includes('al dente');
+                console.log('\n✓ Story includes "Al Dente":', hasCharacter);
+                if (report.completedTasks === 6) {
+                    // Only check if all tasks completed successfully
+                    expect(hasCharacter).toBe(true);
+                }
                 
                 // Check task results
                 const taskIds = ['SS.00.1', 'SS.00.2', 'SS.00.3', 'SS.00.4', 'SS.00.5', 'SS.00.6'];
