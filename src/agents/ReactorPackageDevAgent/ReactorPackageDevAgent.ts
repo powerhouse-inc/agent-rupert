@@ -231,7 +231,8 @@ export class ReactorPackageDevAgent extends AgentBase<IAgentBrain> {
                     './build/prompts',
                     { 
                         continueOnError: false,  // Stop if any scenario fails
-                        logProgress: true        // Log progress for debugging
+                        logProgress: true,       // Log progress for debugging
+                        maxTurns: 100           // Allow up to 100 turns for skill execution
                     }
                 );
                 await this.skillApplication.initialize();

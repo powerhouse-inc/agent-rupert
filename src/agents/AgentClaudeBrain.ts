@@ -418,7 +418,7 @@ Reply to this prompt with a very short sentence summary of what you did.
     /**
      * Send a message to Claude for processing
      */
-    public async sendMessage(message: string, sessionId?: string): Promise<{response: string; sessionId?: string}> {
+    public async sendMessage(message: string, sessionId?: string, options?: { maxTurns?: number }): Promise<{response: string; sessionId?: string}> {
         if (this.logger) {
             this.logger.debug(`   AgentClaudeBrain: Sending message (${message.length} chars)`);
         }
@@ -455,14 +455,14 @@ Reply to this prompt with a very short sentence summary of what you did.
             logContent += `## User Message\n\`\`\`\n${message}\n\`\`\`\n\n`;
             logContent += `## Configuration\n`;
             logContent += `- Model: ${this.config.model || 'haiku'}\n`;
-            logContent += `- MaxTurns: 5\n`;
+            logContent += `- MaxTurns: ${options?.maxTurns || 5}\n`;
             logContent += `- Session: ${sessionId ? `Resuming ${sessionId}` : 'New session'}\n`;
             logContent += `- AllowedTools: none\n\n`;
 
             // Build options with resume if sessionId provided
             const queryOptions: any = {
                 settingSources: [],  // No filesystem config lookups
-                maxTurns: 5,  // Allow multiple turns for better responses
+                maxTurns: options?.maxTurns || 5,  // Use provided maxTurns or default to 5
                 cwd: workingDir,
                 model: this.config.model || 'haiku',
                 allowedTools: this.config.allowedTools || [],  // Use configured allowed tools

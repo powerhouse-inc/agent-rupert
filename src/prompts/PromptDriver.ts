@@ -20,6 +20,7 @@ export class PromptDriver {
   private repository: PromptRepository;
   private agent: IAgentBrain;
   private sessionActive: boolean = false;
+  private maxTurns: number = 5;  // Default maxTurns for message sending
 
   constructor(agent: IAgentBrain, repositoryPath: string = './build/prompts') {
     this.agent = agent;
@@ -34,14 +35,24 @@ export class PromptDriver {
   }
 
   /**
+   * Set the maximum number of turns for message exchanges
+   * @param maxTurns Maximum number of turns to allow
+   */
+  setMaxTurns(maxTurns: number): void {
+    this.maxTurns = maxTurns;
+  }
+
+  /**
    * Execute a complete scenario sequence with optional context
    * @param scenarioKey The key or path to the scenario document
    * @param context Context object to pass to template functions (optional)
+   * @param options Optional execution options
    * @returns ExecutionResult with all task responses
    */
   async executeScenarioSequence<TScenarioContext = any>(
     scenarioKey: string, 
-    context: TScenarioContext = {} as TScenarioContext
+    context: TScenarioContext = {} as TScenarioContext,
+    options?: { maxTurns?: number }
   ): Promise<ExecutionResult> {
     // Load the scenario document
     const scenario = this.repository.getScenario(scenarioKey);
@@ -51,6 +62,9 @@ export class PromptDriver {
 
     // Extract skill name from scenario key (e.g., "short-story-writing/SS.00" -> "short-story-writing")
     const skillName = scenarioKey.includes('/') ? scenarioKey.split('/')[0] : 'default';
+    
+    // Use provided maxTurns or fallback to instance default
+    const maxTurns = options?.maxTurns ?? this.maxTurns;
 
     const responses: TaskResponse[] = [];
 
@@ -62,7 +76,7 @@ export class PromptDriver {
 
       // Execute each task sequentially
       for (const task of scenario.tasks) {
-        const response = await this.executeTaskWithContext(task, context);
+        const response = await this.executeTaskWithContext(task, context, maxTurns);
         
         responses.push({
           taskId: task.id,
@@ -89,7 +103,8 @@ export class PromptDriver {
    */
   private async executeTaskWithContext<TContext = any>(
     task: ScenarioTask, 
-    context: TContext
+    context: TContext,
+    maxTurns: number = 5
   ): Promise<string> {
     // Build the prompt for this task
     const taskPrompt = this.buildTaskPromptWithContext(task, context);
@@ -99,7 +114,7 @@ export class PromptDriver {
       throw new Error('Agent does not support sendMessage method');
     }
     
-    const result = await this.agent.sendMessage(taskPrompt);
+    const result = await this.agent.sendMessage(taskPrompt, undefined, { maxTurns });
     
     return result.response;
   }
@@ -149,8 +164,8 @@ export class PromptDriver {
     if (skillPreamble && this.agent.sendMessage) {
       const preambleContent = skillPreamble(context);
       if (preambleContent && preambleContent.trim().length > 0) {
-        // Send skill preamble as first message
-        await this.agent.sendMessage(preambleContent);
+        // Send skill preamble as first message with maxTurns
+        await this.agent.sendMessage(preambleContent, undefined, { maxTurns: this.maxTurns });
       }
     }
     

@@ -29,6 +29,7 @@ export interface SkillExecutionResult {
 export interface SkillApplicationConfig {
     continueOnError?: boolean;  // Continue with next scenario even if one fails
     logProgress?: boolean;       // Log progress between scenarios
+    maxTurns?: number;           // Maximum turns per message exchange (default: 100 for skills)
 }
 
 /**
@@ -49,8 +50,12 @@ export class AgentSkillApplication {
         this.repository = new PromptRepository(repositoryPath);
         this.config = {
             continueOnError: config.continueOnError ?? false,
-            logProgress: config.logProgress ?? true
+            logProgress: config.logProgress ?? true,
+            maxTurns: config.maxTurns ?? 100  // Default to 100 turns for skill execution
         };
+        
+        // Configure PromptDriver with the maxTurns setting
+        this.promptDriver.setMaxTurns(this.config.maxTurns);
     }
     
     /**
@@ -98,6 +103,10 @@ export class AgentSkillApplication {
             console.log(`Starting skill execution: ${skillName} with ${sortedScenarios.length} scenarios`);
         }
         
+        // Important: The PromptDriver will start a session on the first scenario execution
+        // and keep it active across all scenarios. This ensures the skill preamble is only
+        // sent once at the beginning of the skill execution.
+        
         // Execute each scenario in sequence
         for (const scenario of sortedScenarios) {
             if (this.config.logProgress) {
@@ -105,11 +114,12 @@ export class AgentSkillApplication {
             }
             
             try {
-                // Execute the scenario using PromptDriver
+                // Execute the scenario using PromptDriver with configured maxTurns
                 const scenarioKey = `${skillName}/${scenario.id}`;
                 const scenarioResult = await this.promptDriver.executeScenarioSequence(
                     scenarioKey,
-                    context
+                    context,
+                    { maxTurns: this.config.maxTurns }
                 );
                 
                 // Record successful execution
@@ -154,6 +164,10 @@ export class AgentSkillApplication {
         }
         
         result.endTime = new Date();
+        
+        // End the session to clean up (optional - the session will be reused if we run another skill)
+        // Note: We keep the session active in case we want to run another skill in the same context
+        // await this.promptDriver.endSession();
         
         if (this.config.logProgress) {
             const duration = result.endTime.getTime() - result.startTime.getTime();
