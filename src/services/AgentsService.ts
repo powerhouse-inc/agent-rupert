@@ -22,8 +22,20 @@ export interface CommonAgentInfo {
 export interface ReactorPackageDevAgentInfo extends CommonAgentInfo {
     type: 'ReactorPackageDevAgent';
     projectsDirectory?: string;
-    runningProject?: string;
-    projectCount?: number;
+    runningProject?: {
+        name: string;
+        ready: boolean;
+        ports: {
+            connect: number;
+            switchboard: number;
+        };
+        endpoints: {
+            vetraConnect: string;
+            switchboard: string;
+            mcp: string;
+        };
+        driveUrl: string | null;
+    };
 }
 
 export interface PowerhouseArchitectAgentInfo extends CommonAgentInfo {
@@ -202,13 +214,26 @@ export class AgentsService {
         if (name === 'reactor-dev' && this.agentsManager.hasReactorPackageAgent()) {
             const agent = this.agentsManager.getReactorPackageAgent();
             const packagesManager = agent.getPackagesManager();
+            const running = packagesManager?.getRunningProject();
             
             const info: ReactorPackageDevAgentInfo = {
                 ...baseInfo,
                 type: 'ReactorPackageDevAgent',
                 projectsDirectory: packagesManager?.getProjectsDir(),
-                runningProject: packagesManager?.getRunningProject()?.name
-                // projectCount would require async call to listProjects()
+                runningProject: running ? {
+                    name: running.name,
+                    ready: running.isFullyStarted,
+                    ports: {
+                        connect: running.connectPort,
+                        switchboard: running.switchboardPort
+                    },
+                    endpoints: {
+                        vetraConnect: `http://localhost:${running.connectPort}`,
+                        switchboard: `http://localhost:${running.switchboardPort}`,
+                        mcp: `http://localhost:${running.switchboardPort}/mcp`
+                    },
+                    driveUrl: running.driveUrl || null
+                } : undefined
             };
             return info;
         }
@@ -262,5 +287,20 @@ export class AgentsService {
             }
         }
         return null;
+    }
+
+    /**
+     * Get projects list for ReactorPackageDevAgent
+     */
+    async getProjects() {
+        const packagesManager = this.getPackagesManager();
+        if (!packagesManager) {
+            return [];
+        }
+        try {
+            return await packagesManager.listProjects();
+        } catch {
+            return [];
+        }
     }
 }

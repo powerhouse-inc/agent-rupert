@@ -14,6 +14,7 @@ export function createInfoRouter(agentsService: AgentsService): Router {
         'GET /agents - List all configured agents',
         'GET /agents/:name - Get specific agent info',
         'GET /agents/:name/properties - Get agent-specific properties',
+        'GET /agents/reactor-dev/projects - List ReactorPackageDev projects',
         'GET /health - Health check and status'
       ]
     });

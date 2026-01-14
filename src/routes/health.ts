@@ -23,7 +23,16 @@ export function createHealthRouter(agentsService: AgentsService): Router {
       project: runningProject ? {
         name: runningProject.name,
         ready: runningProject.isFullyStarted,
-        driveUrl: runningProject.driveUrl
+        ports: {
+          connect: runningProject.connectPort,
+          switchboard: runningProject.switchboardPort
+        },
+        endpoints: {
+          vetraConnect: `http://localhost:${runningProject.connectPort}`,
+          switchboard: `http://localhost:${runningProject.switchboardPort}`,
+          mcp: `http://localhost:${runningProject.switchboardPort}/mcp`
+        },
+        driveUrl: runningProject.driveUrl || null
       } : null
     });
   });

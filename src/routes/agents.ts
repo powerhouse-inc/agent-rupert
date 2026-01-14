@@ -28,5 +28,27 @@ export function createAgentsRouter(agentsService: AgentsService): Router {
     res.json(properties);
   });
 
+  // GET /agents/reactor-dev/projects - Get projects list for ReactorPackageDevAgent
+  router.get('/reactor-dev/projects', async (req, res) => {
+    const agent = agentsService.getAgent('reactor-dev');
+    if (!agent || !agent.initialized) {
+      return res.status(404).json({ error: 'ReactorPackageDevAgent not available' });
+    }
+    
+    const projects = await agentsService.getProjects();
+    const packagesManager = agentsService.getPackagesManager();
+    const runningProject = packagesManager?.getRunningProject();
+    
+    res.json({
+      projectsDirectory: packagesManager?.getProjectsDir(),
+      totalProjects: projects.length,
+      runningProject: runningProject?.name || null,
+      projects: projects.map(p => ({
+        ...p,
+        running: p.name === runningProject?.name
+      }))
+    });
+  });
+
   return router;
 }
