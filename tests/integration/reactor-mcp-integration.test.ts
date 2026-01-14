@@ -131,19 +131,25 @@ describe('ReactorPackageDevAgent MCP Integration', () => {
         // Set a system prompt for the brain
         brain.setSystemPrompt(
             'You are a helpful assistant with access to ReactorProjectsManager tools via MCP. ' +
+            'Always respond with valid JSON objects only, no additional text. ' +
             'Use the mcp__reactor_prjmgr__list_projects tool when asked about projects.',
             'test-agent'
         );
         
         // Send a message to the brain asking it to list projects
-        const result = await brain.sendMessage('Can you list all the available projects? Use the appropriate MCP tool.');
+        const result = await brain.sendMessage(
+            'List all available projects using the MCP tool and respond with only a JSON object ' +
+            'containing a "projects" array with project names.'
+        );
         
-        // Verify the response mentions using the tool and finding projects
+        // Parse and verify the JSON response
         expect(result.response).toBeDefined();
-        expect(result.response.toLowerCase()).toMatch(/list|project|persistent-test-project/i);
+        const jsonResponse = JSON.parse(result.response);
+        expect(jsonResponse).toHaveProperty('projects');
+        expect(Array.isArray(jsonResponse.projects)).toBe(true);
+        expect(jsonResponse.projects).toContain('persistent-test-project');
         
-        // The response should indicate tool usage (Claude typically mentions what it's doing)
-        console.log('List projects response:', result.response);
+        console.log('List projects JSON response:', jsonResponse);
     }, 30000);  // Increase timeout for API calls
     
     test('should respond to request for projects directory using MCP tools', async () => {
@@ -157,18 +163,25 @@ describe('ReactorPackageDevAgent MCP Integration', () => {
         // Set a system prompt for the brain
         brain.setSystemPrompt(
             'You are a helpful assistant with access to ReactorProjectsManager tools via MCP. ' +
+            'Always respond with valid JSON objects only, no additional text. ' +
             'Use the mcp__reactor_prjmgr__get_projects_dir tool when asked about the projects directory.',
             'test-agent'
         );
         
         // Send a message asking for the projects directory
-        const result = await brain.sendMessage('What is the projects directory path? Use the get_projects_dir MCP tool.');
+        const result = await brain.sendMessage(
+            'Get the projects directory path using the MCP tool and respond with only a JSON object ' +
+            'containing a "directory" field with the path.'
+        );
         
-        // Verify the response contains the path
+        // Parse and verify the JSON response
         expect(result.response).toBeDefined();
-        expect(result.response).toMatch(/test-projects|projects/i);
+        const jsonResponse = JSON.parse(result.response);
+        expect(jsonResponse).toHaveProperty('directory');
+        expect(typeof jsonResponse.directory).toBe('string');
+        expect(jsonResponse.directory).toMatch(/test-projects/);
         
-        console.log('Projects directory response:', result.response);
+        console.log('Projects directory JSON response:', jsonResponse);
     }, 30000);
     
     test('should respond to request about project readiness using MCP tools', async () => {
@@ -182,18 +195,27 @@ describe('ReactorPackageDevAgent MCP Integration', () => {
         // Set a system prompt for the brain
         brain.setSystemPrompt(
             'You are a helpful assistant with access to ReactorProjectsManager tools via MCP. ' +
-            'Use the mcp__reactor_prjmgr__is_project_ready tool when asked about project readiness.',
+            'Always respond with valid JSON objects only, no additional text. ' +
+            'Use the mcp__reactor_prjmgr__is_project_ready and mcp__reactor_prjmgr__get_project_status tools.',
             'test-agent'
         );
         
-        // Send a message asking if a project is ready
-        const result = await brain.sendMessage('Is any project currently running and ready? Check with the is_project_ready MCP tool.');
+        // Send a message asking about project status
+        const result = await brain.sendMessage(
+            'Check if the "persistent-test-project" is ready using the MCP tools. ' +
+            'Respond with only a JSON object containing "projectName", "isReady" (boolean), and "status" fields.'
+        );
         
-        // Verify the response indicates checking readiness
+        // Parse and verify the JSON response
         expect(result.response).toBeDefined();
-        expect(result.response.toLowerCase()).toMatch(/ready|running|project|no|false/i);
+        const jsonResponse = JSON.parse(result.response);
+        expect(jsonResponse).toHaveProperty('projectName');
+        expect(jsonResponse).toHaveProperty('isReady');
+        expect(jsonResponse).toHaveProperty('status');
+        expect(typeof jsonResponse.isReady).toBe('boolean');
+        expect(jsonResponse.projectName).toBe('persistent-test-project');
         
-        console.log('Project readiness response:', result.response);
+        console.log('Project readiness JSON response:', jsonResponse);
     }, 30000);
     
     test('should have registered all 8 ReactorProjectsManager tools', async () => {
@@ -240,8 +262,9 @@ describe('ReactorPackageDevAgent MCP Integration', () => {
         // Set a comprehensive system prompt
         brain.setSystemPrompt(
             'You are a helpful assistant with access to ReactorProjectsManager tools via MCP. ' +
+            'Always respond with valid JSON objects only, no additional text. ' +
             'You can use tools like mcp__reactor_prjmgr__list_projects, mcp__reactor_prjmgr__get_projects_dir, ' +
-            'and mcp__reactor_prjmgr__is_project_ready to help answer questions about projects.',
+            'and mcp__reactor_prjmgr__get_project_status to answer questions.',
             'test-agent'
         );
         
@@ -249,22 +272,42 @@ describe('ReactorPackageDevAgent MCP Integration', () => {
         let sessionId: string | undefined;
         
         // First message - list projects
-        const result1 = await brain.sendMessage('First, can you list all available projects?', sessionId);
+        const result1 = await brain.sendMessage(
+            'List all projects and respond with only JSON containing a "projects" array and "count" number.',
+            sessionId
+        );
         sessionId = result1.sessionId;
         expect(result1.response).toBeDefined();
-        console.log('Response 1:', result1.response);
+        const json1 = JSON.parse(result1.response);
+        expect(json1).toHaveProperty('projects');
+        expect(json1).toHaveProperty('count');
+        expect(json1.count).toBeGreaterThan(0);
+        console.log('Response 1 JSON:', json1);
         
         // Second message - check directory
-        const result2 = await brain.sendMessage('Now tell me where these projects are stored (the directory path).', sessionId);
+        const result2 = await brain.sendMessage(
+            'Get the projects directory and respond with only JSON containing "directory" and "exists" boolean.',
+            sessionId
+        );
         sessionId = result2.sessionId;
         expect(result2.response).toBeDefined();
-        expect(result2.response).toMatch(/test-projects|directory|path/i);
-        console.log('Response 2:', result2.response);
+        const json2 = JSON.parse(result2.response);
+        expect(json2).toHaveProperty('directory');
+        expect(json2).toHaveProperty('exists');
+        expect(json2.directory).toMatch(/test-projects/);
+        console.log('Response 2 JSON:', json2);
         
-        // Third message - check readiness
-        const result3 = await brain.sendMessage('Finally, check if any project is currently running and ready.', sessionId);
+        // Third message - check status
+        const result3 = await brain.sendMessage(
+            'Get status of "persistent-test-project" and respond with only JSON containing "project", "status", and "running" boolean.',
+            sessionId
+        );
         expect(result3.response).toBeDefined();
-        expect(result3.response.toLowerCase()).toMatch(/ready|running|no|false|not/i);
-        console.log('Response 3:', result3.response);
+        const json3 = JSON.parse(result3.response);
+        expect(json3).toHaveProperty('project');
+        expect(json3).toHaveProperty('status');
+        expect(json3).toHaveProperty('running');
+        expect(json3.project).toBe('persistent-test-project');
+        console.log('Response 3 JSON:', json3);
     }, 60000);  // Longer timeout for conversation
 });
