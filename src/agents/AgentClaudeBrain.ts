@@ -42,8 +42,6 @@ export class AgentClaudeBrain implements IAgentBrain {
     private mcpServers: Map<string, McpServerConfig> = new Map();
     private logger?: IBrainLogger;
     private systemPrompt?: string;
-    private conversationHistory: Array<{role: 'user' | 'assistant', content: string}> = [];
-    private sessionId: string | null = null;  // SDK session ID for multi-turn conversations
 
     constructor(config: AgentClaudeBrainConfig, logger?: IBrainLogger) {
         this.config = config;

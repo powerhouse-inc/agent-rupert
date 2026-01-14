@@ -1,6 +1,7 @@
 import Handlebars from 'handlebars';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
+import { registerHelpers } from '../prompts/handlebars-helpers.js';
 
 /**
  * Generic template parser using Handlebars
@@ -11,7 +12,8 @@ export class PromptParser<TContext> {
     
     constructor() {
         this.handlebars = Handlebars.create();
-        this.registerDefaultHelpers();
+        // Use shared helpers
+        registerHelpers(this.handlebars);
     }
     
     /**
@@ -65,57 +67,5 @@ export class PromptParser<TContext> {
         } catch (error) {
             throw new Error(`Failed to read template file ${templatePath}: ${error}`);
         }
-    }
-    
-    /**
-     * Register default Handlebars helpers
-     */
-    private registerDefaultHelpers(): void {
-        // Helper to format dates
-        this.handlebars.registerHelper('formatDate', (date: string | Date, format?: string) => {
-            const d = typeof date === 'string' ? new Date(date) : date;
-            if (format === 'time') {
-                return d.toLocaleTimeString();
-            } else if (format === 'date') {
-                return d.toLocaleDateString();
-            }
-            return d.toISOString();
-        });
-        
-        // Helper to join array with separator
-        this.handlebars.registerHelper('join', (array: any[], separator: string = ', ') => {
-            if (!Array.isArray(array)) return '';
-            return array.join(separator);
-        });
-        
-        // Helper to check if value exists and is not empty
-        this.handlebars.registerHelper('exists', (value: any) => {
-            return value !== undefined && value !== null && value !== '';
-        });
-        
-        // Helper for conditional with comparison
-        this.handlebars.registerHelper('eq', (a: any, b: any) => {
-            return a === b;
-        });
-        
-        // Helper to convert to uppercase
-        this.handlebars.registerHelper('uppercase', (str: string) => {
-            return typeof str === 'string' ? str.toUpperCase() : '';
-        });
-        
-        // Helper to convert to lowercase
-        this.handlebars.registerHelper('lowercase', (str: string) => {
-            return typeof str === 'string' ? str.toLowerCase() : '';
-        });
-        
-        // Helper to check array length
-        this.handlebars.registerHelper('hasItems', (array: any[]) => {
-            return Array.isArray(array) && array.length > 0;
-        });
-        
-        // Helper for default value
-        this.handlebars.registerHelper('default', (value: any, defaultValue: any) => {
-            return value !== undefined && value !== null && value !== '' ? value : defaultValue;
-        });
     }
 }

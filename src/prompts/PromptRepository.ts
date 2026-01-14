@@ -1,6 +1,7 @@
 import fs from 'fs-extra';
 import path from 'path';
 import { glob } from 'glob';
+import { pathToFileURL } from 'url';
 import { 
   PromptScenario, 
   ScenarioSkill, 
@@ -19,7 +20,7 @@ export class PromptRepository {
   }
 
   /**
-   * Load all scenario JSON files from the repository
+   * Load all scenario JS modules from the repository
    */
   async load(): Promise<void> {
     // Clear existing data
@@ -32,38 +33,59 @@ export class PromptRepository {
       throw new Error(`Prompt repository path does not exist: ${this.basePath}`);
     }
 
-    // Find all JSON files
-    const pattern = '**/*.json';
-    const jsonFiles = await glob(pattern, {
+    // Find all JS files
+    const pattern = '**/*.js';
+    const jsFiles = await glob(pattern, {
       cwd: this.basePath,
       absolute: false
     });
 
-    if (jsonFiles.length === 0) {
+    if (jsFiles.length === 0) {
       console.warn(`No scenario files found in ${this.basePath}`);
       return;
     }
 
-    // Load each JSON file
-    for (const relativePath of jsonFiles) {
+    // Load each JS module
+    for (const relativePath of jsFiles) {
       await this.loadScenarioFile(relativePath);
     }
   }
 
   /**
-   * Load a single scenario file
+   * Load a single scenario module
    */
   private async loadScenarioFile(relativePath: string): Promise<void> {
     const fullPath = path.join(this.basePath, relativePath);
     
     try {
-      const content = await fs.readJson(fullPath) as PromptScenario;
+      // Import the ES module using dynamic import
+      // Convert to file URL for Windows compatibility
+      const moduleUrl = pathToFileURL(fullPath).href;
+      const module = await import(moduleUrl);
+      
+      // Get the default export which contains our prompt structure
+      const promptDoc = module.default;
       
       // Validate structure
-      if (!content.id || !content.title || !Array.isArray(content.tasks)) {
+      if (!promptDoc || !promptDoc.id || !promptDoc.title || !Array.isArray(promptDoc.tasks)) {
         console.warn(`Invalid scenario structure in ${relativePath}`);
         return;
       }
+
+      // Create a static version for storage (render with empty context)
+      // The tasks have content functions that need to be called
+      const content: PromptScenario = {
+        id: promptDoc.id,
+        title: promptDoc.title,
+        preamble: promptDoc.preamble ? 
+          (typeof promptDoc.preamble === 'function' ? promptDoc.preamble({}) : promptDoc.preamble) : 
+          undefined,
+        tasks: promptDoc.tasks.map((task: any) => ({
+          id: task.id,
+          title: task.title,
+          content: typeof task.content === 'function' ? task.content({}) : task.content
+        }))
+      };
 
       // Determine skill from directory structure
       const skill = this.getSkillFromPath(relativePath);
@@ -92,6 +114,45 @@ export class PromptRepository {
 
     } catch (error) {
       console.error(`Failed to load scenario file ${relativePath}:`, error);
+    }
+  }
+
+  /**
+   * Load and render a scenario with context
+   */
+  async loadScenarioWithContext(relativePath: string, context: any = {}): Promise<PromptScenario | null> {
+    const fullPath = path.join(this.basePath, relativePath);
+    
+    try {
+      // Import the module
+      const moduleUrl = pathToFileURL(fullPath).href;
+      const module = await import(moduleUrl);
+      
+      // Check if module has a render function
+      if (module.render && typeof module.render === 'function') {
+        // Use the render function which applies context
+        return module.render(context);
+      } else if (module.default) {
+        // Fall back to default export with manual rendering
+        const promptDoc = module.default;
+        return {
+          id: promptDoc.id,
+          title: promptDoc.title,
+          preamble: promptDoc.preamble ? 
+            (typeof promptDoc.preamble === 'function' ? promptDoc.preamble(context) : promptDoc.preamble) : 
+            undefined,
+          tasks: promptDoc.tasks.map((task: any) => ({
+            id: task.id,
+            title: task.title,
+            content: typeof task.content === 'function' ? task.content(context) : task.content
+          }))
+        };
+      }
+      
+      return null;
+    } catch (error) {
+      console.error(`Failed to load scenario with context ${relativePath}:`, error);
+      return null;
     }
   }
 
