@@ -222,6 +222,45 @@ describe('PromptDriver', () => {
     });
   });
 
+  describe('skill preambles', () => {
+    it('should inject skill preamble when executing scenario', async () => {
+      const context = { character: 'Alice' };
+      
+      // Capture the messages sent to the agent
+      const capturedMessages: string[] = [];
+      mockAgent.sendMessage = jest.fn(async (message: string) => {
+        capturedMessages.push(message);
+        return { response: 'Task completed', sessionId: 'test-session' };
+      });
+      
+      // Execute a scenario from short-story-writing skill which has a preamble
+      const result = await driver.executeScenarioSequence(
+        'short-story-writing/SS.00',
+        context
+      );
+      
+      expect(result).toBeDefined();
+      expect(mockAgent.sendMessage).toHaveBeenCalled();
+      
+      // First message should be the skill preamble
+      const firstMessage = capturedMessages[0];
+      expect(firstMessage).toContain('Name your main character "Alice"');
+    });
+    
+    it('should work for scenarios in skills without preambles', async () => {
+      const context = {};
+      
+      // Execute a scenario from a skill without preamble
+      const result = await driver.executeScenarioSequence(
+        'document-modeling/DM.00',
+        context
+      );
+      
+      expect(result).toBeDefined();
+      expect(result.completedTasks).toBeGreaterThan(0);
+    });
+  });
+  
   describe('executeScenarioSequence with context', () => {
     it('should pass context to template functions', async () => {
       const context = {

@@ -13,7 +13,13 @@ export interface PromptScenario {
 
 export interface ScenarioSkill {
   name: string;
+  preamble?: (context?: any) => string;
   scenarios: PromptScenario[];
+}
+
+export interface SkillPreamble {
+  skill: string;
+  preamble: (context?: any) => string;
 }
 
 export interface ScenarioMetadata {

@@ -33,12 +33,12 @@ export class PromptRepository {
       throw new Error(`Prompt repository path does not exist: ${this.basePath}`);
     }
 
-    // Find all JS files, excluding handlebars-helpers.js
+    // Find all JS files, excluding handlebars-helpers.js and preambles (we'll load those separately)
     const pattern = '**/*.js';
     const jsFiles = await glob(pattern, {
       cwd: this.basePath,
       absolute: false,
-      ignore: ['handlebars-helpers.js']
+      ignore: ['handlebars-helpers.js', '**/.preamble.js']
     });
 
     if (jsFiles.length === 0) {
@@ -50,8 +50,56 @@ export class PromptRepository {
     for (const relativePath of jsFiles) {
       await this.loadScenarioFile(relativePath);
     }
+    
+    // Load skill preambles
+    const preambleFiles = await glob('**/.preamble.js', {
+      cwd: this.basePath,
+      absolute: false
+    });
+    
+    for (const preamblePath of preambleFiles) {
+      await this.loadSkillPreamble(preamblePath);
+    }
   }
 
+  /**
+   * Load a skill preamble module
+   */
+  private async loadSkillPreamble(relativePath: string): Promise<void> {
+    const fullPath = path.join(this.basePath, relativePath);
+    
+    try {
+      // Import the ES module
+      const moduleUrl = pathToFileURL(fullPath).href;
+      const module = await import(moduleUrl);
+      
+      // Get the default export which contains our preamble
+      const preambleDoc = module.default;
+      
+      // Validate structure
+      if (!preambleDoc || !preambleDoc.skill || !preambleDoc.preamble) {
+        console.warn(`Invalid preamble structure in ${relativePath}`);
+        return;
+      }
+      
+      // Get or create skill
+      const skillName = preambleDoc.skill;
+      if (!this.skills.has(skillName)) {
+        this.skills.set(skillName, {
+          name: skillName,
+          scenarios: []
+        });
+      }
+      
+      // Add preamble to skill
+      const skill = this.skills.get(skillName)!;
+      skill.preamble = preambleDoc.preamble;
+      
+    } catch (error) {
+      console.error(`Failed to load skill preamble ${relativePath}:`, error);
+    }
+  }
+  
   /**
    * Load a single scenario module
    */
@@ -165,6 +213,13 @@ export class PromptRepository {
    */
   getScenariosBySkill(skill: string): PromptScenario[] {
     return this.skills.get(skill)?.scenarios || [];
+  }
+  
+  /**
+   * Get skill preamble function
+   */
+  getSkillPreamble(skill: string): ((context?: any) => string) | undefined {
+    return this.skills.get(skill)?.preamble;
   }
 
   /**

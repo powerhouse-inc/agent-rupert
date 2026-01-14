@@ -49,12 +49,15 @@ export class PromptDriver {
       throw new Error(`Scenario not found: ${scenarioKey}`);
     }
 
+    // Extract skill name from scenario key (e.g., "short-story-writing/SS.00" -> "short-story-writing")
+    const skillName = scenarioKey.includes('/') ? scenarioKey.split('/')[0] : 'default';
+
     const responses: TaskResponse[] = [];
 
     try {
       // Start a new session if not active
       if (!this.sessionActive) {
-        await this.startSessionWithContext(scenario, context);
+        await this.startSessionWithContext(scenario, context, skillName);
       }
 
       // Execute each task sequentially
@@ -122,7 +125,8 @@ export class PromptDriver {
    */
   private async startSessionWithContext<TContext = any>(
     scenario: PromptScenario, 
-    context: TContext
+    context: TContext,
+    skillName: string = 'default'
   ): Promise<void> {
     // Set system prompt with document context
     let systemPrompt = `You are executing a structured sequence of tasks from the "${scenario.id}" scenario.\n`;
@@ -138,6 +142,16 @@ export class PromptDriver {
     // Set the system prompt (this maintains the session context)
     if (this.agent.setSystemPrompt) {
       this.agent.setSystemPrompt(systemPrompt);
+    }
+    
+    // After setting system prompt, send skill preamble as a message if it exists
+    const skillPreamble = this.repository.getSkillPreamble(skillName);
+    if (skillPreamble && this.agent.sendMessage) {
+      const preambleContent = skillPreamble(context);
+      if (preambleContent && preambleContent.trim().length > 0) {
+        // Send skill preamble as first message
+        await this.agent.sendMessage(preambleContent);
+      }
     }
     
     this.sessionActive = true;
