@@ -10,12 +10,25 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const packageJson = JSON.parse(fs.readFileSync(path.join(__dirname, '../../package.json'), 'utf-8'));
 
+// Document info for agents
+export interface AgentDocumentInfo {
+    documentType: string;
+    documentId: string | null;
+}
+
 // Base interface for all agents
 export interface CommonAgentInfo {
     name: string;
     type: string;
     initialized: boolean;
     error?: string;
+    managerDrive?: {
+        url: string | null;
+        documents: {
+            inbox?: AgentDocumentInfo;
+            wbs?: AgentDocumentInfo;
+        };
+    };
 }
 
 // Specific agent implementations

@@ -207,20 +207,46 @@ export class AgentsManager {
         
         // Check ReactorPackageAgent
         if (this.config.enableReactorPackageAgent) {
-            agents.push({
+            const reactorConfig = this.config.reactorPackageConfig;
+            const agentInfo: CommonAgentInfo = {
                 name: 'reactor-dev',
                 type: 'ReactorPackageDevAgent',
                 initialized: this.reactorPackageAgent !== undefined
-            });
+            };
+            
+            if (reactorConfig?.workDrive) {
+                agentInfo.managerDrive = {
+                    url: reactorConfig.workDrive.driveUrl,
+                    documents: {
+                        inbox: reactorConfig.workDrive.documents?.inbox,
+                        wbs: reactorConfig.workDrive.documents?.wbs
+                    }
+                };
+            }
+            
+            agents.push(agentInfo);
         }
         
         // Check ArchitectAgent
         if (this.config.enableArchitectAgent) {
-            agents.push({
+            const architectConfig = this.config.architectConfig;
+            const agentInfo: CommonAgentInfo = {
                 name: 'architect',
                 type: 'PowerhouseArchitectAgent',
                 initialized: this.architectAgent !== undefined
-            });
+            };
+            
+            if (architectConfig?.workDrive) {
+                agentInfo.managerDrive = {
+                    url: architectConfig.workDrive.driveUrl,
+                    documents: {
+                        inbox: architectConfig.workDrive.documents?.inbox,
+                        wbs: architectConfig.workDrive.documents?.wbs
+                    }
+                };
+            }
+            
+            agents.push(agentInfo);
         }
         
         return agents;
