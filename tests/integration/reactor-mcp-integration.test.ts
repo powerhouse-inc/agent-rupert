@@ -39,7 +39,6 @@ describe('ReactorPackageDevAgent MCP Integration', () => {
     beforeEach(async () => {
         // Skip if no API key
         if (!process.env.ANTHROPIC_API_KEY) {
-            console.log('Skipping MCP integration tests - no ANTHROPIC_API_KEY set');
             return;
         }
         
@@ -100,7 +99,10 @@ describe('ReactorPackageDevAgent MCP Integration', () => {
                 'mcp__reactor_prjmgr__get_project_logs',
                 'mcp__reactor_prjmgr__get_project_status',
                 'mcp__reactor_prjmgr__is_project_ready',
-                'mcp__reactor_prjmgr__get_projects_dir'
+                'mcp__reactor_prjmgr__get_projects_dir',
+                'mcp__self_reflection__list_skills',
+                'mcp__self_reflection__get_skill_details',
+                'mcp__self_reflection__list_mcp_endpoints'
             ]
         });
         
@@ -121,7 +123,6 @@ describe('ReactorPackageDevAgent MCP Integration', () => {
     
     test('should initialize agent and register MCP server with brain', async () => {
         if (!process.env.ANTHROPIC_API_KEY) {
-            console.log('Skipping test - no API key');
             return;
         }
         
@@ -138,7 +139,6 @@ describe('ReactorPackageDevAgent MCP Integration', () => {
     
     test('should respond to request to list projects using MCP tools', async () => {
         if (!process.env.ANTHROPIC_API_KEY) {
-            console.log('Skipping test - no API key');
             return;
         }
         
@@ -178,7 +178,6 @@ describe('ReactorPackageDevAgent MCP Integration', () => {
     
     test('should respond to request for projects directory using MCP tools', async () => {
         if (!process.env.ANTHROPIC_API_KEY) {
-            console.log('Skipping test - no API key');
             return;
         }
         
@@ -214,7 +213,6 @@ describe('ReactorPackageDevAgent MCP Integration', () => {
     
     test('should respond to request about project readiness using MCP tools', async () => {
         if (!process.env.ANTHROPIC_API_KEY) {
-            console.log('Skipping test - no API key');
             return;
         }
         
@@ -253,7 +251,6 @@ describe('ReactorPackageDevAgent MCP Integration', () => {
     
     test('should have registered all 8 ReactorProjectsManager tools', async () => {
         if (!process.env.ANTHROPIC_API_KEY) {
-            console.log('Skipping test - no API key');
             return;
         }
         
@@ -286,7 +283,6 @@ describe('ReactorPackageDevAgent MCP Integration', () => {
     
     test('should successfully use multiple MCP tools in conversation', async () => {
         if (!process.env.ANTHROPIC_API_KEY) {
-            console.log('Skipping test - no API key');
             return;
         }
         
@@ -340,4 +336,168 @@ describe('ReactorPackageDevAgent MCP Integration', () => {
         expect(json3).toHaveProperty('running');
         expect(json3.project).toBe('persistent-test-project');
     }, 60000);  // Longer timeout for conversation
+    
+    test('should list agent skills using self-reflection MCP tools', async () => {
+        if (!process.env.ANTHROPIC_API_KEY) {
+            return;
+        }
+        
+        await agent.initialize();
+        
+        // Set a system prompt for the brain
+        brain.setSystemPrompt(
+            'You are a helpful ReactorPackageDevAgent with self-reflection capabilities. ' +
+            'You have access to self_reflection MCP tools to introspect your own skills. ' +
+            'Always respond with valid JSON following the exact template provided. ' +
+            'Use the mcp__self_reflection__list_skills tool when asked about your skills.',
+            'test-agent'
+        );
+        
+        // Send a message asking the agent to list its skills
+        const result = await brain.sendMessage(
+            'Use the self_reflection list_skills MCP tool to tell me what skills you have. Return response in this format:\n\n' +
+            '```json\n' +
+            '{\n' +
+            '  "skills": [<skill-names>],\n' +
+            '  "count": <number>\n' +
+            '}\n' +
+            '```\n\n' +
+            'Important: Return the raw, valid JSON only. Include all skill names you have access to.'
+        );
+        
+        // Parse and verify the JSON response
+        expect(result.response).toBeDefined();
+        const jsonResponse = extractJSON(result.response);
+        expect(jsonResponse).toHaveProperty('skills');
+        expect(jsonResponse).toHaveProperty('count');
+        expect(Array.isArray(jsonResponse.skills)).toBe(true);
+        
+        // ReactorPackageDevAgent should have these specific skills
+        const expectedSkills = [
+            'create-reactor-package',
+            'document-modeling',
+            'document-editor-implementation'
+        ];
+        
+        // Check that the agent reported the correct skills
+        for (const expectedSkill of expectedSkills) {
+            const hasSkill = jsonResponse.skills.some((skill: any) => 
+                typeof skill === 'string' ? skill === expectedSkill : skill === expectedSkill
+            );
+            expect(hasSkill).toBe(true);
+        }
+        
+        // Should have exactly 3 skills
+        expect(jsonResponse.count).toBe(3);
+    }, 30000);
+    
+    test('should get skill details using self-reflection MCP tools', async () => {
+        if (!process.env.ANTHROPIC_API_KEY) {
+            return;
+        }
+        
+        await agent.initialize();
+        
+        // Set a system prompt for the brain
+        brain.setSystemPrompt(
+            'You are a helpful ReactorPackageDevAgent with self-reflection capabilities. ' +
+            'You have access to self_reflection MCP tools to introspect your own skills. ' +
+            'Always respond with valid JSON following the exact template provided. ' +
+            'Use the mcp__self_reflection__get_skill_details tool when asked about specific skills.',
+            'test-agent'
+        );
+        
+        // Send a message asking for details about a specific skill
+        const result = await brain.sendMessage(
+            'Use the self_reflection get_skill_details MCP tool to get details about the "create-reactor-package" skill. Return response in this format:\n\n' +
+            '```json\n' +
+            '{\n' +
+            '  "skill_name": "<name>",\n' +
+            '  "scenario_count": <number>,\n' +
+            '  "scenarios": [<scenario-ids>]\n' +
+            '}\n' +
+            '```\n\n' +
+            'Important: Return the raw, valid JSON only. Include the scenario IDs from the skill.'
+        );
+        
+        // Parse and verify the JSON response
+        expect(result.response).toBeDefined();
+        const jsonResponse = extractJSON(result.response);
+        expect(jsonResponse).toHaveProperty('skill_name');
+        expect(jsonResponse).toHaveProperty('scenario_count');
+        expect(jsonResponse).toHaveProperty('scenarios');
+        
+        // Verify the skill details
+        expect(jsonResponse.skill_name).toBe('create-reactor-package');
+        expect(jsonResponse.scenario_count).toBeGreaterThan(0);
+        expect(Array.isArray(jsonResponse.scenarios)).toBe(true);
+        
+        // Check for expected scenarios (should include CRP.01, CRP.02, CRP.03)
+        const expectedScenarios = ['CRP.01', 'CRP.02', 'CRP.03'];
+        for (const expectedScenario of expectedScenarios) {
+            const hasScenario = jsonResponse.scenarios.some((scenario: any) => 
+                scenario === expectedScenario || scenario.includes(expectedScenario)
+            );
+            expect(hasScenario).toBe(true);
+        }
+    }, 30000);
+    
+    test('should verify self-reflection MCP server is registered', async () => {
+        if (!process.env.ANTHROPIC_API_KEY) {
+            return;
+        }
+        
+        await agent.initialize();
+        
+        // Get the list of MCP servers from the brain
+        const servers = brain.listMcpServers();
+        expect(servers).toContain('reactor_prjmgr');
+        expect(servers).toContain('self_reflection');  // Should also have self_reflection server
+    });
+    
+    test('should list MCP endpoints using self-reflection tools', async () => {
+        if (!process.env.ANTHROPIC_API_KEY) {
+            return;
+        }
+        
+        await agent.initialize();
+        
+        // Set a system prompt for the brain
+        brain.setSystemPrompt(
+            'You are a helpful ReactorPackageDevAgent with self-reflection capabilities. ' +
+            'You have access to self_reflection MCP tools to introspect your own configuration. ' +
+            'Always respond with valid JSON following the exact template provided. ' +
+            'Use the mcp__self_reflection__list_mcp_endpoints tool when asked about MCP endpoints.',
+            'test-agent'
+        );
+        
+        // Send a message asking the agent to list its MCP endpoints
+        const result = await brain.sendMessage(
+            'Use the self_reflection list_mcp_endpoints MCP tool to tell me what MCP endpoints you have. Return response in this format:\n\n' +
+            '```json\n' +
+            '{\n' +
+            '  "endpoints": [<endpoint-names>],\n' +
+            '  "count": <number>\n' +
+            '}\n' +
+            '```\n\n' +
+            'Important: Return the raw, valid JSON only. Include all MCP endpoint names.'
+        );
+        
+        // Parse and verify the JSON response
+        expect(result.response).toBeDefined();
+        const jsonResponse = extractJSON(result.response);
+        expect(jsonResponse).toHaveProperty('endpoints');
+        expect(jsonResponse).toHaveProperty('count');
+        expect(Array.isArray(jsonResponse.endpoints)).toBe(true);
+        
+        // Should have at least reactor_prjmgr and self_reflection
+        const endpointNames = jsonResponse.endpoints.map((e: any) => 
+            typeof e === 'string' ? e : e.name
+        );
+        expect(endpointNames).toContain('reactor_prjmgr');
+        expect(endpointNames).toContain('self_reflection');
+        
+        // Should have at least 2 endpoints
+        expect(jsonResponse.count).toBeGreaterThanOrEqual(2);
+    }, 30000);
 });

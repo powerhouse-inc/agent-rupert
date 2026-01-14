@@ -3,15 +3,17 @@ import { IDocumentDriveServer, InMemoryCache, MemoryStorage, ReactorBuilder, dri
 import type { IDriveOperationStorage } from 'document-drive/storage/types';
 import type { BaseAgentConfig } from '../types.js';
 import { documentModels } from 'powerhouse-agent';
-import type { AgentInboxDocument, AgentInboxAction, } from "powerhouse-agent/document-models/agent-inbox";
-import type { WorkBreakdownStructureDocument, WorkBreakdownStructureAction } from "powerhouse-agent/document-models/work-breakdown-structure";
+import type { AgentInboxDocument } from "powerhouse-agent/document-models/agent-inbox";
+import type { WorkBreakdownStructureDocument } from "powerhouse-agent/document-models/work-breakdown-structure";
 import { documentModelDocumentModelModule } from 'document-model';
 import { FilesystemStorage } from 'document-drive/storage/filesystem';
 import type { IAgentBrain } from './IAgentBrain.js';
 import type { BrainConfig } from './BrainFactory.js';
 import type { AgentBrainPromptContext } from '../types/prompt-context.js';
-import type { ScenarioSkill } from '../prompts/types.js';
+import type { ScenarioSkill, PromptScenario } from '../prompts/types.js';
 import { PromptRepository } from '../prompts/PromptRepository.js';
+import { AgentClaudeBrain } from './AgentClaudeBrain.js';
+import { createSelfReflectionMcpServer } from '../tools/selfReflectionMcpServer.js';
 
 // Logger interface for dependency injection
 export interface ILogger {
@@ -71,6 +73,13 @@ export abstract class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
     protected logger: ILogger;
     protected brain?: TBrain;
     protected skills: ScenarioSkill[];
+    protected documents: {
+        inbox: AgentInboxDocument | null;
+        wbs: WorkBreakdownStructureDocument | null;
+    } = {
+        inbox: null,
+        wbs: null,
+    };
     
     /**
      * Get the brain configuration for this agent type
@@ -311,6 +320,13 @@ export abstract class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
         const skillNames = (this.constructor as typeof AgentBase).getDefaultSkillNames();
         await this.loadSkills(skillNames);
         
+        // Register self-reflection MCP server if brain supports it
+        if (this.brain && this.brain instanceof AgentClaudeBrain) {
+            const server = createSelfReflectionMcpServer(this, this.logger);
+            (this.brain as AgentClaudeBrain).addSdkMcpServer('self_reflection', server);
+            this.logger.info(`${this.config.name}: Self-reflection MCP server registered`);
+        }
+        
         this.logger.info(`${this.config.name}: Initialization complete`);
     }
     
@@ -342,6 +358,151 @@ export abstract class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
      */
     public getSkills(): ScenarioSkill[] {
         return this.skills;
+    }
+    
+    /**
+     * Get detailed information about a specific skill
+     */
+    public getSkillDetails(skillName: string): ScenarioSkill | null {
+        return this.skills.find(s => s.name === skillName) || null;
+    }
+    
+    /**
+     * Get detailed information about a specific scenario
+     */
+    public getScenarioDetails(skillName: string, scenarioId: string): PromptScenario | null {
+        const skill = this.getSkillDetails(skillName);
+        if (!skill) return null;
+        return skill.scenarios.find(s => s.id === scenarioId) || null;
+    }
+    
+    /**
+     * Search for scenarios by keyword
+     */
+    public searchScenarios(query: string, skillName?: string): Array<{skill: string, scenario: PromptScenario, matchContext: string}> {
+        const results: Array<{skill: string, scenario: PromptScenario, matchContext: string}> = [];
+        const skillsToSearch = skillName 
+            ? this.skills.filter(s => s.name === skillName)
+            : this.skills;
+        
+        for (const skill of skillsToSearch) {
+            for (const scenario of skill.scenarios) {
+                // Search in title, preamble, and tasks
+                const searchText = JSON.stringify(scenario).toLowerCase();
+                if (searchText.includes(query.toLowerCase())) {
+                    // Extract match context (surrounding text)
+                    const index = searchText.indexOf(query.toLowerCase());
+                    const start = Math.max(0, index - 50);
+                    const end = Math.min(searchText.length, index + query.length + 50);
+                    const matchContext = searchText.substring(start, end);
+                    
+                    results.push({
+                        skill: skill.name,
+                        scenario,
+                        matchContext
+                    });
+                }
+            }
+        }
+        return results;
+    }
+    
+    /**
+     * Get the complete inbox document state as JSON
+     */
+    public async getInboxState(): Promise<any> {
+        if (this.documents.inbox) {
+            return this.documents.inbox.state || null;
+        }
+        
+        const reactor = this.getReactor();
+        const inboxId = this.config.workDrive?.documents?.inbox?.documentId;
+        if (!inboxId) return null;
+        
+        try {
+            const doc = await reactor.getDocument(inboxId);
+            return doc?.state || null;
+        } catch (error) {
+            this.logger.error(`${this.config.name}: Failed to get inbox state`, error);
+            return null;
+        }
+    }
+    
+    /**
+     * Get the complete WBS document state as JSON
+     */
+    public async getWbsState(): Promise<any> {
+        if (this.documents.wbs) {
+            return this.documents.wbs.state || null;
+        }
+        
+        const reactor = this.getReactor();
+        const wbsId = this.config.workDrive?.documents?.wbs?.documentId;
+        if (!wbsId) return null;
+        
+        try {
+            const doc = await reactor.getDocument(wbsId);
+            return doc?.state || null;
+        } catch (error) {
+            this.logger.error(`${this.config.name}: Failed to get WBS state`, error);
+            return null;
+        }
+    }
+    
+    /**
+     * List all registered MCP endpoints
+     */
+    public listMcpEndpoints(): { name: string; type: string }[] {
+        if (!this.brain || !(this.brain instanceof AgentClaudeBrain)) {
+            return [];
+        }
+        
+        const brain = this.brain as AgentClaudeBrain;
+        const serverNames = brain.listMcpServers();
+        
+        return serverNames.map(name => {
+            const server = brain.getMcpServer(name);
+            return {
+                name,
+                type: server?.type || 'unknown'
+            };
+        });
+    }
+    
+    /**
+     * Add a new SDK MCP endpoint
+     */
+    public addMcpEndpoint(name: string, server: any): boolean {
+        if (!this.brain || !(this.brain instanceof AgentClaudeBrain)) {
+            this.logger.warn(`${this.config.name}: Cannot add MCP endpoint - no Claude brain available`);
+            return false;
+        }
+        
+        try {
+            const brain = this.brain as AgentClaudeBrain;
+            brain.addSdkMcpServer(name, server);
+            this.logger.info(`${this.config.name}: Added MCP endpoint '${name}'`);
+            return true;
+        } catch (error) {
+            this.logger.error(`${this.config.name}: Failed to add MCP endpoint '${name}'`, error);
+            return false;
+        }
+    }
+    
+    /**
+     * Remove an MCP endpoint
+     * Note: This requires enhancing AgentClaudeBrain with a removeMcpServer method
+     */
+    public removeMcpEndpoint(name: string): boolean {
+        if (!this.brain || !(this.brain instanceof AgentClaudeBrain)) {
+            this.logger.warn(`${this.config.name}: Cannot remove MCP endpoint - no Claude brain available`);
+            return false;
+        }
+        
+        // For now, we can't remove servers as AgentClaudeBrain doesn't have this method
+        // This would need to be implemented in AgentClaudeBrain
+        this.logger.warn(`${this.config.name}: MCP endpoint removal not yet implemented`);
+        return false;
     }
     
     /**
@@ -438,17 +599,15 @@ export abstract class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
      * Strongly typed method for processing inbox document updates
      * Override in subclasses to handle specific inbox document processing
      */
-    protected updateInbox(_document: AgentInboxDocument): void | Promise<void> {
-        this.logger.debug(`${this.config.name}: Processing inbox document update`);
-        // Base implementation does nothing - override in subclasses
+    protected updateInbox(inbox: AgentInboxDocument): void | Promise<void> {
+        this.documents.inbox = inbox;
     }
 
     /**
      * Strongly typed method for processing WBS document updates  
      * Override in subclasses to handle specific WBS document processing
      */
-    protected updateWbs(_document: WorkBreakdownStructureDocument): void | Promise<void> {
-        this.logger.debug(`${this.config.name}: Processing WBS document update`);
-        // Base implementation does nothing - override in subclasses
+    protected updateWbs(wbs: WorkBreakdownStructureDocument): void | Promise<void> {
+        this.documents.wbs = wbs;
     }
 }

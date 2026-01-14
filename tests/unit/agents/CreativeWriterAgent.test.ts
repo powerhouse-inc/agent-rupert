@@ -61,24 +61,26 @@ describe('CreativeWriterAgent', () => {
             ]);
         });
 
-        it('should build prompt context with genre-specific capability', () => {
+        it('should build prompt context with genre property', () => {
             const context = CreativeWriterAgent.buildPromptContext(config, 3000, ['test-server']);
             
             expect(context.agentType).toBe('CreativeWriterAgent');
             expect(context.agentName).toBe('TestWriter');
             expect(context.genre).toBe('science-fiction');  // Check genre property
-            expect(context.capabilities).toContain('creative-writing');
-            expect(context.capabilities).toContain('story-creation');
-            expect(context.capabilities).toContain('character-development');
-            expect(context.capabilities).toContain('dialogue-writing');
-            expect(context.capabilities).toContain('genre-science-fiction');
+            expect(context.capabilities).toBeUndefined();  // Capabilities removed
         });
 
-        it('should include different genre in capabilities', () => {
+        it('should include different genre in context', () => {
             const thrillerConfig = { ...config, genre: 'thriller' as const };
             const context = CreativeWriterAgent.buildPromptContext(thrillerConfig, 3000);
             
-            expect(context.capabilities).toContain('genre-thriller');
+            expect(context.genre).toBe('thriller');
+            expect(context.capabilities).toBeUndefined();  // Capabilities removed
+        });
+
+        it('should return correct default skill names', () => {
+            const skills = CreativeWriterAgent.getDefaultSkillNames();
+            expect(skills).toEqual(['short-story-writing']);
         });
     });
 

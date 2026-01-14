@@ -7,6 +7,7 @@ import type { IAgentBrain } from "../IAgentBrain.js";
 import { BrainType, type BrainConfig } from "../BrainFactory.js";
 import type { AgentBrainPromptContext } from "../../types/prompt-context.js";
 import { createReactorProjectsManagerMcpServer, getReactorMcpToolNames } from "../../tools/reactorMcpServer.js";
+import { getSelfReflectionMcpToolNames } from "../../tools/selfReflectionMcpServer.js";
 import { AgentClaudeBrain } from "../AgentClaudeBrain.js";
 
 /**
@@ -44,7 +45,8 @@ export class ReactorPackageDevAgent extends AgentBase<IAgentBrain> {
             allowedTools: [
                 'Read', 'Write', 'Edit', 'Bash', 'Grep', 'Glob',
                 'mcp__agent-manager-drive__*',  // Allow all MCP tools from agent-manager-drive
-                ...getReactorMcpToolNames()  // Include all ReactorProjectsManager tools
+                ...getReactorMcpToolNames(),  // Include all ReactorProjectsManager tools
+                ...getSelfReflectionMcpToolNames()  // Include self-reflection tools
             ],
             fileSystemPaths: {
                 allowedReadPaths: [process.cwd()],
