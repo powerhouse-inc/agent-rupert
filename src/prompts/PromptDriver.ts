@@ -34,23 +34,14 @@ export class PromptDriver {
   }
 
   /**
-   * Execute a complete scenario sequence
+   * Execute a complete scenario sequence with optional context
    * @param scenarioKey The key or path to the scenario document
+   * @param context Context object to pass to template functions (optional)
    * @returns ExecutionResult with all task responses
    */
-  async executeScenarioSequence(scenarioKey: string): Promise<ExecutionResult> {
-    return this.executeScenarioSequenceWithContext(scenarioKey, {});
-  }
-
-  /**
-   * Execute a complete scenario sequence with context
-   * @param scenarioKey The key or path to the scenario document
-   * @param context Context object to pass to template functions
-   * @returns ExecutionResult with all task responses
-   */
-  async executeScenarioSequenceWithContext<TScenarioContext = any>(
+  async executeScenarioSequence<TScenarioContext = any>(
     scenarioKey: string, 
-    context: TScenarioContext
+    context: TScenarioContext = {} as TScenarioContext
   ): Promise<ExecutionResult> {
     // Load the scenario document
     const scenario = this.repository.getScenario(scenarioKey);
@@ -91,13 +82,6 @@ export class PromptDriver {
   }
 
   /**
-   * Execute a single task
-   */
-  private async executeTask(task: ScenarioTask): Promise<string> {
-    return this.executeTaskWithContext(task, {});
-  }
-
-  /**
    * Execute a single task with context
    */
   private async executeTaskWithContext<TContext = any>(
@@ -118,13 +102,6 @@ export class PromptDriver {
   }
 
   /**
-   * Build prompt string for a task
-   */
-  private buildTaskPrompt(task: ScenarioTask): string {
-    return this.buildTaskPromptWithContext(task, {});
-  }
-
-  /**
    * Build prompt string for a task with context
    */
   private buildTaskPromptWithContext<TContext = any>(
@@ -138,13 +115,6 @@ export class PromptDriver {
     prompt += task.content(context);
     
     return prompt;
-  }
-
-  /**
-   * Start a new session with preamble if available
-   */
-  private async startSession(scenario: PromptScenario): Promise<void> {
-    return this.startSessionWithContext(scenario, {});
   }
 
   /**
@@ -183,23 +153,16 @@ export class PromptDriver {
   }
 
   /**
-   * Execute multiple scenario sequences in order
+   * Execute multiple scenario sequences in order with optional context
    */
-  async executeMultipleSequences(scenarioKeys: string[]): Promise<ExecutionResult[]> {
-    return this.executeMultipleSequencesWithContext(scenarioKeys, {});
-  }
-
-  /**
-   * Execute multiple scenario sequences in order with context
-   */
-  async executeMultipleSequencesWithContext<TContext = any>(
+  async executeMultipleSequences<TContext = any>(
     scenarioKeys: string[],
-    context: TContext
+    context: TContext = {} as TContext
   ): Promise<ExecutionResult[]> {
     const results: ExecutionResult[] = [];
     
     for (const key of scenarioKeys) {
-      const result = await this.executeScenarioSequenceWithContext(key, context);
+      const result = await this.executeScenarioSequence(key, context);
       results.push(result);
     }
     

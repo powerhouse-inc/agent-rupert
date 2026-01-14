@@ -222,7 +222,7 @@ describe('PromptDriver', () => {
     });
   });
 
-  describe('executeScenarioSequenceWithContext', () => {
+  describe('executeScenarioSequence with context', () => {
     it('should pass context to template functions', async () => {
       const context = {
         projectName: 'TestProject',
@@ -237,7 +237,7 @@ describe('PromptDriver', () => {
         return { response: 'Task completed', sessionId: 'test-session' };
       });
 
-      const result = await driver.executeScenarioSequenceWithContext(
+      const result = await driver.executeScenarioSequence(
         'document-modeling/DM.00',
         context
       );
@@ -260,7 +260,7 @@ describe('PromptDriver', () => {
         features: ['feature1', 'feature2']
       };
 
-      const result = await driver.executeScenarioSequenceWithContext<MyContext>(
+      const result = await driver.executeScenarioSequence<MyContext>(
         'document-modeling/DM.00',
         context
       );
@@ -268,16 +268,35 @@ describe('PromptDriver', () => {
       expect(result).toBeDefined();
       expect(result.completedTasks).toBeGreaterThan(0);
     });
+
+    it('should work without context (backward compatibility)', async () => {
+      const result = await driver.executeScenarioSequence('document-modeling/DM.00');
+      
+      expect(result).toBeDefined();
+      expect(result.scenarioId).toBe('DM.00');
+      expect(result.completedTasks).toBeGreaterThan(0);
+    });
   });
 
-  describe('executeMultipleSequencesWithContext', () => {
+  describe('executeMultipleSequences with context', () => {
     it('should execute multiple sequences with shared context', async () => {
       const context = { sharedData: 'test' };
       
-      const results = await driver.executeMultipleSequencesWithContext(
+      const results = await driver.executeMultipleSequences(
         ['document-modeling/DM.00', 'document-modeling/DM.01'],
         context
       );
+
+      expect(results).toHaveLength(2);
+      expect(results[0].scenarioId).toBe('DM.00');
+      expect(results[1].scenarioId).toBe('DM.01');
+    });
+
+    it('should work without context', async () => {
+      const results = await driver.executeMultipleSequences([
+        'document-modeling/DM.00', 
+        'document-modeling/DM.01'
+      ]);
 
       expect(results).toHaveLength(2);
       expect(results[0].scenarioId).toBe('DM.00');
