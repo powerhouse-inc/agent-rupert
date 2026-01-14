@@ -164,9 +164,20 @@ export class AgentsService {
      * Shutdown all agents gracefully
      */
     async shutdown(): Promise<void> {
+        this.logger.info('🛑 AgentsService: Starting shutdown sequence');
+        
         if (this.agentsManager) {
-            await this.agentsManager.shutdown();
-            this.agentsManager = null;
+            try {
+                await this.agentsManager.shutdown();
+                this.logger.info('✅ AgentsService: All agents shutdown complete');
+            } catch (error) {
+                this.logger.error('❌ AgentsService: Error during agent shutdown:', error);
+                throw error;
+            } finally {
+                this.agentsManager = null;
+            }
+        } else {
+            this.logger.info('ℹ️ AgentsService: No agents to shutdown');
         }
     }
 

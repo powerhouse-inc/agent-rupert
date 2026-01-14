@@ -593,11 +593,15 @@ export class ReactorPackagesManager {
         const serviceHandle = this.runningProject.serviceHandle;
         
         try {
+            console.log(`🛑 Shutting down project: ${projectName}`);
+            
             // If we have a service handle, stop it gracefully
             if (serviceHandle) {
+                console.log(`📪 Stopping service handle ${serviceHandle.id}`);
                 await this.serviceExecutor.stop(serviceHandle.id, {
                     timeout: 10000  // 10 second timeout for graceful shutdown
                 });
+                console.log(`✅ Service handle ${serviceHandle.id} stopped`);
             }
             // Fallback: If we have a process reference, kill it directly
             else if (this.runningProject.process && !this.runningProject.process.killed) {
@@ -633,6 +637,7 @@ export class ReactorPackagesManager {
             // Clear the running project
             this.runningProject = null;
             
+            console.log(`✅ Project ${projectName} shutdown complete`);
             return {
                 success: true
             };

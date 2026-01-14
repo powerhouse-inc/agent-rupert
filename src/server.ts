@@ -60,6 +60,12 @@ start();
 async function gracefulShutdown(signal: string): Promise<void> {
   console.log(`\n📛 Received ${signal}, starting graceful shutdown...`);
   
+  // Set a maximum time for graceful shutdown
+  const shutdownTimeout = setTimeout(() => {
+    console.error('⏱️ Shutdown timeout exceeded, forcing exit...');
+    process.exit(1);
+  }, 30000); // 30 seconds max
+  
   try {
     // Close the HTTP server first
     if (server) {
@@ -71,13 +77,18 @@ async function gracefulShutdown(signal: string): Promise<void> {
       });
     }
     
-    // Then shutdown agents
+    // Then shutdown agents (includes shutting down running projects)
     await agentsService.shutdown();
+    
+    // Clear the timeout since we completed successfully
+    clearTimeout(shutdownTimeout);
+    
     console.log('👋 Graceful shutdown complete');
     process.exit(0);
 
   } catch (error) {
     console.error('❌ Error during shutdown:', error);
+    clearTimeout(shutdownTimeout);
     process.exit(1);
   }
 }
