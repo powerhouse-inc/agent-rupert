@@ -1,5 +1,6 @@
 import { IAgentBrain } from '../agents/IAgentBrain.js';
 import { PromptScenario, ScenarioTask } from './types.js';
+import { PromptRepository } from './PromptRepository.js';
 import {
   TaskExecutionState,
   TaskExecutionResult,
@@ -19,6 +20,7 @@ export class AgentActivityLoop {
   private agent: IAgentBrain;
   private config: Required<ActivityLoopConfig>;
   private callbacks: ActivityLoopCallbacks;
+  private repository: PromptRepository | null = null;
   
   // State management
   private currentState: TaskExecutionState = TaskExecutionState.IDLE;
@@ -41,10 +43,12 @@ export class AgentActivityLoop {
   constructor(
     agent: IAgentBrain,
     config: ActivityLoopConfig = {},
-    callbacks: ActivityLoopCallbacks = {}
+    callbacks: ActivityLoopCallbacks = {},
+    repository?: PromptRepository
   ) {
     this.agent = agent;
     this.callbacks = callbacks;
+    this.repository = repository || null;
     
     // Apply default configuration
     this.config = {
@@ -96,7 +100,26 @@ export class AgentActivityLoop {
   ): Promise<ProgressReport> {
     await this.initialize(scenario);
     
-    // Send preamble if exists - starts a new session with context
+    // Extract skill name from scenario ID (e.g., "SS.00" -> "short-story-writing")
+    const skillMapping: Record<string, string> = {
+      'SS': 'short-story-writing',
+      'CD': 'character-development',
+      'WB': 'worldbuilding'
+    };
+    const prefix = scenario.id.split('.')[0];
+    const skillName = skillMapping[prefix];
+    
+    // Send skill preamble if available
+    if (skillName && this.repository) {
+      const skillPreamble = this.repository.getSkillPreamble(skillName);
+      if (skillPreamble) {
+        const preambleContent = skillPreamble(context);
+        const result = await this.agent.sendMessage(preambleContent, this.sessionId);
+        this.sessionId = result.sessionId;
+      }
+    }
+    
+    // Send scenario preamble if exists - continues the session with context
     if (scenario.preamble) {
       const result = await this.agent.sendMessage(scenario.preamble(context), this.sessionId);
       this.sessionId = result.sessionId;  // Capture session ID for subsequent tasks

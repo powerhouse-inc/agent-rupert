@@ -136,8 +136,8 @@ describe('AgentActivityLoop Integration Tests', () => {
                 }
             };
             
-            // Create activity loop with brain
-            activityLoop = new AgentActivityLoop(brain, loopConfig, callbacks);
+            // Create activity loop with brain and repository for skill preambles
+            activityLoop = new AgentActivityLoop(brain, loopConfig, callbacks, repository);
         });
         
         afterEach(async () => {

@@ -29,6 +29,7 @@ pnpm test              # Run unit tests only (fast)
 pnpm test:unit         # Explicitly run unit tests
 pnpm test:integration  # Run integration tests (slower, uses real CLI tools)
 pnpm test:coverage     # Run tests with coverage report
+pnpm test <pattern>    # Run specific tests matching pattern (e.g., pnpm test AgentActivityLoop)
 ```
 
 ## Architecture
