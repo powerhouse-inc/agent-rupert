@@ -1,8 +1,10 @@
 
-import { InMemoryCache, MemoryStorage, ReactorBuilder, driveDocumentModelModule } from 'document-drive';
+import { IDocumentDriveServer, InMemoryCache, MemoryStorage, ReactorBuilder, driveDocumentModelModule } from 'document-drive';
 import type { IDriveOperationStorage } from 'document-drive/storage/types';
-import type { ReactorInstance, BaseAgentConfig } from '../types.js';
+import type { BaseAgentConfig } from '../types.js';
 import { documentModels } from 'powerhouse-agent';
+import type { AgentInboxDocument, AgentInboxAction, } from "powerhouse-agent/document-models/agent-inbox";
+import type { WorkBreakdownStructureDocument, WorkBreakdownStructureAction } from "powerhouse-agent/document-models/work-breakdown-structure";
 import { documentModelDocumentModelModule } from 'document-model';
 import { FilesystemStorage } from 'document-drive/storage/filesystem';
 import type { IAgentBrain } from './IAgentBrain.js';
@@ -62,7 +64,7 @@ export type { BaseAgentConfig } from '../types.js';
  *      
  */
 export abstract class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
-    protected reactor?: ReactorInstance;
+    protected reactor?: IDocumentDriveServer;
     protected config: BaseAgentConfig;
     protected logger: ILogger;
     protected brain?: TBrain;
@@ -161,11 +163,7 @@ export abstract class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
         this.logger.info(`${this.config.name}: Reactor built and initialized`);
         
         // Store reactor instance
-        this.reactor = {
-            driveServer,
-            reactor: null as any, // Will be implemented when needed for queue system
-            client: null as any   // Will be implemented when needed for queue system
-        };
+        this.reactor = driveServer;
         
         // Connect to remote drives if configured
         if (this.config.workDrive.driveUrl) {
@@ -180,7 +178,7 @@ export abstract class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
      * Connect to a remote drive
      */
     private async connectRemoteDrive(remoteDriveUrl: string): Promise<void> {
-        if (!this.reactor?.driveServer) {
+        if (!this.reactor) {
             throw new Error('Reactor not initialized');
         }
         
@@ -195,7 +193,7 @@ export abstract class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
             console.error = () => {};
             process.stderr.write = () => true;
             
-            await this.reactor.driveServer.addRemoteDrive(remoteDriveUrl, {
+            await this.reactor.addRemoteDrive(remoteDriveUrl, {
                 sharingType: "public",
                 availableOffline: true,
                 listeners: [
@@ -309,7 +307,7 @@ export abstract class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
     /**
      * Get the reactor instance
      */
-    protected getReactor(): ReactorInstance {
+    protected getReactor(): IDocumentDriveServer {
         if (!this.reactor) {
             throw new Error('Reactor not initialized - call initialize() first');
         }
@@ -326,28 +324,40 @@ export abstract class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
      * Listens for operations on configured inbox and WBS documents
      */
     private setupDocumentEventListeners(): void {
-        if (!this.reactor?.driveServer) return;
+        if (!this.reactor) return;
         
         const { inbox, wbs } = this.config.workDrive.documents;
         
         this.logger.info(`${this.config.name}: Setting up document event listeners`);
         
         // Listen for operations on documents
-        this.reactor.driveServer.on('operationsAdded', (documentId: string, operations: any[]) => {
+        this.reactor.on('operationsAdded', async (documentId: string, operations: any[]) => {
             // Check if this is our inbox document
             if (inbox?.documentId && documentId === inbox.documentId) {
                 this.logger.info(`${this.config.name}: Inbox document updated - ${operations.length} operations`);
+                if (this.reactor) {
+                    const doc = await this.reactor.getDocument(inbox.documentId);
+                    if (inbox.documentType == 'powerhouse/agent-inbox') {
+                        this.updateInbox(doc as AgentInboxDocument);
+                    }
+                }
                 this.handleInboxUpdate(documentId, operations);
             }
             // Check if this is our WBS document
             else if (wbs?.documentId && documentId === wbs.documentId) {
                 this.logger.info(`${this.config.name}: WBS document updated - ${operations.length} operations`);
+                if (this.reactor) {
+                    const doc = await this.reactor.getDocument(wbs.documentId);
+                    if (wbs.documentType == 'powerhouse/work-breakdown-structure') {
+                        this.updateWbs(doc as WorkBreakdownStructureDocument);
+                    }
+                }
                 this.handleWbsUpdate(documentId, operations);
             }
         });
         
         // Listen for new documents added
-        this.reactor.driveServer.on('documentAdded', (document: any) => {
+        this.reactor.on('documentAdded', (document: any) => {
             // Check if it's a document type we care about
             if (inbox && document.documentType === inbox.documentType) {
                 this.logger.info(`${this.config.name}: New inbox document added: ${document.id}`);
@@ -370,4 +380,22 @@ export abstract class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
      * Called when the agent's WBS document receives updates
      */
     protected abstract handleWbsUpdate(documentId: string, operations: any[]): void | Promise<void>;
+
+    /**
+     * Strongly typed method for processing inbox document updates
+     * Override in subclasses to handle specific inbox document processing
+     */
+    protected updateInbox(_document: AgentInboxDocument): void | Promise<void> {
+        this.logger.debug(`${this.config.name}: Processing inbox document update`);
+        // Base implementation does nothing - override in subclasses
+    }
+
+    /**
+     * Strongly typed method for processing WBS document updates  
+     * Override in subclasses to handle specific WBS document processing
+     */
+    protected updateWbs(_document: WorkBreakdownStructureDocument): void | Promise<void> {
+        this.logger.debug(`${this.config.name}: Processing WBS document update`);
+        // Base implementation does nothing - override in subclasses
+    }
 }

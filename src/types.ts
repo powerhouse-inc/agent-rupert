@@ -79,9 +79,3 @@ export type ReactorPackageDevAgentConfig = BaseAgentConfig & {
 }
 
 export type PowerhouseArchitectAgentConfig = BaseAgentConfig & {}
-
-export type ReactorInstance = {
-  driveServer: IDocumentDriveServer;
-  reactor: any; // Will be properly typed when we implement the queue system
-  client: any;  // Will be properly typed when we implement the queue system
-};
