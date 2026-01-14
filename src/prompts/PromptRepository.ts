@@ -72,18 +72,15 @@ export class PromptRepository {
         return;
       }
 
-      // Create a static version for storage (render with empty context)
-      // The tasks have content functions that need to be called
+      // Store the functions directly, not rendered content
       const content: PromptScenario = {
         id: promptDoc.id,
         title: promptDoc.title,
-        preamble: promptDoc.preamble ? 
-          (typeof promptDoc.preamble === 'function' ? promptDoc.preamble({}) : promptDoc.preamble) : 
-          undefined,
+        preamble: promptDoc.preamble ? promptDoc.preamble : undefined,
         tasks: promptDoc.tasks.map((task: any) => ({
           id: task.id,
           title: task.title,
-          content: typeof task.content === 'function' ? task.content({}) : task.content
+          content: task.content  // Store the function itself
         }))
       };
 
@@ -117,44 +114,6 @@ export class PromptRepository {
     }
   }
 
-  /**
-   * Load and render a scenario with context
-   */
-  async loadScenarioWithContext(relativePath: string, context: any = {}): Promise<PromptScenario | null> {
-    const fullPath = path.join(this.basePath, relativePath);
-    
-    try {
-      // Import the module
-      const moduleUrl = pathToFileURL(fullPath).href;
-      const module = await import(moduleUrl);
-      
-      // Check if module has a render function
-      if (module.render && typeof module.render === 'function') {
-        // Use the render function which applies context
-        return module.render(context);
-      } else if (module.default) {
-        // Fall back to default export with manual rendering
-        const promptDoc = module.default;
-        return {
-          id: promptDoc.id,
-          title: promptDoc.title,
-          preamble: promptDoc.preamble ? 
-            (typeof promptDoc.preamble === 'function' ? promptDoc.preamble(context) : promptDoc.preamble) : 
-            undefined,
-          tasks: promptDoc.tasks.map((task: any) => ({
-            id: task.id,
-            title: task.title,
-            content: typeof task.content === 'function' ? task.content(context) : task.content
-          }))
-        };
-      }
-      
-      return null;
-    } catch (error) {
-      console.error(`Failed to load scenario with context ${relativePath}:`, error);
-      return null;
-    }
-  }
 
   /**
    * Extract skill from file path
@@ -275,5 +234,56 @@ export class PromptRepository {
    */
   async reload(): Promise<void> {
     await this.load();
+  }
+
+  /**
+   * Render a scenario with context
+   * Returns a new object with rendered string content
+   */
+  renderScenario(scenario: PromptScenario, context: any = {}): {
+    id: string;
+    title: string;
+    preamble?: string;
+    tasks: Array<{ id: string; title: string; content: string }>;
+  } {
+    return {
+      id: scenario.id,
+      title: scenario.title,
+      preamble: scenario.preamble ? scenario.preamble(context) : undefined,
+      tasks: scenario.tasks.map(task => ({
+        id: task.id,
+        title: task.title,
+        content: task.content(context)
+      }))
+    };
+  }
+
+  /**
+   * Get a scenario and render it with context
+   */
+  getRenderedScenario(key: string, context: any = {}): {
+    id: string;
+    title: string;
+    preamble?: string;
+    tasks: Array<{ id: string; title: string; content: string }>;
+  } | undefined {
+    const scenario = this.getScenario(key);
+    if (!scenario) return undefined;
+    return this.renderScenario(scenario, context);
+  }
+
+  /**
+   * Render a single task with context
+   */
+  renderTask(task: ScenarioTask, context: any = {}): {
+    id: string;
+    title: string;
+    content: string;
+  } {
+    return {
+      id: task.id,
+      title: task.title,
+      content: task.content(context)
+    };
   }
 }

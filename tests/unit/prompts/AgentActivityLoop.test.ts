@@ -52,22 +52,22 @@ describe('AgentActivityLoop', () => {
     testScenario = {
       id: 'TEST.01',
       title: 'Test Scenario',
-      preamble: 'This is a test scenario',
+      preamble: () => 'This is a test scenario',
       tasks: [
         {
           id: 'TEST.01.1',
           title: 'First task',
-          content: 'Complete the first task'
+          content: () => 'Complete the first task'
         },
         {
           id: 'TEST.01.2',
           title: 'Second task',
-          content: 'Complete the second task'
+          content: () => 'Complete the second task'
         },
         {
           id: 'TEST.01.3',
           title: 'Third task',
-          content: 'Complete the third task'
+          content: () => 'Complete the third task'
         }
       ]
     };

@@ -95,7 +95,7 @@ export class AgentActivityLoop {
     
     // Send preamble if exists - starts a new session
     if (scenario.preamble) {
-      const result = await this.agent.sendMessage(scenario.preamble, this.sessionId);
+      const result = await this.agent.sendMessage(scenario.preamble(), this.sessionId);
       this.sessionId = result.sessionId;  // Capture session ID for subsequent tasks
     }
     
@@ -262,7 +262,7 @@ CRITICAL INSTRUCTIONS:
 - Do NOT attempt to write to files or execute commands
 - Simply respond with the requested content as text
 
-${scenario.preamble ? `Instructions:\n${scenario.preamble}\n\n` : ''}
+${scenario.preamble ? `Instructions:\n${scenario.preamble()}\n\n` : ''}
 You will receive tasks one by one. Complete each task thoroughly before moving to the next.
 Respond directly with the content requested. Do not use any tools.`;
   }
@@ -273,7 +273,7 @@ Respond directly with the content requested. Do not use any tools.`;
   private buildTaskPrompt(task: ScenarioTask): string {
     return `## Task ${task.id}: ${task.title}
 
-${task.content}
+${task.content()}
 
 REMEMBER: Do NOT use any tools. Respond directly with the requested content as plain text or markdown.
 Please complete this task by providing your response directly and indicate when you are finished.`;

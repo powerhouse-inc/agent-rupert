@@ -1,13 +1,13 @@
 export interface ScenarioTask {
   id: string;
   title: string;
-  content: string;
+  content: (context?: any) => string;
 }
 
 export interface PromptScenario {
   id: string;
   title: string;
-  preamble?: string;
+  preamble?: (context?: any) => string;
   tasks: ScenarioTask[];
 }
 

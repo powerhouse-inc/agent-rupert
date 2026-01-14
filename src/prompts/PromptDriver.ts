@@ -101,8 +101,8 @@ export class PromptDriver {
     // Include task ID and title as context
     let prompt = `## Task ${task.id}: ${task.title}\n\n`;
     
-    // Add the task content
-    prompt += task.content;
+    // Add the task content - call the function to render it
+    prompt += task.content();
     
     return prompt;
   }
@@ -116,7 +116,8 @@ export class PromptDriver {
     systemPrompt += `Scenario: ${scenario.title}\n\n`;
     
     if (scenario.preamble) {
-      systemPrompt += `Instructions:\n${scenario.preamble}\n\n`;
+      // Call the preamble function to render it
+      systemPrompt += `Instructions:\n${scenario.preamble()}\n\n`;
     }
     
     systemPrompt += `You will receive tasks one by one. Complete each task thoroughly before moving to the next.`;
