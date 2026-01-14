@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "nodemon --exec tsx src/server.ts",
-    "build": "pnpm build:prompts && tsc",
+    "build": "pnpm build:prompts && tsc && cp src/prompts/handlebars-helpers.js dist/prompts/",
     "build:prompts": "tsx scripts/build-prompts.ts",
     "start": "node dist/server.js",
     "clean": "rm -rf dist .ph build",

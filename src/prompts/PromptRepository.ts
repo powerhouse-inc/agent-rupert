@@ -33,11 +33,12 @@ export class PromptRepository {
       throw new Error(`Prompt repository path does not exist: ${this.basePath}`);
     }
 
-    // Find all JS files
+    // Find all JS files, excluding handlebars-helpers.js
     const pattern = '**/*.js';
     const jsFiles = await glob(pattern, {
       cwd: this.basePath,
-      absolute: false
+      absolute: false,
+      ignore: ['handlebars-helpers.js']
     });
 
     if (jsFiles.length === 0) {

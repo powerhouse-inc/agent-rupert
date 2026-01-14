@@ -76,6 +76,20 @@ The agent uses the Powerhouse document model system. When adding new document ty
 - `GET /models`: List registered document models
 - `GET /drives`: List connected drives with details
 
+## Prompt System
+
+The project uses a precompiled Handlebars template system for prompts:
+- Markdown files in `prompts/skills/` define scenarios with hierarchical tasks
+- Build script (`pnpm build:prompts`) converts these to precompiled JavaScript modules
+- Templates support dynamic context injection at runtime via Handlebars helpers
+
+### Important Exception: handlebars-helpers.js
+- **src/prompts/handlebars-helpers.js** is intentionally a plain JavaScript file (not TypeScript)
+- This avoids transpilation issues when used by both build scripts and runtime code
+- The file is directly referenced from src/ by all consumers
+- During build, it's copied to dist/prompts/ for runtime use
+- Type declarations are provided in handlebars-helpers.d.ts
+
 ## Testing Approach
 
 The project uses Jest for testing with a clear separation between unit and integration tests:
