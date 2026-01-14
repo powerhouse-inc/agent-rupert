@@ -39,6 +39,19 @@ export class PromptDriver {
    * @returns ExecutionResult with all task responses
    */
   async executeScenarioSequence(scenarioKey: string): Promise<ExecutionResult> {
+    return this.executeScenarioSequenceWithContext(scenarioKey, {});
+  }
+
+  /**
+   * Execute a complete scenario sequence with context
+   * @param scenarioKey The key or path to the scenario document
+   * @param context Context object to pass to template functions
+   * @returns ExecutionResult with all task responses
+   */
+  async executeScenarioSequenceWithContext<TScenarioContext = any>(
+    scenarioKey: string, 
+    context: TScenarioContext
+  ): Promise<ExecutionResult> {
     // Load the scenario document
     const scenario = this.repository.getScenario(scenarioKey);
     if (!scenario) {
@@ -50,12 +63,12 @@ export class PromptDriver {
     try {
       // Start a new session if not active
       if (!this.sessionActive) {
-        await this.startSession(scenario);
+        await this.startSessionWithContext(scenario, context);
       }
 
       // Execute each task sequentially
       for (const task of scenario.tasks) {
-        const response = await this.executeTask(task);
+        const response = await this.executeTaskWithContext(task, context);
         
         responses.push({
           taskId: task.id,
@@ -81,8 +94,18 @@ export class PromptDriver {
    * Execute a single task
    */
   private async executeTask(task: ScenarioTask): Promise<string> {
+    return this.executeTaskWithContext(task, {});
+  }
+
+  /**
+   * Execute a single task with context
+   */
+  private async executeTaskWithContext<TContext = any>(
+    task: ScenarioTask, 
+    context: TContext
+  ): Promise<string> {
     // Build the prompt for this task
-    const taskPrompt = this.buildTaskPrompt(task);
+    const taskPrompt = this.buildTaskPromptWithContext(task, context);
     
     // Send to agent and get response
     if (!this.agent.sendMessage) {
@@ -98,11 +121,21 @@ export class PromptDriver {
    * Build prompt string for a task
    */
   private buildTaskPrompt(task: ScenarioTask): string {
+    return this.buildTaskPromptWithContext(task, {});
+  }
+
+  /**
+   * Build prompt string for a task with context
+   */
+  private buildTaskPromptWithContext<TContext = any>(
+    task: ScenarioTask, 
+    context: TContext
+  ): string {
     // Include task ID and title as context
     let prompt = `## Task ${task.id}: ${task.title}\n\n`;
     
-    // Add the task content - call the function to render it
-    prompt += task.content();
+    // Add the task content - call the function to render it with context
+    prompt += task.content(context);
     
     return prompt;
   }
@@ -111,13 +144,23 @@ export class PromptDriver {
    * Start a new session with preamble if available
    */
   private async startSession(scenario: PromptScenario): Promise<void> {
+    return this.startSessionWithContext(scenario, {});
+  }
+
+  /**
+   * Start a new session with preamble and context
+   */
+  private async startSessionWithContext<TContext = any>(
+    scenario: PromptScenario, 
+    context: TContext
+  ): Promise<void> {
     // Set system prompt with document context
     let systemPrompt = `You are executing a structured sequence of tasks from the "${scenario.id}" scenario.\n`;
     systemPrompt += `Scenario: ${scenario.title}\n\n`;
     
     if (scenario.preamble) {
-      // Call the preamble function to render it
-      systemPrompt += `Instructions:\n${scenario.preamble()}\n\n`;
+      // Call the preamble function to render it with context
+      systemPrompt += `Instructions:\n${scenario.preamble(context)}\n\n`;
     }
     
     systemPrompt += `You will receive tasks one by one. Complete each task thoroughly before moving to the next.`;
@@ -143,10 +186,20 @@ export class PromptDriver {
    * Execute multiple scenario sequences in order
    */
   async executeMultipleSequences(scenarioKeys: string[]): Promise<ExecutionResult[]> {
+    return this.executeMultipleSequencesWithContext(scenarioKeys, {});
+  }
+
+  /**
+   * Execute multiple scenario sequences in order with context
+   */
+  async executeMultipleSequencesWithContext<TContext = any>(
+    scenarioKeys: string[],
+    context: TContext
+  ): Promise<ExecutionResult[]> {
     const results: ExecutionResult[] = [];
     
     for (const key of scenarioKeys) {
-      const result = await this.executeScenarioSequence(key);
+      const result = await this.executeScenarioSequenceWithContext(key, context);
       results.push(result);
     }
     

@@ -222,6 +222,69 @@ describe('PromptDriver', () => {
     });
   });
 
+  describe('executeScenarioSequenceWithContext', () => {
+    it('should pass context to template functions', async () => {
+      const context = {
+        projectName: 'TestProject',
+        userName: 'TestUser',
+        timestamp: new Date().toISOString()
+      };
+
+      // Capture the messages sent to the agent
+      const capturedMessages: string[] = [];
+      mockAgent.sendMessage = jest.fn(async (message: string) => {
+        capturedMessages.push(message);
+        return { response: 'Task completed', sessionId: 'test-session' };
+      });
+
+      const result = await driver.executeScenarioSequenceWithContext(
+        'document-modeling/DM.00',
+        context
+      );
+
+      expect(result).toBeDefined();
+      expect(result.scenarioId).toBe('DM.00');
+      expect(mockAgent.sendMessage).toHaveBeenCalled();
+    });
+
+    it('should work with typed context', async () => {
+      interface MyContext {
+        projectName: string;
+        version: number;
+        features: string[];
+      }
+
+      const context: MyContext = {
+        projectName: 'TypedProject',
+        version: 1,
+        features: ['feature1', 'feature2']
+      };
+
+      const result = await driver.executeScenarioSequenceWithContext<MyContext>(
+        'document-modeling/DM.00',
+        context
+      );
+
+      expect(result).toBeDefined();
+      expect(result.completedTasks).toBeGreaterThan(0);
+    });
+  });
+
+  describe('executeMultipleSequencesWithContext', () => {
+    it('should execute multiple sequences with shared context', async () => {
+      const context = { sharedData: 'test' };
+      
+      const results = await driver.executeMultipleSequencesWithContext(
+        ['document-modeling/DM.00', 'document-modeling/DM.01'],
+        context
+      );
+
+      expect(results).toHaveLength(2);
+      expect(results[0].scenarioId).toBe('DM.00');
+      expect(results[1].scenarioId).toBe('DM.01');
+    });
+  });
+
   describe('error handling', () => {
     it('should handle agent errors gracefully', async () => {
       mockAgent.sendMessage = jest.fn().mockRejectedValueOnce(new Error('Agent error'));
