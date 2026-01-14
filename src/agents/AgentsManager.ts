@@ -214,6 +214,12 @@ export class AgentsManager {
                 initialized: this.reactorPackageAgent !== undefined
             };
             
+            // Add skills if the agent is initialized
+            if (this.reactorPackageAgent) {
+                const skills = this.reactorPackageAgent.getSkills();
+                agentInfo.skills = skills.map(s => s.name);
+            }
+            
             if (reactorConfig?.workDrive) {
                 agentInfo.managerDrive = {
                     url: reactorConfig.workDrive.driveUrl,
@@ -235,6 +241,12 @@ export class AgentsManager {
                 type: 'PowerhouseArchitectAgent',
                 initialized: this.architectAgent !== undefined
             };
+            
+            // Add skills if the agent is initialized
+            if (this.architectAgent) {
+                const skills = this.architectAgent.getSkills();
+                agentInfo.skills = skills.map(s => s.name);
+            }
             
             if (architectConfig?.workDrive) {
                 agentInfo.managerDrive = {

@@ -10,6 +10,8 @@ import { FilesystemStorage } from 'document-drive/storage/filesystem';
 import type { IAgentBrain } from './IAgentBrain.js';
 import type { BrainConfig } from './BrainFactory.js';
 import type { AgentBrainPromptContext } from '../types/prompt-context.js';
+import type { ScenarioSkill } from '../prompts/types.js';
+import { PromptRepository } from '../prompts/PromptRepository.js';
 
 // Logger interface for dependency injection
 export interface ILogger {
@@ -68,6 +70,7 @@ export abstract class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
     protected config: BaseAgentConfig;
     protected logger: ILogger;
     protected brain?: TBrain;
+    protected skills: ScenarioSkill[];
     
     /**
      * Get the brain configuration for this agent type
@@ -95,6 +98,15 @@ export abstract class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
     static getPromptTemplatePaths(): string[] {
         // Default implementation returns base template only
         return ['prompts/agent-profiles/AgentBase.md'];
+    }
+    
+    /**
+     * Get the default skill names for this agent type
+     * @returns Array of default skill names this agent should have access to
+     */
+    static getDefaultSkillNames(): string[] {
+        // Default implementation returns empty array (no skills)
+        return [];
     }
     
     /**
@@ -131,6 +143,7 @@ export abstract class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
         this.config = config;
         this.logger = logger;
         this.brain = brain;
+        this.skills = []; // Will be populated by subclasses
         
         // Set logger on brain if provided
         if (brain) {
@@ -293,6 +306,11 @@ export abstract class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
     public async initialize(): Promise<void> {
         this.logger.info(`${this.config.name}: Beginning initialization`);
         await this.initializeReactor();
+        
+        // Load skills for this agent type
+        const skillNames = (this.constructor as typeof AgentBase).getDefaultSkillNames();
+        await this.loadSkills(skillNames);
+        
         this.logger.info(`${this.config.name}: Initialization complete`);
     }
     
@@ -317,6 +335,41 @@ export abstract class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
 
     public getName(): string {
         return this.config.name;
+    }
+    
+    /**
+     * Get the skills available to this agent instance
+     */
+    public getSkills(): ScenarioSkill[] {
+        return this.skills;
+    }
+    
+    /**
+     * Load skills for this agent instance from the prompt repository
+     */
+    protected async loadSkills(skillNames: string[]): Promise<void> {
+        try {
+            const repository = new PromptRepository('./build/prompts');
+            await repository.load();
+            
+            this.skills = [];
+            for (const skillName of skillNames) {
+                const scenarios = repository.getScenariosBySkill(skillName);
+                if (scenarios.length > 0) {
+                    this.skills.push({
+                        name: skillName,
+                        scenarios
+                    });
+                } else {
+                    this.logger.warn(`${this.config.name}: Skill '${skillName}' not found in repository`);
+                }
+            }
+            
+            this.logger.info(`${this.config.name}: Loaded ${this.skills.length} skills: ${this.skills.map(s => s.name).join(', ')}`);
+        } catch (error) {
+            this.logger.error(`${this.config.name}: Failed to load skills:`, error);
+            this.skills = [];
+        }
     }
     
     /**

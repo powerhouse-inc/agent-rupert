@@ -47,6 +47,15 @@ export class PowerhouseArchitectAgent extends AgentBase<IAgentBrain> {
     }
     
     /**
+     * Get the default skill names for PowerhouseArchitectAgent
+     */
+    static getDefaultSkillNames(): string[] {
+        return [
+            // No skills assigned yet
+        ];
+    }
+    
+    /**
      * Build the prompt context for PowerhouseArchitectAgent
      */
     static buildPromptContext(
@@ -58,13 +67,7 @@ export class PowerhouseArchitectAgent extends AgentBase<IAgentBrain> {
         
         return {
             ...baseContext,
-            agentType: 'PowerhouseArchitectAgent',
-            capabilities: [
-                'architecture-analysis',
-                'blueprint-generation',
-                'design-documentation',
-                'task-delegation'
-            ]
+            agentType: 'PowerhouseArchitectAgent'
         };
     }
     

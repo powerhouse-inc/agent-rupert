@@ -49,6 +49,15 @@ export class CreativeWriterAgent extends AgentBase<IAgentBrain> {
     }
     
     /**
+     * Get the default skill names for CreativeWriterAgent
+     */
+    static getDefaultSkillNames(): string[] {
+        return [
+            'short-story-writing'
+        ];
+    }
+    
+    /**
      * Build the prompt context for CreativeWriterAgent
      */
     static buildPromptContext(
@@ -61,14 +70,7 @@ export class CreativeWriterAgent extends AgentBase<IAgentBrain> {
         return {
             ...baseContext,
             agentType: 'CreativeWriterAgent',
-            genre: (config as CreativeWriterConfig).genre,  // Add genre as a direct property
-            capabilities: [
-                'creative-writing',
-                'story-creation',
-                'character-development',
-                'dialogue-writing',
-                `genre-${(config as CreativeWriterConfig).genre}`
-            ]
+            genre: (config as CreativeWriterConfig).genre  // Add genre as a direct property
         };
     }
     

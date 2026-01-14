@@ -22,6 +22,7 @@ export interface CommonAgentInfo {
     type: string;
     initialized: boolean;
     error?: string;
+    skills?: string[];  // List of skill names this agent has access to
     managerDrive?: {
         url: string | null;
         documents: {

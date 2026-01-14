@@ -66,6 +66,17 @@ export class ReactorPackageDevAgent extends AgentBase<IAgentBrain> {
     }
     
     /**
+     * Get the default skill names for ReactorPackageDevAgent
+     */
+    static getDefaultSkillNames(): string[] {
+        return [
+            'create-reactor-package',
+            'document-modeling',
+            'document-editor-implementation'
+        ];
+    }
+    
+    /**
      * Build the prompt context for ReactorPackageDevAgent
      */
     static buildPromptContext(
@@ -80,13 +91,7 @@ export class ReactorPackageDevAgent extends AgentBase<IAgentBrain> {
             agentType: 'ReactorPackageDevAgent',
             projectsDir: (config as ReactorPackageDevAgentConfig).reactorPackages.projectsDir,
             defaultProjectName: (config as ReactorPackageDevAgentConfig).reactorPackages.defaultProjectName,
-            vetraConfig: (config as ReactorPackageDevAgentConfig).vetraConfig,
-            capabilities: [
-                'reactor-package-management',
-                'project-initialization',
-                'service-execution',
-                'cli-command-execution'
-            ]
+            vetraConfig: (config as ReactorPackageDevAgentConfig).vetraConfig
         };
     }
     
