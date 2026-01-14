@@ -77,7 +77,8 @@ async function parseMdFile(filePath: string): Promise<PromptDocument | null> {
           };
         } else {
           // Skip headers that don't match the expected pattern and warn
-          console.warn(`  ⚠ WARNING: Skipping invalid task header: "## ${headingText}"`);
+          const skillName = filePath.split('/').slice(-2, -1)[0] || 'unknown-skill';
+          console.warn(`  ⚠ WARNING in ${skillName}: Skipping invalid task header: "## ${headingText}"`);
           // Set currentTask to null to ignore content until the next valid task
           currentTask = null;
         }
