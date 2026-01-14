@@ -1,4 +1,4 @@
-import { AgentBase, type ILogger } from "../AgentBase.js";
+import { AgentBase, type ILogger, type BaseAgentConfig } from "../AgentBase.js";
 import { ReactorPackagesManager, type RunProjectOptions } from "./ReactorPackagesManager.js";
 import { CLIExecutor } from "../../tasks/executors/cli-executor.js";
 import { ServiceExecutor } from "../../tasks/executors/service-executor.js";
@@ -10,7 +10,19 @@ import type { AgentBrainPromptContext } from "../../types/prompt-context.js";
 /**
  *  The ReactorPackageAgent uses ReactorPackagesManager with a number of associated tools
  */
-export class ReactorPackageDevAgent extends AgentBase<ReactorPackageDevAgentConfig> {
+export class ReactorPackageDevAgent extends AgentBase<IAgentBrain> {
+    protected getConfig(): ReactorPackageDevAgentConfig {
+        return this.config as ReactorPackageDevAgentConfig;
+    }
+    
+    /**
+     * Create the brain for this agent
+     */
+    protected createBrain(config: BrainConfig): IAgentBrain | null {
+        // For now, return null - will be implemented when migrating to ClaudeAgentBase
+        return null;
+    }
+    
     private packagesManager?: ReactorPackagesManager;
     private cliExecutor: CLIExecutor;
     private serviceExecutor: ServiceExecutor;
@@ -54,7 +66,7 @@ export class ReactorPackageDevAgent extends AgentBase<ReactorPackageDevAgentConf
      * Build the prompt context for ReactorPackageDevAgent
      */
     static buildPromptContext(
-        config: ReactorPackageDevAgentConfig,
+        config: BaseAgentConfig,
         serverPort: number,
         mcpServers: string[] = []
     ): AgentBrainPromptContext {
@@ -63,9 +75,9 @@ export class ReactorPackageDevAgent extends AgentBase<ReactorPackageDevAgentConf
         return {
             ...baseContext,
             agentType: 'ReactorPackageDevAgent',
-            projectsDir: config.reactorPackages.projectsDir,
-            defaultProjectName: config.reactorPackages.defaultProjectName,
-            vetraConfig: config.vetraConfig,
+            projectsDir: (config as ReactorPackageDevAgentConfig).reactorPackages.projectsDir,
+            defaultProjectName: (config as ReactorPackageDevAgentConfig).reactorPackages.defaultProjectName,
+            vetraConfig: (config as ReactorPackageDevAgentConfig).vetraConfig,
             capabilities: [
                 'reactor-package-management',
                 'project-initialization',
@@ -77,7 +89,7 @@ export class ReactorPackageDevAgent extends AgentBase<ReactorPackageDevAgentConf
     
     constructor(config: ReactorPackageDevAgentConfig, logger: ILogger, brain?: IAgentBrain) {
         super(config, logger, brain);
-        this.projectsDir = config.reactorPackages.projectsDir;
+        this.projectsDir = (config as ReactorPackageDevAgentConfig).reactorPackages.projectsDir;
         
         // Initialize executors
         this.cliExecutor = new CLIExecutor({

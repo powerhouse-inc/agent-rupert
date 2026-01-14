@@ -14,7 +14,8 @@ Migrate existing agents (CreativeWriterAgent, PowerhouseArchitectAgent, ReactorP
 ## Tasks
 
 ### 1. Migrate CreativeWriterAgent
-- [ ] Change to extend `ClaudeAgentBase<CreativeWriterConfig>`
+- [ ] Change to extend `ClaudeAgentBase`
+- [ ] Cast config internally as `CreativeWriterConfig`
 - [ ] Remove static `getBrainConfig()` method
 - [ ] Implement `createBrain()` method
 - [ ] Override `registerTools()` if needed
@@ -25,7 +26,11 @@ Migrate existing agents (CreativeWriterAgent, PowerhouseArchitectAgent, ReactorP
 - `src/agents/CreativeWriterAgent/CreativeWriterAgent.ts`
 
 ```typescript
-export class CreativeWriterAgent extends ClaudeAgentBase<CreativeWriterConfig> {
+export class CreativeWriterAgent extends ClaudeAgentBase {
+  protected getConfig(): CreativeWriterConfig {
+    return this.config as CreativeWriterConfig;
+  }
+  
   protected createBrain(config: BrainConfig): AgentClaudeBrain {
     return new AgentClaudeBrain({
       apiKey: config.apiKey,
@@ -42,7 +47,8 @@ export class CreativeWriterAgent extends ClaudeAgentBase<CreativeWriterConfig> {
 ```
 
 ### 2. Migrate PowerhouseArchitectAgent
-- [ ] Change to extend `ClaudeAgentBase<PowerhouseArchitectConfig>`
+- [ ] Change to extend `ClaudeAgentBase`
+- [ ] Cast config internally as `PowerhouseArchitectConfig`
 - [ ] Remove static `getBrainConfig()` method
 - [ ] Implement `createBrain()` method
 - [ ] Override `registerTools()` if needed
@@ -53,7 +59,11 @@ export class CreativeWriterAgent extends ClaudeAgentBase<CreativeWriterConfig> {
 - `src/agents/PowerhouseArchitectAgent/PowerhouseArchitectAgent.ts`
 
 ```typescript
-export class PowerhouseArchitectAgent extends ClaudeAgentBase<PowerhouseArchitectConfig> {
+export class PowerhouseArchitectAgent extends ClaudeAgentBase {
+  protected getConfig(): PowerhouseArchitectConfig {
+    return this.config as PowerhouseArchitectConfig;
+  }
+  
   protected createBrain(config: BrainConfig): AgentClaudeBrain {
     return new AgentClaudeBrain({
       apiKey: config.apiKey,
@@ -65,7 +75,8 @@ export class PowerhouseArchitectAgent extends ClaudeAgentBase<PowerhouseArchitec
 ```
 
 ### 3. Migrate ReactorPackageDevAgent
-- [ ] Change to extend `ClaudeAgentBase<ReactorPackageDevAgentConfig>`
+- [ ] Change to extend `ClaudeAgentBase`
+- [ ] Cast config internally as `ReactorPackageDevAgentConfig`
 - [ ] Remove static `getBrainConfig()` method
 - [ ] Implement `createBrain()` method
 - [ ] Override `registerTools()` to add Reactor tools
@@ -76,8 +87,12 @@ export class PowerhouseArchitectAgent extends ClaudeAgentBase<PowerhouseArchitec
 - `src/agents/ReactorPackageDevAgent/ReactorPackageDevAgent.ts`
 
 ```typescript
-export class ReactorPackageDevAgent extends ClaudeAgentBase<ReactorPackageDevAgentConfig> {
+export class ReactorPackageDevAgent extends ClaudeAgentBase {
   private packagesManager: ReactorPackagesManager;
+  
+  protected getConfig(): ReactorPackageDevAgentConfig {
+    return this.config as ReactorPackageDevAgentConfig;
+  }
   
   protected createBrain(config: BrainConfig): AgentClaudeBrain {
     return new AgentClaudeBrain({

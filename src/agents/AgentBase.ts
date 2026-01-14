@@ -61,22 +61,30 @@ export type { BaseAgentConfig } from '../types.js';
  *          - A goal can be moved from TODO to DELEGATED
  *      
  */
-export abstract class AgentBase<TConfig extends BaseAgentConfig = BaseAgentConfig> {
+export abstract class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
     protected reactor?: ReactorInstance;
-    protected config: TConfig;
+    protected config: BaseAgentConfig;
     protected logger: ILogger;
-    protected brain?: IAgentBrain;
+    protected brain?: TBrain;
     
     /**
      * Get the brain configuration for this agent type
      * @param apiKey Optional Anthropic API key
      * @returns BrainConfig or null if no brain is needed
+     * @deprecated Use createBrain() instance method instead
      */
     static getBrainConfig(apiKey?: string): BrainConfig | null {
         // Default implementation returns null (no brain)
         // Subclasses should override this to provide their specific configuration
         return null;
     }
+    
+    /**
+     * Create the brain for this agent
+     * @param config Brain configuration
+     * @returns Brain instance or null if no brain is needed
+     */
+    protected abstract createBrain(config: BrainConfig): TBrain | null;
     
     /**
      * Get the prompt template paths for this agent type
@@ -117,7 +125,7 @@ export abstract class AgentBase<TConfig extends BaseAgentConfig = BaseAgentConfi
         };
     }
     
-    constructor(config: TConfig, logger: ILogger, brain?: IAgentBrain) {
+    constructor(config: BaseAgentConfig, logger: ILogger, brain?: TBrain) {
         this.config = config;
         this.logger = logger;
         this.brain = brain;
@@ -261,6 +269,23 @@ export abstract class AgentBase<TConfig extends BaseAgentConfig = BaseAgentConfi
         } else {
             this.logger.info(`${this.config.name}: Using in-memory storage`);
             return new MemoryStorage();
+        }
+    }
+    
+    /**
+     * Initialize the agent's brain if configuration is provided
+     */
+    protected initializeBrain(brainConfig?: BrainConfig): void {
+        if (!brainConfig) {
+            this.logger.debug(`${this.config.name}: No brain config provided, skipping brain initialization`);
+            return;
+        }
+        
+        const brain = this.createBrain(brainConfig);
+        if (brain) {
+            this.brain = brain;
+            this.brain.setLogger(this.logger);
+            this.logger.info(`${this.config.name}: Brain initialized`);
         }
     }
     

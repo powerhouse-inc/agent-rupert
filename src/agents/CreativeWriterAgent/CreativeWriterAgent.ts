@@ -12,7 +12,18 @@ export interface CreativeWriterConfig extends BaseAgentConfig {
  * story creation, character development, and dialogue writing.
  * It can work in different genres based on configuration.
  */
-export class CreativeWriterAgent extends AgentBase<CreativeWriterConfig> {
+export class CreativeWriterAgent extends AgentBase<IAgentBrain> {
+    protected getConfig(): CreativeWriterConfig {
+        return this.config as CreativeWriterConfig;
+    }
+    
+    /**
+     * Create the brain for this agent
+     */
+    protected createBrain(config: BrainConfig): IAgentBrain | null {
+        // For now, return null - will be implemented when migrating to ClaudeAgentBase
+        return null;
+    }
     
     /**
      * Get the brain configuration for CreativeWriterAgent
@@ -41,7 +52,7 @@ export class CreativeWriterAgent extends AgentBase<CreativeWriterConfig> {
      * Build the prompt context for CreativeWriterAgent
      */
     static buildPromptContext(
-        config: CreativeWriterConfig,
+        config: BaseAgentConfig,
         serverPort: number,
         mcpServers: string[] = []
     ): AgentBrainPromptContext {
@@ -50,13 +61,13 @@ export class CreativeWriterAgent extends AgentBase<CreativeWriterConfig> {
         return {
             ...baseContext,
             agentType: 'CreativeWriterAgent',
-            genre: config.genre,  // Add genre as a direct property
+            genre: (config as CreativeWriterConfig).genre,  // Add genre as a direct property
             capabilities: [
                 'creative-writing',
                 'story-creation',
                 'character-development',
                 'dialogue-writing',
-                `genre-${config.genre}`
+                `genre-${(config as CreativeWriterConfig).genre}`
             ]
         };
     }
@@ -69,7 +80,7 @@ export class CreativeWriterAgent extends AgentBase<CreativeWriterConfig> {
      * Get the current genre setting
      */
     public getGenre(): string {
-        return this.config.genre;
+        return this.getConfig().genre;
     }
     
     /**
@@ -80,7 +91,7 @@ export class CreativeWriterAgent extends AgentBase<CreativeWriterConfig> {
             throw new Error('Brain not initialized or does not support sendMessage');
         }
         
-        const genreContext = `Write in the ${this.config.genre} genre.`;
+        const genreContext = `Write in the ${this.getConfig().genre} genre.`;
         const fullPrompt = `${genreContext}\n\n${prompt}`;
         
         const result = await this.brain.sendMessage(fullPrompt);

@@ -1,4 +1,4 @@
-import { AgentBase, type ILogger } from "../AgentBase.js";
+import { AgentBase, type ILogger, type BaseAgentConfig } from "../AgentBase.js";
 import type { PowerhouseArchitectAgentConfig } from "../../types.js";
 import type { IAgentBrain } from "../IAgentBrain.js";
 import { BrainType, type BrainConfig } from "../BrainFactory.js";
@@ -9,7 +9,18 @@ import type { AgentBrainPromptContext } from "../../types/prompt-context.js";
  *  documents, and it delegates tasks to its ReactorPackageAgent and in the future others,
  *  to develop and roll out Powerhouse-based cloud platforms. 
  */
-export class PowerhouseArchitectAgent extends AgentBase<PowerhouseArchitectAgentConfig> {
+export class PowerhouseArchitectAgent extends AgentBase<IAgentBrain> {
+    protected getConfig(): PowerhouseArchitectAgentConfig {
+        return this.config as PowerhouseArchitectAgentConfig;
+    }
+    
+    /**
+     * Create the brain for this agent
+     */
+    protected createBrain(config: BrainConfig): IAgentBrain | null {
+        // For now, return null - will be implemented when migrating to ClaudeAgentBase
+        return null;
+    }
     
     /**
      * Get the brain configuration for PowerhouseArchitectAgent
@@ -39,7 +50,7 @@ export class PowerhouseArchitectAgent extends AgentBase<PowerhouseArchitectAgent
      * Build the prompt context for PowerhouseArchitectAgent
      */
     static buildPromptContext(
-        config: PowerhouseArchitectAgentConfig,
+        config: BaseAgentConfig,
         serverPort: number,
         mcpServers: string[] = []
     ): AgentBrainPromptContext {
