@@ -452,7 +452,7 @@ export abstract class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
     /**
      * List all registered MCP endpoints
      */
-    public listMcpEndpoints(): { name: string; type: string }[] {
+    public listMcpEndpoints(): { name: string; type: string; url?: string }[] {
         if (!this.brain || !(this.brain instanceof AgentClaudeBrain)) {
             return [];
         }
@@ -462,10 +462,17 @@ export abstract class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
         
         return serverNames.map(name => {
             const server = brain.getMcpServer(name);
-            return {
+            const endpoint: { name: string; type: string; url?: string } = {
                 name,
                 type: server?.type || 'unknown'
             };
+            
+            // Include URL for HTTP-type endpoints
+            if (server?.type === 'http' && server?.url) {
+                endpoint.url = server.url;
+            }
+            
+            return endpoint;
         });
     }
     

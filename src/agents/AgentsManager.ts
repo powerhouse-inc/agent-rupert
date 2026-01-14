@@ -214,10 +214,13 @@ export class AgentsManager {
                 initialized: this.reactorPackageAgent !== undefined
             };
             
-            // Add skills if the agent is initialized
+            // Add skills and MCP endpoints if the agent is initialized
             if (this.reactorPackageAgent) {
                 const skills = this.reactorPackageAgent.getSkills();
                 agentInfo.skills = skills.map(s => s.name);
+                
+                const mcpEndpoints = this.reactorPackageAgent.listMcpEndpoints();
+                agentInfo.mcpEndpoints = mcpEndpoints;
             }
             
             if (reactorConfig?.workDrive) {
@@ -242,10 +245,13 @@ export class AgentsManager {
                 initialized: this.architectAgent !== undefined
             };
             
-            // Add skills if the agent is initialized
+            // Add skills and MCP endpoints if the agent is initialized
             if (this.architectAgent) {
                 const skills = this.architectAgent.getSkills();
                 agentInfo.skills = skills.map(s => s.name);
+                
+                const mcpEndpoints = this.architectAgent.listMcpEndpoints();
+                agentInfo.mcpEndpoints = mcpEndpoints;
             }
             
             if (architectConfig?.workDrive) {

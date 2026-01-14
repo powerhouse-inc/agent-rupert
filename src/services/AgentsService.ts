@@ -23,6 +23,11 @@ export interface CommonAgentInfo {
     initialized: boolean;
     error?: string;
     skills?: string[];  // List of skill names this agent has access to
+    mcpEndpoints?: Array<{ 
+        name: string; 
+        type: string;
+        url?: string;  // URL for HTTP-type endpoints
+    }>;  // List of MCP endpoints registered with the agent
     managerDrive?: {
         url: string | null;
         documents: {
