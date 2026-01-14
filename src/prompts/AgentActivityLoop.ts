@@ -88,20 +88,23 @@ export class AgentActivityLoop {
   }
 
   /**
-   * Process all tasks in the scenario
+   * Process all tasks in the scenario with optional context
    */
-  async processScenario(scenario: PromptScenario): Promise<ProgressReport> {
+  async processScenario<TContext = any>(
+    scenario: PromptScenario, 
+    context: TContext = {} as TContext
+  ): Promise<ProgressReport> {
     await this.initialize(scenario);
     
-    // Send preamble if exists - starts a new session
+    // Send preamble if exists - starts a new session with context
     if (scenario.preamble) {
-      const result = await this.agent.sendMessage(scenario.preamble(), this.sessionId);
+      const result = await this.agent.sendMessage(scenario.preamble(context), this.sessionId);
       this.sessionId = result.sessionId;  // Capture session ID for subsequent tasks
     }
     
-    // Process each task sequentially
+    // Process each task sequentially with context
     for (const task of scenario.tasks) {
-      const result = await this.processTask(task);
+      const result = await this.processTask(task, context);
       
       if (result.state === TaskExecutionState.FAILED && !this.shouldContinueOnFailure()) {
         break;
@@ -114,9 +117,12 @@ export class AgentActivityLoop {
   }
 
   /**
-   * Process a single task
+   * Process a single task with optional context
    */
-  async processTask(task: ScenarioTask): Promise<TaskExecutionResult> {
+  async processTask<TContext = any>(
+    task: ScenarioTask, 
+    context: TContext = {} as TContext
+  ): Promise<TaskExecutionResult> {
     this.currentTask = task;
     this.currentTaskStartTime = new Date();
     this.setState(TaskExecutionState.EXECUTING);
@@ -138,7 +144,7 @@ export class AgentActivityLoop {
       result.attempts = attempt;
       
       try {
-        const taskResult = await this.executeTaskWithTimeout(task);
+        const taskResult = await this.executeTaskWithTimeout(task, context);
         
         if (taskResult.isComplete) {
           result.state = TaskExecutionState.COMPLETED;
@@ -180,14 +186,17 @@ export class AgentActivityLoop {
   /**
    * Execute a task with timeout
    */
-  private async executeTaskWithTimeout(task: ScenarioTask): Promise<TaskStatus> {
+  private async executeTaskWithTimeout<TContext = any>(
+    task: ScenarioTask,
+    context: TContext
+  ): Promise<TaskStatus> {
     return new Promise<TaskStatus>(async (resolve, reject) => {
       const timeout = setTimeout(() => {
         reject(new Error(`Task ${task.id} timed out after ${this.config.taskTimeout}ms`));
       }, this.config.taskTimeout);
       
       try {
-        const status = await this.executeTask(task);
+        const status = await this.executeTask(task, context);
         clearTimeout(timeout);
         resolve(status);
       } catch (error) {
@@ -200,9 +209,12 @@ export class AgentActivityLoop {
   /**
    * Execute a task and monitor for completion
    */
-  private async executeTask(task: ScenarioTask): Promise<TaskStatus> {
+  private async executeTask<TContext = any>(
+    task: ScenarioTask,
+    context: TContext
+  ): Promise<TaskStatus> {
     // Build and send task prompt - use existing session to maintain conversation context
-    const taskPrompt = this.buildTaskPrompt(task);
+    const taskPrompt = this.buildTaskPrompt(task, context);
     const result = await this.agent.sendMessage(taskPrompt, this.sessionId);
     
     // Update session ID (in case it changed)
@@ -270,10 +282,10 @@ Respond directly with the content requested. Do not use any tools.`;
   /**
    * Build task prompt
    */
-  private buildTaskPrompt(task: ScenarioTask): string {
+  private buildTaskPrompt<TContext = any>(task: ScenarioTask, context: TContext): string {
     return `## Task ${task.id}: ${task.title}
 
-${task.content()}
+${task.content(context)}
 
 REMEMBER: Do NOT use any tools. Respond directly with the requested content as plain text or markdown.
 Please complete this task by providing your response directly and indicate when you are finished.`;

@@ -52,22 +52,30 @@ describe('AgentActivityLoop', () => {
     testScenario = {
       id: 'TEST.01',
       title: 'Test Scenario',
-      preamble: () => 'This is a test scenario',
+      preamble: (context?: any) => context?.character 
+        ? `This is a test scenario about ${context.character}` 
+        : 'This is a test scenario',
       tasks: [
         {
           id: 'TEST.01.1',
           title: 'First task',
-          content: () => 'Complete the first task'
+          content: (context?: any) => context?.character 
+            ? `Complete the first task for ${context.character}` 
+            : 'Complete the first task'
         },
         {
           id: 'TEST.01.2',
           title: 'Second task',
-          content: () => 'Complete the second task'
+          content: (context?: any) => context?.character
+            ? `Complete the second task featuring ${context.character}`
+            : 'Complete the second task'
         },
         {
           id: 'TEST.01.3',
           title: 'Third task',
-          content: () => 'Complete the third task'
+          content: (context?: any) => context?.character
+            ? `Complete the third task with ${context.character} as the protagonist`
+            : 'Complete the third task'
         }
       ]
     };
@@ -248,6 +256,41 @@ describe('AgentActivityLoop', () => {
       expect(report.estimatedCompletion).toBeInstanceOf(Date);
     });
 
+  });
+
+  describe('context support', () => {
+    it('should pass context to preamble and tasks', async () => {
+      const context = { character: 'Al Dente' };
+      
+      // Capture messages sent to agent
+      const capturedMessages: string[] = [];
+      mockAgent.sendMessage
+        .mockImplementation(async (message: string) => {
+          capturedMessages.push(message);
+          return { response: 'Task completed', sessionId: 'test-session-1' };
+        });
+
+      const report = await loop.processScenario(testScenario, context);
+
+      // Check that preamble included the character
+      expect(capturedMessages[0]).toBe('This is a test scenario about Al Dente');
+      
+      // Check that tasks included the character
+      expect(capturedMessages[1]).toContain('Complete the first task for Al Dente');
+      expect(capturedMessages[2]).toContain('Complete the second task featuring Al Dente');
+      expect(capturedMessages[3]).toContain('Complete the third task with Al Dente as the protagonist');
+      
+      expect(report.completedTasks).toBe(3);
+    });
+
+    it('should work without context (backward compatibility)', async () => {
+      mockAgent.sendMessage.mockResolvedValue({ response: 'Task completed', sessionId: 'test-session-1' });
+
+      const report = await loop.processScenario(testScenario);
+
+      expect(mockAgent.sendMessage).toHaveBeenCalledWith('This is a test scenario', undefined);
+      expect(report.completedTasks).toBe(3);
+    });
   });
 
   describe('checkpoint management', () => {
