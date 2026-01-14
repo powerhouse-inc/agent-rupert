@@ -177,6 +177,22 @@ export class AgentClaudeBrain implements IAgentBrain {
     }
 
     /**
+     * Add an SDK MCP server (already created using createSdkMcpServer)
+     * These are SDK-native servers that don't need configuration
+     * @param name Unique name for the server
+     * @param server The SDK MCP server object
+     */
+    public addSdkMcpServer(name: string, server: any): void {
+        // Store SDK server directly - these will be passed to query options
+        // Use a special marker to differentiate from config-based servers
+        this.mcpServers.set(name, { type: 'sdk', server } as any);
+        
+        if (this.logger) {
+            this.logger.info(`   AgentClaudeBrain: Added SDK MCP server '${name}'`);
+        }
+    }
+
+    /**
      * Describe WBS operations in natural language using Agent SDK
      */
     async describeWbsOperations(operations: any[]): Promise<string> {
@@ -264,7 +280,14 @@ Reply to this prompt with a very short sentence summary of what you did.
         
         // Add all configured MCP servers
         for (const [name, config] of this.mcpServers) {
-            mcpServers[name] = config;
+            // Check if this is an SDK server (has type: 'sdk' and server property)
+            if ((config as any).type === 'sdk' && (config as any).server) {
+                // SDK servers are passed directly
+                mcpServers[name] = (config as any).server;
+            } else {
+                // Regular config-based servers
+                mcpServers[name] = config;
+            }
         }
 
         // Ensure working directory exists

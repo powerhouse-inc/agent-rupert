@@ -6,6 +6,8 @@ import type { ReactorPackageDevAgentConfig } from "../../types.js";
 import type { IAgentBrain } from "../IAgentBrain.js";
 import { BrainType, type BrainConfig } from "../BrainFactory.js";
 import type { AgentBrainPromptContext } from "../../types/prompt-context.js";
+import { createReactorProjectsManagerMcpServer, getReactorMcpToolNames } from "../../tools/reactorMcpServer.js";
+import { AgentClaudeBrain } from "../AgentClaudeBrain.js";
 
 /**
  *  The ReactorPackageAgent uses ReactorPackagesManager with a number of associated tools
@@ -41,7 +43,8 @@ export class ReactorPackageDevAgent extends AgentBase<IAgentBrain> {
             workingDirectory: './agent-workspace/reactor-package',
             allowedTools: [
                 'Read', 'Write', 'Edit', 'Bash', 'Grep', 'Glob',
-                'mcp__agent-manager-drive__*'  // Allow all MCP tools from agent-manager-drive
+                'mcp__agent-manager-drive__*',  // Allow all MCP tools from agent-manager-drive
+                ...getReactorMcpToolNames()  // Include all ReactorProjectsManager tools
             ],
             fileSystemPaths: {
                 allowedReadPaths: [process.cwd()],
@@ -116,6 +119,14 @@ export class ReactorPackageDevAgent extends AgentBase<IAgentBrain> {
         );
 
         this.logger.info(`${this.config.name}: ReactorPackagesManager created successfully`);
+        
+        // Create and register MCP server if we have a Claude brain
+        if (this.brain && this.brain instanceof AgentClaudeBrain) {
+            this.logger.info(`${this.config.name}: Creating ReactorProjectsManager MCP server`);
+            const reactorServer = createReactorProjectsManagerMcpServer(this.packagesManager, this.logger);
+            (this.brain as AgentClaudeBrain).addSdkMcpServer('reactor_prjmgr', reactorServer);
+            this.logger.info(`${this.config.name}: ReactorProjectsManager MCP server registered`);
+        }
     }
     
     public async shutdown(): Promise<void> {
