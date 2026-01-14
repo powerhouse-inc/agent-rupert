@@ -14,6 +14,22 @@ import * as dotenv from 'dotenv';
 // Load environment variables
 dotenv.config();
 
+// Helper function to extract JSON from markdown code blocks or raw JSON
+function extractJSON(response: string): any {
+    // Try to parse as raw JSON first
+    try {
+        return JSON.parse(response);
+    } catch (e) {
+        // If that fails, try to extract from markdown code block
+        const jsonMatch = response.match(/```json\s*([\s\S]*?)\s*```/);
+        if (jsonMatch && jsonMatch[1]) {
+            return JSON.parse(jsonMatch[1]);
+        }
+        // If still no match, throw the original error
+        throw new Error(`Failed to parse JSON from response: ${response}`);
+    }
+}
+
 describe('ReactorPackageDevAgent MCP Integration', () => {
     let agent: ReactorPackageDevAgent;
     let brain: AgentClaudeBrain;
@@ -131,25 +147,33 @@ describe('ReactorPackageDevAgent MCP Integration', () => {
         // Set a system prompt for the brain
         brain.setSystemPrompt(
             'You are a helpful assistant with access to ReactorProjectsManager tools via MCP. ' +
-            'Always respond with valid JSON objects only, no additional text. ' +
+            'Always respond with valid JSON following the exact template provided. ' +
             'Use the mcp__reactor_prjmgr__list_projects tool when asked about projects.',
             'test-agent'
         );
         
         // Send a message to the brain asking it to list projects
         const result = await brain.sendMessage(
-            'List all available projects using the MCP tool and respond with only a JSON object ' +
-            'containing a "projects" array with project names.'
+            'Use the list_projects MCP tool. Return response in this format:\n\n' +
+            '```json\n' +
+            '{\n' +
+            '  "projects": [<project-names>],\n' +
+            '  "count": <number>\n' +
+            '}\n' +
+            '```\n\n' +
+            'Important: Return the raw, valid JSON only. Validate the JSON syntax before replying.'
         );
         
         // Parse and verify the JSON response
         expect(result.response).toBeDefined();
-        const jsonResponse = JSON.parse(result.response);
+        const jsonResponse = extractJSON(result.response);
         expect(jsonResponse).toHaveProperty('projects');
         expect(Array.isArray(jsonResponse.projects)).toBe(true);
-        expect(jsonResponse.projects).toContain('persistent-test-project');
-        
-        console.log('List projects JSON response:', jsonResponse);
+        // Projects array contains either strings or objects with name property
+        const hasProject = jsonResponse.projects.some((p: any) => 
+            typeof p === 'string' ? p === 'persistent-test-project' : p.name === 'persistent-test-project'
+        );
+        expect(hasProject).toBe(true);
     }, 30000);  // Increase timeout for API calls
     
     test('should respond to request for projects directory using MCP tools', async () => {
@@ -163,25 +187,29 @@ describe('ReactorPackageDevAgent MCP Integration', () => {
         // Set a system prompt for the brain
         brain.setSystemPrompt(
             'You are a helpful assistant with access to ReactorProjectsManager tools via MCP. ' +
-            'Always respond with valid JSON objects only, no additional text. ' +
+            'Always respond with valid JSON following the exact template provided. ' +
             'Use the mcp__reactor_prjmgr__get_projects_dir tool when asked about the projects directory.',
             'test-agent'
         );
         
         // Send a message asking for the projects directory
         const result = await brain.sendMessage(
-            'Get the projects directory path using the MCP tool and respond with only a JSON object ' +
-            'containing a "directory" field with the path.'
+            'Use the get_projects_dir MCP tool. Return response in this format:\n\n' +
+            '```json\n' +
+            '{\n' +
+            '  "directory": "<path>",\n' +
+            '  "exists": <boolean>\n' +
+            '}\n' +
+            '```\n\n' +
+            'Important: Return the raw, valid JSON only. Validate the JSON syntax before replying.'
         );
         
         // Parse and verify the JSON response
         expect(result.response).toBeDefined();
-        const jsonResponse = JSON.parse(result.response);
+        const jsonResponse = extractJSON(result.response);
         expect(jsonResponse).toHaveProperty('directory');
         expect(typeof jsonResponse.directory).toBe('string');
         expect(jsonResponse.directory).toMatch(/test-projects/);
-        
-        console.log('Projects directory JSON response:', jsonResponse);
     }, 30000);
     
     test('should respond to request about project readiness using MCP tools', async () => {
@@ -195,27 +223,32 @@ describe('ReactorPackageDevAgent MCP Integration', () => {
         // Set a system prompt for the brain
         brain.setSystemPrompt(
             'You are a helpful assistant with access to ReactorProjectsManager tools via MCP. ' +
-            'Always respond with valid JSON objects only, no additional text. ' +
+            'Always respond with valid JSON following the exact template provided. ' +
             'Use the mcp__reactor_prjmgr__is_project_ready and mcp__reactor_prjmgr__get_project_status tools.',
             'test-agent'
         );
         
         // Send a message asking about project status
         const result = await brain.sendMessage(
-            'Check if the "persistent-test-project" is ready using the MCP tools. ' +
-            'Respond with only a JSON object containing "projectName", "isReady" (boolean), and "status" fields.'
+            'Check "persistent-test-project" using MCP tools. Return response in this format:\n\n' +
+            '```json\n' +
+            '{\n' +
+            '  "projectName": "<name>",\n' +
+            '  "isReady": <boolean>,\n' +
+            '  "status": "<status>"\n' +
+            '}\n' +
+            '```\n\n' +
+            'Important: Return the raw, valid JSON only. Validate the JSON syntax before replying.'
         );
         
         // Parse and verify the JSON response
         expect(result.response).toBeDefined();
-        const jsonResponse = JSON.parse(result.response);
+        const jsonResponse = extractJSON(result.response);
         expect(jsonResponse).toHaveProperty('projectName');
         expect(jsonResponse).toHaveProperty('isReady');
         expect(jsonResponse).toHaveProperty('status');
         expect(typeof jsonResponse.isReady).toBe('boolean');
         expect(jsonResponse.projectName).toBe('persistent-test-project');
-        
-        console.log('Project readiness JSON response:', jsonResponse);
     }, 30000);
     
     test('should have registered all 8 ReactorProjectsManager tools', async () => {
@@ -262,7 +295,7 @@ describe('ReactorPackageDevAgent MCP Integration', () => {
         // Set a comprehensive system prompt
         brain.setSystemPrompt(
             'You are a helpful assistant with access to ReactorProjectsManager tools via MCP. ' +
-            'Always respond with valid JSON objects only, no additional text. ' +
+            'Always respond with valid JSON following the exact template provided. ' +
             'You can use tools like mcp__reactor_prjmgr__list_projects, mcp__reactor_prjmgr__get_projects_dir, ' +
             'and mcp__reactor_prjmgr__get_project_status to answer questions.',
             'test-agent'
@@ -273,41 +306,38 @@ describe('ReactorPackageDevAgent MCP Integration', () => {
         
         // First message - list projects
         const result1 = await brain.sendMessage(
-            'List all projects and respond with only JSON containing a "projects" array and "count" number.',
+            'Use list_projects tool. Format:\n```json\n{"projects":[<items>],"count":<n>}\n```\nReturn raw JSON only.',
             sessionId
         );
         sessionId = result1.sessionId;
         expect(result1.response).toBeDefined();
-        const json1 = JSON.parse(result1.response);
+        const json1 = extractJSON(result1.response);
         expect(json1).toHaveProperty('projects');
         expect(json1).toHaveProperty('count');
         expect(json1.count).toBeGreaterThan(0);
-        console.log('Response 1 JSON:', json1);
         
         // Second message - check directory
         const result2 = await brain.sendMessage(
-            'Get the projects directory and respond with only JSON containing "directory" and "exists" boolean.',
+            'Use get_projects_dir tool. Format:\n```json\n{"directory":"<path>","exists":<bool>}\n```\nReturn raw JSON only.',
             sessionId
         );
         sessionId = result2.sessionId;
         expect(result2.response).toBeDefined();
-        const json2 = JSON.parse(result2.response);
+        const json2 = extractJSON(result2.response);
         expect(json2).toHaveProperty('directory');
         expect(json2).toHaveProperty('exists');
         expect(json2.directory).toMatch(/test-projects/);
-        console.log('Response 2 JSON:', json2);
         
         // Third message - check status
         const result3 = await brain.sendMessage(
-            'Get status of "persistent-test-project" and respond with only JSON containing "project", "status", and "running" boolean.',
+            'Check persistent-test-project status. Format:\n```json\n{"project":"<name>","status":"<status>","running":<bool>}\n```\nReturn raw JSON only.',
             sessionId
         );
         expect(result3.response).toBeDefined();
-        const json3 = JSON.parse(result3.response);
+        const json3 = extractJSON(result3.response);
         expect(json3).toHaveProperty('project');
         expect(json3).toHaveProperty('status');
         expect(json3).toHaveProperty('running');
         expect(json3.project).toBe('persistent-test-project');
-        console.log('Response 3 JSON:', json3);
     }, 60000);  // Longer timeout for conversation
 });

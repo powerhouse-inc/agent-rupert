@@ -52,14 +52,6 @@ export function createReactorProjectsManagerMcpServer(
         tools: tools
     });
     
-    // Log what the SDK server returns for debugging
-    console.log('Created SDK MCP Server:', {
-        type: typeof server,
-        keys: server ? Object.keys(server) : 'null',
-        name: (server as any)?.name,
-        hasTools: !!(server as any)?.tools
-    });
-    
     return server;
 }
 

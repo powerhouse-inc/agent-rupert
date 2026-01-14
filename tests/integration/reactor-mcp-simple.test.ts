@@ -20,9 +20,9 @@ describe('ReactorPackageDevAgent MCP Simple Test', () => {
         // Create a simple logger
         logger = {
             debug: () => {},
-            info: console.log,
-            warn: console.warn,
-            error: console.error
+            info: () => {},
+            warn: () => {},
+            error: () => {}
         };
         
         // Use the actual test-projects directory
@@ -90,7 +90,6 @@ describe('ReactorPackageDevAgent MCP Simple Test', () => {
         // Get the registered server
         const server = brain.getMcpServer('reactor_prjmgr');
         expect(server).toBeDefined();
-        console.log('Registered MCP server:', server);
     });
     
     test('should have ReactorPackagesManager with correct directory', async () => {
