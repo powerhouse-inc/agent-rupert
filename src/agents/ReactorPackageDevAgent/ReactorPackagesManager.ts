@@ -84,16 +84,24 @@ interface VetraRuntimeParams {
     mcpServer: string | null;
 }
 
+export interface VetraConfig {
+    connectPort: number;
+    switchboardPort: number;
+    startupTimeout: number;
+}
+
 export class ReactorPackagesManager {
     private readonly projectsDir: string;
     private readonly cliExecutor: CLIExecutor;
     private readonly serviceExecutor: ServiceExecutor;
+    private readonly vetraConfig: VetraConfig;
     private runningProject: RunningProject | null = null;
 
     constructor(
         projectsDir: string = '../projects',
         cliExecutor?: CLIExecutor,
-        serviceExecutor?: ServiceExecutor
+        serviceExecutor?: ServiceExecutor,
+        vetraConfig?: VetraConfig
     ) {
         // Resolve the projects directory relative to the current working directory
         this.projectsDir = path.resolve(process.cwd(), projectsDir);
@@ -106,6 +114,12 @@ export class ReactorPackagesManager {
             maxLogSize: 500,
             defaultGracefulShutdownTimeout: 10000
         });
+        // Store vetraConfig with defaults if not provided
+        this.vetraConfig = vetraConfig || {
+            connectPort: 3000,
+            switchboardPort: 4001,
+            startupTimeout: 240000
+        };
     }
 
     /**
@@ -289,11 +303,11 @@ export class ReactorPackagesManager {
     }
 
     async runProject(projectName: string, options?: RunProjectOptions): Promise<RunProjectResult> {
-        // Set defaults for options
+        // Set defaults for options using vetraConfig
         const effectiveOptions: RunProjectOptions = {
-            connectPort: options?.connectPort || 3000,
-            switchboardPort: options?.switchboardPort || 4001,  // Safe default port
-            startupTimeout: options?.startupTimeout || 240000 // Default 240 seconds
+            connectPort: options?.connectPort || this.vetraConfig.connectPort,
+            switchboardPort: options?.switchboardPort || this.vetraConfig.switchboardPort,
+            startupTimeout: options?.startupTimeout || this.vetraConfig.startupTimeout
         };
         // Check if a project is already running
         if (this.runningProject) {

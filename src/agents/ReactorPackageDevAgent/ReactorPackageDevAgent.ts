@@ -115,7 +115,8 @@ export class ReactorPackageDevAgent extends AgentBase<IAgentBrain> {
         this.packagesManager = new ReactorPackagesManager(
             this.projectsDir,
             this.cliExecutor,
-            this.serviceExecutor
+            this.serviceExecutor,
+            this.getConfig().vetraConfig
         );
 
         this.logger.info(`${this.config.name}: ReactorPackagesManager created successfully`);
