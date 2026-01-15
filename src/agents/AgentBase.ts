@@ -11,7 +11,9 @@ import type { IAgentBrain } from './IAgentBrain.js';
 import type { BrainConfig } from './BrainFactory.js';
 import type { AgentBrainPromptContext } from '../types/prompt-context.js';
 import type { SkillInfo, ScenarioInfo } from '../prompts/types.js';
-import { SkillsRepository } from '../prompts/SkillsRepository.js';
+import { PromptDriver, type SkillExecutionResult, type ScenarioExecutionResult, type TaskResponse } from '../prompts/PromptDriver.js';
+import { SequentialSkillFlow } from '../prompts/flows/SequentialSkillFlow.js';
+import { SequentialScenarioFlow } from '../prompts/flows/SequentialScenarioFlow.js';
 import { AgentClaudeBrain } from './AgentClaudeBrain.js';
 import { createSelfReflectionMcpServer } from '../tools/selfReflectionMcpServer.js';
 
@@ -72,7 +74,7 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
     protected config: BaseAgentConfig;
     protected logger: ILogger;
     protected brain?: TBrain;
-    protected skills: SkillInfo[];
+    protected promptDriver?: PromptDriver;
     protected documents: {
         inbox: AgentInboxDocument | null;
         wbs: WorkBreakdownStructureDocument | null;
@@ -144,7 +146,6 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
         this.config = config;
         this.logger = logger;
         this.brain = brain;
-        this.skills = []; // Will be populated by subclasses
         
         // Set logger on brain if provided
         if (brain) {
@@ -291,9 +292,14 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
         this.logger.info(`${this.config.name}: Beginning initialization`);
         await this.initializeReactor();
         
-        // Load skills for this agent type
-        const skillNames = (this.constructor as typeof AgentBase).getDefaultSkillNames();
-        await this.loadSkills(skillNames);
+        // Initialize PromptDriver if brain is available
+        if (this.brain) {
+            this.promptDriver = new PromptDriver(this.brain, './build/prompts');
+            await this.promptDriver.initialize();
+            
+            const skillNames = (this.constructor as typeof AgentBase).getDefaultSkillNames();
+            this.logger.info(`${this.config.name}: PromptDriver initialized with skills: ${skillNames.join(', ')}`);
+        }
         
         // Register self-reflection MCP server if brain supports it
         if (this.brain && this.brain instanceof AgentClaudeBrain) {
@@ -329,17 +335,163 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
     }
     
     /**
+     * Execute a complete skill with all its scenarios
+     * @param skillName The name of the skill to execute
+     * @param context Optional context to pass to the skill templates
+     * @param options Execution options
+     * @returns Skill execution result with all scenario results
+     */
+    public async executeSkill<TContext = any>(
+        skillName: string,
+        context?: TContext,
+        options?: {
+            maxTurns?: number;
+            sessionId?: string;
+            sendSkillPreamble?: boolean;
+        }
+    ): Promise<SkillExecutionResult> {
+        if (!this.promptDriver) {
+            throw new Error('PromptDriver not initialized - agent needs a brain to execute skills');
+        }
+        
+        // Get scenarios for the skill with context
+        const scenarios = this.promptDriver.getRepository().getScenariosBySkill(skillName, context || {});
+        
+        // Create a sequential skill flow
+        const flow = new SequentialSkillFlow(skillName, scenarios);
+        
+        // Execute the skill using PromptDriver
+        return this.promptDriver.executeSkillFlow(
+            skillName,
+            flow,
+            context || {} as TContext,
+            options
+        );
+    }
+    
+    /**
+     * Execute a specific scenario within a skill
+     * @param skillName The name of the skill containing the scenario
+     * @param scenarioId The ID of the scenario to execute
+     * @param context Optional context to pass to the scenario templates
+     * @param options Execution options
+     * @returns Scenario execution result with all task responses
+     */
+    public async executeScenario<TContext = any>(
+        skillName: string,
+        scenarioId: string,
+        context?: TContext,
+        options?: {
+            maxTurns?: number;
+            sessionId?: string;
+        }
+    ): Promise<ScenarioExecutionResult> {
+        if (!this.promptDriver) {
+            throw new Error('PromptDriver not initialized - agent needs a brain to execute scenarios');
+        }
+        
+        // Build the scenario key
+        const scenarioKey = `${skillName}/${scenarioId}`;
+        
+        // Get the scenario from repository
+        const scenario = this.promptDriver.getRepository().getScenarioByKey(scenarioKey, context || {});
+        if (!scenario) {
+            throw new Error(`Scenario not found: ${scenarioKey}`);
+        }
+        
+        // Create a sequential scenario flow
+        const flow = new SequentialScenarioFlow(scenario);
+        
+        // Execute the scenario using PromptDriver
+        return this.promptDriver.executeScenarioFlow<TContext>(
+            scenarioKey,
+            flow,
+            context || {} as TContext,
+            options
+        );
+    }
+    
+    /**
+     * Execute a specific task within a scenario
+     * @param skillName The name of the skill containing the scenario
+     * @param scenarioId The ID of the scenario containing the task
+     * @param taskId The ID of the task to execute
+     * @param context Optional context to pass to the task template
+     * @param options Execution options
+     * @returns Task response with the result
+     */
+    public async executeTask<TContext = any>(
+        skillName: string,
+        scenarioId: string,
+        taskId: string,
+        context?: TContext,
+        options?: {
+            maxTurns?: number;
+            sessionId?: string;
+            captureSession?: boolean;
+        }
+    ): Promise<TaskResponse> {
+        if (!this.promptDriver) {
+            throw new Error('PromptDriver not initialized - agent needs a brain to execute tasks');
+        }
+        
+        // Build the scenario key
+        const scenarioKey = this.promptDriver.getRepository().generateScenarioKey(skillName, scenarioId);
+        
+        // Get the scenario from repository
+        const scenario = this.promptDriver.getRepository().getScenarioByKey(scenarioKey, context || {});
+        if (!scenario) {
+            throw new Error(`Scenario not found: ${scenarioKey}`);
+        }
+        
+        // Find the specific task
+        const task = scenario.tasks.find(t => t.id === taskId);
+        if (!task) {
+            throw new Error(`Task not found: ${taskId} in scenario ${scenarioKey}`);
+        }
+        
+        // Execute the single task using PromptDriver's message sending
+        return this.promptDriver.executeTask(
+            task,
+            {
+                maxTurns: options?.maxTurns || this.promptDriver.getMaxTurns(),
+                sessionId: options?.sessionId || undefined,
+                captureSession: options?.captureSession || undefined,
+            }
+        );
+    }
+    
+    /**
      * Get the skills available to this agent instance
      */
     public getSkills(): SkillInfo[] {
-        return this.skills;
+        if (!this.promptDriver) {
+            return [];
+        }
+        
+        // Get all skills from the repository
+        const repository = this.promptDriver.getRepository();
+        const skillNames = (this.constructor as typeof AgentBase).getDefaultSkillNames();
+        
+        const skills: SkillInfo[] = [];
+        for (const skillName of skillNames) {
+            const skillInfo = repository.getSkillInformation(skillName);
+            if (skillInfo) {
+                skills.push(skillInfo);
+            }
+        }
+        
+        return skills;
     }
     
     /**
      * Get detailed information about a specific skill
      */
     public getSkillDetails(skillName: string): SkillInfo | null {
-        return this.skills.find(s => s.name === skillName) || null;
+        if (!this.promptDriver) {
+            return null;
+        }
+        return this.promptDriver.getRepository().getSkillInformation(skillName) || null;
     }
     
     /**
@@ -357,8 +509,8 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
     public searchScenarios(query: string, skillName?: string): Array<{skill: string, scenario: ScenarioInfo, matchContext: string}> {
         const results: Array<{skill: string, scenario: ScenarioInfo, matchContext: string}> = [];
         const skillsToSearch = skillName 
-            ? this.skills.filter(s => s.name === skillName)
-            : this.skills;
+            ? this.getSkills().filter(s => s.name === skillName)
+            : this.getSkills();
         
         for (const skill of skillsToSearch) {
             for (const scenario of skill.scenarios) {
@@ -485,31 +637,6 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
         // This would need to be implemented in AgentClaudeBrain
         this.logger.warn(`${this.config.name}: MCP endpoint removal not yet implemented`);
         return false;
-    }
-    
-    /**
-     * Load skills for this agent instance from the prompt repository
-     */
-    protected async loadSkills(skillNames: string[]): Promise<void> {
-        try {
-            const repository = new SkillsRepository('./build/prompts');
-            await repository.loadSkills();
-            
-            this.skills = [];
-            for (const skillName of skillNames) {
-                const skillInfo = repository.getSkillInformation(skillName);
-                if (skillInfo) {
-                    this.skills.push(skillInfo);
-                } else {
-                    this.logger.warn(`${this.config.name}: Skill '${skillName}' not found in repository`);
-                }
-            }
-            
-            this.logger.info(`${this.config.name}: Loaded ${this.skills.length} skills: ${this.skills.map(s => s.name).join(', ')}`);
-        } catch (error) {
-            this.logger.error(`${this.config.name}: Failed to load skills:`, error);
-            this.skills = [];
-        }
     }
     
     /**

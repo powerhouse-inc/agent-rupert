@@ -63,6 +63,14 @@ export class PromptDriver {
     this.maxTurns = maxTurns;
   }
 
+  /**
+   * Get the maximum number of turns for message exchanges
+   * @returns Current maxTurns setting
+   */
+  getMaxTurns(): number {
+    return this.maxTurns;
+  }
+
   async sendSkillPreamble<TContext = any>(skill: string, context: TContext) {
     const skillPreamble = this.repository.getSkillPreamble(skill, context);
     if (skillPreamble && skillPreamble.trim().length > 0) {
@@ -418,7 +426,7 @@ Keep this overview in mind to proceed with one task at a time when you're instru
    * @param maxTurns Maximum number of turns for the message exchange
    * @returns The response from the agent
    */
-  private async sendMessage(
+  public async sendMessage(
     message: string,
     maxTurns: number = 5,
     captureSession: boolean = true,
