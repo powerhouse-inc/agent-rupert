@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { PromptDriver, ExecutionResult } from '../../../src/prompts/PromptDriver.js';
 import { IAgentBrain } from '../../../src/agents/IAgentBrain.js';
-import { SequentialScenarioFlow } from '../../../src/prompts/flows/SequentialFlow.js';
+import { SequentialScenarioFlow } from '../../../src/prompts/flows/SequentialScenarioFlow.js';
 
 // Mock agent brain
 class MockAgentBrain implements Partial<IAgentBrain> {

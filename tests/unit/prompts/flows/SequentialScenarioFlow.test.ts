@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from '@jest/globals';
-import { SequentialScenarioFlow } from '../../../../src/prompts/flows/SequentialFlow.js';
+import { SequentialScenarioFlow } from '../../../../src/prompts/flows/SequentialScenarioFlow.js';
 import { RenderedScenario } from '../../../../src/prompts/types.js';
 
 describe('SequentialFlow', () => {

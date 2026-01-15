@@ -2,7 +2,7 @@ import { IAgentBrain } from '../agents/IAgentBrain.js';
 import { SkillsRepository } from './SkillsRepository.js';
 import { RenderedScenario, RenderedScenarioTask } from './types.js';
 import type { IScenarioFlow } from './flows/IScenarioFlow.js';
-import { SequentialScenarioFlow } from './flows/SequentialFlow.js';
+import { SequentialScenarioFlow } from './flows/SequentialScenarioFlow.js';
 
 export interface ExecutionResult {
   scenarioId: string;

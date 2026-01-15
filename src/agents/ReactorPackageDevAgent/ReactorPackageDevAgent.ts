@@ -9,7 +9,7 @@ import type { AgentBrainPromptContext } from "../../types/prompt-context.js";
 import { createReactorProjectsManagerMcpServer, getReactorMcpToolNames } from "../../tools/reactorMcpServer.js";
 import { getSelfReflectionMcpToolNames } from "../../tools/selfReflectionMcpServer.js";
 import { AgentClaudeBrain } from "../AgentClaudeBrain.js";
-import { AgentSkillOrchestrator } from "../../prompts/AgentSkillApplication.js";
+import { AgentSkillOrchestrator } from "../../prompts/AgentSkillOrchestrator.js";
 import type { AgentInboxDocument } from "powerhouse-agent/document-models/agent-inbox";
 
 /**
