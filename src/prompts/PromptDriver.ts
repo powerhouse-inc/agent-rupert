@@ -2,9 +2,19 @@ import { IAgentBrain } from '../agents/IAgentBrain.js';
 import { SkillsRepository } from './SkillsRepository.js';
 import { RenderedScenario, RenderedScenarioTask } from './types.js';
 import type { IScenarioFlow } from './flows/IScenarioFlow.js';
+import type { ISkillFlow, ScenarioResult } from './flows/ISkillFlow.js';
 import { SequentialScenarioFlow } from './flows/SequentialScenarioFlow.js';
 
-export interface ExecutionResult {
+export interface SkillExecutionResult {
+  skill: string;
+  totalScenarios: number;
+  completedScenarios: number;
+  scenarioResults: ScenarioExecutionResult[];
+  success: boolean;
+  error?: Error;
+}
+
+export interface ScenarioExecutionResult {
   scenarioId: string;
   totalTasks: number;
   completedTasks: number;
@@ -28,11 +38,14 @@ export class PromptDriver {
 
   constructor(
     agent: IAgentBrain,
-    // replace with repository: SkillsRepository
-    repositoryPath: string = './build/prompts'
+    repositoryOrPath: SkillsRepository | string = './build/prompts'
   ) {
     this.agent = agent;
-    this.repository = new SkillsRepository(repositoryPath);
+    if (typeof repositoryOrPath === 'string') {
+      this.repository = new SkillsRepository(repositoryOrPath);
+    } else {
+      this.repository = repositoryOrPath;
+    }
   }
 
   /**
@@ -58,6 +71,136 @@ export class PromptDriver {
   }
 
   /**
+   * Execute a complete skill using the provided skill flow
+   * @param skill The skill name
+   * @param flow The skill flow to use for execution
+   * @param context Context object to pass to template functions (optional)
+   * @param options Optional execution options
+   * @returns SkillExecutionResult with results from all scenarios
+   */
+  async executeSkillFlow<TContext = any>(
+    skill: string,
+    flow: ISkillFlow,
+    context: TContext = {} as TContext,
+    options?: {
+      maxTurns?: number;
+      sessionId?: string;
+      sendSkillPreamble?: boolean;
+    }
+  ): Promise<SkillExecutionResult> {
+    // Use provided maxTurns or fallback to instance default
+    const maxTurns = options?.maxTurns ?? this.maxTurns;
+    
+    // Use provided sessionId if available
+    if (options?.sessionId) {
+      this.sessionId = options.sessionId;
+    }
+    
+    // Send skill preamble if requested (default: true)
+    const sendPreamble = options?.sendSkillPreamble ?? true;
+    if (sendPreamble) {
+      await this.sendSkillPreamble(skill, context);
+    }
+    
+    const scenarioResults: ScenarioExecutionResult[] = [];
+    let overallSuccess = true;
+    let overallError: Error | undefined;
+    
+    try {
+      // Reset the skill flow
+      flow.reset();
+      
+      // Process scenarios using the skill flow
+      let scenario = await flow.nextScenario();
+      
+      while (scenario !== null) {
+        try {
+          // Create a scenario flow for this scenario
+          const scenarioFlow = await flow.createScenarioFlow(scenario);
+          
+          // Build the scenario key
+          const scenarioKey = this.repository.generateScenarioKey(skill, scenario.id);
+          
+          // Execute the scenario using existing method
+          const scenarioResult = await this.executeScenarioFlow(
+            scenarioKey,
+            scenarioFlow,
+            context,
+            { maxTurns, sessionId: this.sessionId || undefined }
+          );
+          
+          scenarioResults.push(scenarioResult);
+          
+          // Report success to skill flow
+          const result: ScenarioResult = {
+            scenarioId: scenario.id,
+            success: true,
+            completedTasks: scenarioResult.completedTasks,
+            totalTasks: scenarioResult.totalTasks
+          };
+
+          await flow.reportScenarioResult(result);
+          
+        } catch (error) {
+          const scenarioError = error as Error;
+          
+          // Create a failed execution result
+          scenarioResults.push({
+            scenarioId: scenario.id,
+            totalTasks: scenario.tasks.length,
+            completedTasks: 0,
+            responses: []
+          });
+          
+          // Report failure to skill flow
+          const result: ScenarioResult = {
+            scenarioId: scenario.id,
+            success: false,
+            completedTasks: 0,
+            totalTasks: scenario.tasks.length,
+            error: scenarioError
+          };
+          await flow.reportScenarioResult(result);
+          
+          // Check if skill flow continues after error
+          if (flow.finished()) {
+            overallSuccess = false;
+            overallError = scenarioError;
+            break;
+          }
+        }
+        
+        // Get next scenario from flow
+        scenario = await flow.nextScenario();
+      }
+      
+      // Get final status from skill flow
+      const finalStatus = flow.status();
+      if (finalStatus.error) {
+        overallSuccess = false;
+        overallError = finalStatus.error;
+      }
+      
+    } catch (error) {
+      overallSuccess = false;
+      overallError = error as Error;
+    }
+    
+    // Get skill info for the result
+    const skillInfo = flow.getSkillInfo();
+    const progress = flow.getProgress();
+    
+    return {
+      skill: skillInfo.name,
+      totalScenarios: skillInfo.totalScenarios,
+      completedScenarios: progress.completedScenarios,
+      scenarioResults,
+      success: overallSuccess,
+      error: overallError
+    };
+  }
+
+  /**
    * Execute a scenario using the provided flow
    * @param scenarioKey The key or path to the scenario document
    * @param flow The flow to use for execution
@@ -65,12 +208,12 @@ export class PromptDriver {
    * @param options Optional execution options including sessionId and maxTurns
    * @returns ExecutionResult with all task responses
    */
-  async executeScenario<TScenarioContext = any>(
+  async executeScenarioFlow<TScenarioContext = any>(
     scenarioKey: string,
     flow: IScenarioFlow,
     context: TScenarioContext = {} as TScenarioContext,
     options?: { maxTurns?: number; sessionId?: string }
-  ): Promise<ExecutionResult> {
+  ): Promise<ScenarioExecutionResult> {
     // Get the rendered scenario with context applied
     const scenario = this.repository.getScenarioByKey(scenarioKey, context);
     if (!scenario) {
@@ -211,7 +354,6 @@ export class PromptDriver {
     const result = await this.sendMessage(taskPrompt, maxTurns);
     return result.response;
   }
-
 
   /**
    * Send briefing message (always sent, regardless of session state)

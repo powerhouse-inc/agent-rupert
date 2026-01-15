@@ -222,6 +222,15 @@ export class SkillsRepository {
   }
 
   /**
+   * Get scenario IDs for a specific skill
+   */
+  getScenarioIdsBySkill(skill: string): string[] {
+    const skillTemplate = this.skills.get(skill);
+    if (!skillTemplate) return [];
+    return skillTemplate.scenarios.map(scenario => scenario.id);
+  }
+
+  /**
    * Get skill information (no functions, just metadata)
    */
   getSkillInformation(skill: string): SkillInfo | undefined {
