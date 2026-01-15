@@ -1,7 +1,7 @@
 import { PromptDriver } from './PromptDriver.js';
-import { PromptRepository } from './PromptRepository.js';
+import { SkillsRepository } from './SkillsRepository.js';
 import type { IAgentBrain } from '../agents/IAgentBrain.js';
-import type { PromptScenario } from './types.js';
+import type { ScenarioInfo } from './types.js';
 
 /**
  * Result of executing a complete skill with all its scenarios
@@ -36,9 +36,9 @@ export interface SkillApplicationConfig {
  * AgentSkillApplication orchestrates the execution of all scenarios within a skill
  * It leverages PromptDriver to execute each scenario in sequence
  */
-export class AgentSkillApplication {
+export class AgentSkillOrchestrator {
     private promptDriver: PromptDriver;
-    private repository: PromptRepository;
+    private repository: SkillsRepository;
     private config: Required<SkillApplicationConfig>;
     
     constructor(
@@ -47,7 +47,7 @@ export class AgentSkillApplication {
         config: SkillApplicationConfig = {}
     ) {
         this.promptDriver = new PromptDriver(agent, repositoryPath);
-        this.repository = new PromptRepository(repositoryPath);
+        this.repository = new SkillsRepository(repositoryPath);
         this.config = {
             continueOnError: config.continueOnError ?? false,
             logProgress: config.logProgress ?? true,
@@ -63,7 +63,7 @@ export class AgentSkillApplication {
      */
     async initialize(): Promise<void> {
         await this.promptDriver.initialize();
-        await this.repository.load();
+        await this.repository.loadSkills();
     }
     
     /**
@@ -78,11 +78,12 @@ export class AgentSkillApplication {
     ): Promise<SkillExecutionResult> {
         const startTime = new Date();
         
-        // Get all scenarios for the skill
-        const scenarios = this.repository.getScenariosBySkill(skillName);
-        if (!scenarios || scenarios.length === 0) {
+        // Get skill information
+        const skillInfo = this.repository.getSkillInformation(skillName);
+        if (!skillInfo || skillInfo.scenarios.length === 0) {
             throw new Error(`Skill not found or has no scenarios: ${skillName}`);
         }
+        const scenarios = skillInfo.scenarios;
         
         const result: SkillExecutionResult = {
             skillName,
@@ -94,8 +95,11 @@ export class AgentSkillApplication {
             endTime: new Date()
         };
         
+        // Get actual scenario templates for execution
+        const scenarioTemplates = this.repository.getScenarioTemplatesBySkillInternal(skillName);
+        
         // Sort scenarios by ID to ensure proper order (HSM.00, HSM.01, etc.)
-        const sortedScenarios = [...scenarios].sort((a, b) => {
+        const sortedScenarios = [...scenarioTemplates].sort((a, b) => {
             return a.id.localeCompare(b.id);
         });
         
@@ -201,10 +205,11 @@ export class AgentSkillApplication {
     }
     
     /**
-     * Get scenarios for a specific skill
+     * Get scenarios for a specific skill (returns information only, no functions)
      */
-    getSkillScenarios(skillName: string): PromptScenario[] {
-        return this.repository.getScenariosBySkill(skillName);
+    getSkillScenarios(skillName: string): ScenarioInfo[] | undefined {
+        const skillInfo = this.repository.getSkillInformation(skillName);
+        return skillInfo?.scenarios;
     }
     
     /**

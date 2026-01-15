@@ -1,7 +1,7 @@
 import { IAgentBrain } from '../agents/IAgentBrain.js';
-import { PromptRepository } from './PromptRepository.js';
+import { SkillsRepository } from './SkillsRepository.js';
 import { AgentActivityLoop } from './AgentActivityLoop.js';
-import { PromptScenario } from './types.js';
+import { ScenarioTemplate } from './types.js';
 import {
   TaskExecutionState,
   ProgressReport,
@@ -45,21 +45,21 @@ export interface ExecutionOptions {
  * with state management, progress tracking, and error recovery
  */
 export class EnhancedPromptDriver {
-  private repository: PromptRepository;
+  private repository: SkillsRepository;
   private agent: IAgentBrain;
   private activityLoop: AgentActivityLoop | null = null;
   private checkpoints: Map<string, ExecutionCheckpoint> = new Map();
 
   constructor(agent: IAgentBrain, repositoryPath: string = './build/prompts') {
     this.agent = agent;
-    this.repository = new PromptRepository(repositoryPath);
+    this.repository = new SkillsRepository(repositoryPath);
   }
 
   /**
    * Initialize the repository
    */
   async initialize(): Promise<void> {
-    await this.repository.load();
+    await this.repository.loadSkills();
   }
 
   /**
@@ -69,14 +69,14 @@ export class EnhancedPromptDriver {
     scenarioKey: string,
     options: ExecutionOptions = {}
   ): Promise<EnhancedExecutionResult> {
-    // Load the scenario
-    const scenario = this.repository.getScenario(scenarioKey);
+    // Load the scenario template (raw, not rendered)
+    const scenario = this.repository.getScenarioTemplateInternal(scenarioKey);
     if (!scenario) {
       throw new Error(`Scenario not found: ${scenarioKey}`);
     }
 
     // Get metadata for skill information
-    const metadata = this.repository.getMetadata(scenarioKey);
+    const metadata = this.repository.getScenarioMetadata(scenarioKey);
     
     // Configure the activity loop
     const loopConfig: ActivityLoopConfig = {
@@ -265,8 +265,8 @@ export class EnhancedPromptDriver {
    * Get scenario by key with full details
    */
   getScenarioDetails(scenarioKey: string) {
-    const scenario = this.repository.getScenario(scenarioKey);
-    const metadata = this.repository.getMetadata(scenarioKey);
+    const scenario = this.repository.getScenarioByKey(scenarioKey);
+    const metadata = this.repository.getScenarioMetadata(scenarioKey);
     
     if (!scenario) return null;
 
@@ -302,7 +302,7 @@ export class EnhancedPromptDriver {
   /**
    * Get the repository instance (for direct access if needed)
    */
-  getRepository(): PromptRepository {
+  getRepository(): SkillsRepository {
     return this.repository;
   }
 }

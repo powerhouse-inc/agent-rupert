@@ -10,8 +10,8 @@ import { FilesystemStorage } from 'document-drive/storage/filesystem';
 import type { IAgentBrain } from './IAgentBrain.js';
 import type { BrainConfig } from './BrainFactory.js';
 import type { AgentBrainPromptContext } from '../types/prompt-context.js';
-import type { ScenarioSkill, PromptScenario } from '../prompts/types.js';
-import { PromptRepository } from '../prompts/PromptRepository.js';
+import type { SkillInfo, ScenarioInfo } from '../prompts/types.js';
+import { SkillsRepository } from '../prompts/SkillsRepository.js';
 import { AgentClaudeBrain } from './AgentClaudeBrain.js';
 import { createSelfReflectionMcpServer } from '../tools/selfReflectionMcpServer.js';
 
@@ -72,7 +72,7 @@ export abstract class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
     protected config: BaseAgentConfig;
     protected logger: ILogger;
     protected brain?: TBrain;
-    protected skills: ScenarioSkill[];
+    protected skills: SkillInfo[];
     protected documents: {
         inbox: AgentInboxDocument | null;
         wbs: WorkBreakdownStructureDocument | null;
@@ -356,21 +356,21 @@ export abstract class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
     /**
      * Get the skills available to this agent instance
      */
-    public getSkills(): ScenarioSkill[] {
+    public getSkills(): SkillInfo[] {
         return this.skills;
     }
     
     /**
      * Get detailed information about a specific skill
      */
-    public getSkillDetails(skillName: string): ScenarioSkill | null {
+    public getSkillDetails(skillName: string): SkillInfo | null {
         return this.skills.find(s => s.name === skillName) || null;
     }
     
     /**
      * Get detailed information about a specific scenario
      */
-    public getScenarioDetails(skillName: string, scenarioId: string): PromptScenario | null {
+    public getScenarioDetails(skillName: string, scenarioId: string): ScenarioInfo | null {
         const skill = this.getSkillDetails(skillName);
         if (!skill) return null;
         return skill.scenarios.find(s => s.id === scenarioId) || null;
@@ -379,8 +379,8 @@ export abstract class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
     /**
      * Search for scenarios by keyword
      */
-    public searchScenarios(query: string, skillName?: string): Array<{skill: string, scenario: PromptScenario, matchContext: string}> {
-        const results: Array<{skill: string, scenario: PromptScenario, matchContext: string}> = [];
+    public searchScenarios(query: string, skillName?: string): Array<{skill: string, scenario: ScenarioInfo, matchContext: string}> {
+        const results: Array<{skill: string, scenario: ScenarioInfo, matchContext: string}> = [];
         const skillsToSearch = skillName 
             ? this.skills.filter(s => s.name === skillName)
             : this.skills;
@@ -517,17 +517,14 @@ export abstract class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
      */
     protected async loadSkills(skillNames: string[]): Promise<void> {
         try {
-            const repository = new PromptRepository('./build/prompts');
-            await repository.load();
+            const repository = new SkillsRepository('./build/prompts');
+            await repository.loadSkills();
             
             this.skills = [];
             for (const skillName of skillNames) {
-                const scenarios = repository.getScenariosBySkill(skillName);
-                if (scenarios.length > 0) {
-                    this.skills.push({
-                        name: skillName,
-                        scenarios
-                    });
+                const skillInfo = repository.getSkillInformation(skillName);
+                if (skillInfo) {
+                    this.skills.push(skillInfo);
                 } else {
                     this.logger.warn(`${this.config.name}: Skill '${skillName}' not found in repository`);
                 }

@@ -1,31 +1,31 @@
 import path from 'path';
-import { PromptRepository } from '../../../src/prompts/PromptRepository.js';
+import { SkillsRepository } from '../../../src/prompts/SkillsRepository.js';
 
-describe('PromptRepository', () => {
-  let repository: PromptRepository;
+describe('SkillsRepository', () => {
+  let repository: SkillsRepository;
 
   beforeEach(async () => {
     // Use actual build/prompts directory
-    repository = new PromptRepository('./build/prompts');
-    await repository.load();
+    repository = new SkillsRepository('./build/prompts');
+    await repository.loadSkills();
   });
 
   describe('constructor', () => {
     it('should initialize with default base path', () => {
-      const defaultRepo = new PromptRepository();
+      const defaultRepo = new SkillsRepository();
       expect(defaultRepo).toBeDefined();
     });
 
     it('should accept custom base path', () => {
-      const customRepo = new PromptRepository('./custom/path');
+      const customRepo = new SkillsRepository('./custom/path');
       expect(customRepo).toBeDefined();
     });
   });
 
-  describe('load', () => {
+  describe('loadSkills', () => {
     it('should throw error if base path does not exist', async () => {
-      const invalidRepo = new PromptRepository('/nonexistent/path');
-      await expect(invalidRepo.load()).rejects.toThrow(
+      const invalidRepo = new SkillsRepository('/nonexistent/path');
+      await expect(invalidRepo.loadSkills()).rejects.toThrow(
         'Prompt repository path does not exist:'
       );
     });
@@ -37,12 +37,12 @@ describe('PromptRepository', () => {
       expect(scenarios.length).toBeGreaterThan(0);
       
       // Check that document-modeling scenarios are loaded
-      const dm00 = repository.getScenarioBySkillAndId('document-modeling', 'DM.00');
+      const dm00 = repository.getScenario('document-modeling', 'DM.00');
       expect(dm00).toBeDefined();
       expect(dm00?.title).toBe('Check the prerequisites for creating a document model');
       expect(dm00?.tasks).toHaveLength(6);
       
-      const dm01 = repository.getScenarioBySkillAndId('document-modeling', 'DM.01');
+      const dm01 = repository.getScenario('document-modeling', 'DM.01');
       expect(dm01).toBeDefined();
       expect(dm01?.title).toBe('Write the document model description');
       expect(dm01?.tasks).toHaveLength(5);
@@ -51,13 +51,13 @@ describe('PromptRepository', () => {
 
   describe('query methods', () => {
     it('should get scenario by key', async () => {
-      const scenario = repository.getScenario('document-modeling/DM.00');
+      const scenario = repository.getScenarioByKey('document-modeling/DM.00');
       expect(scenario).toBeDefined();
       expect(scenario?.id).toBe('DM.00');
     });
 
     it('should get scenario by skill and ID', async () => {
-      const scenario = repository.getScenarioBySkillAndId('document-modeling', 'DM.01');
+      const scenario = repository.getScenario('document-modeling', 'DM.01');
       expect(scenario).toBeDefined();
       expect(scenario?.id).toBe('DM.01');
     });
@@ -95,7 +95,7 @@ describe('PromptRepository', () => {
     });
 
     it('should get specific task from scenario', async () => {
-      const task = repository.getTask('document-modeling/DM.00', 'DM.00.1');
+      const task = repository.getScenarioTask('document-modeling/DM.00', 'DM.00.1');
       expect(task).toBeDefined();
       expect(task?.title).toBe('Ensure you have the required input and context');
     });
@@ -118,7 +118,7 @@ describe('PromptRepository', () => {
       expect(repository.isLoaded()).toBe(true);
       
       // Create new repository that hasn't been loaded
-      const newRepo = new PromptRepository('./build/prompts');
+      const newRepo = new SkillsRepository('./build/prompts');
       expect(newRepo.isLoaded()).toBe(false);
     });
   });
@@ -163,12 +163,12 @@ describe('PromptRepository', () => {
     });
     
     it('should return undefined for non-existent scenario', async () => {
-      const scenario = repository.getScenario('non-existent/scenario');
+      const scenario = repository.getScenarioByKey('non-existent/scenario');
       expect(scenario).toBeUndefined();
     });
 
     it('should return undefined for non-existent task', async () => {
-      const task = repository.getTask('document-modeling/DM.00', 'DM.00.999');
+      const task = repository.getScenarioTask('document-modeling/DM.00', 'DM.00.999');
       expect(task).toBeUndefined();
     });
   });

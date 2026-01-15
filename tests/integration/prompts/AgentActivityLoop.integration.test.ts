@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeAll, beforeEach, afterEach } from '@jest/globals';
 import { AgentActivityLoop } from '../../../src/prompts/AgentActivityLoop.js';
-import { PromptRepository } from '../../../src/prompts/PromptRepository.js';
+import { SkillsRepository } from '../../../src/prompts/SkillsRepository.js';
 import { CreativeWriterAgent, type CreativeWriterConfig } from '../../../src/agents/CreativeWriterAgent/CreativeWriterAgent.js';
 import { BrainFactory } from '../../../src/agents/BrainFactory.js';
 import type { IAgentBrain } from '../../../src/agents/IAgentBrain.js';
 import type { ILogger } from '../../../src/agents/AgentBase.js';
-import type { PromptScenario } from '../../../src/prompts/types.js';
+import type { ScenarioTemplate } from '../../../src/prompts/types.js';
 import {
     TaskExecutionState,
     type ActivityLoopConfig,
@@ -41,13 +41,13 @@ class TestLogger implements ILogger {
 }
 
 describe('AgentActivityLoop Integration Tests', () => {
-    let repository: PromptRepository;
+    let repository: SkillsRepository;
     let logger: ILogger;
     
     beforeAll(async () => {
         // Initialize repository and load scenarios
-        repository = new PromptRepository('./build/prompts');
-        await repository.load();
+        repository = new SkillsRepository('./build/prompts');
+        await repository.loadSkills();
         
         // Create logger
         logger = new TestLogger();
@@ -57,7 +57,7 @@ describe('AgentActivityLoop Integration Tests', () => {
         let agent: CreativeWriterAgent;
         let brain: IAgentBrain;
         let activityLoop: AgentActivityLoop;
-        let scenario: PromptScenario | undefined;
+        let scenario: ScenarioTemplate | undefined;
         
         beforeEach(async () => {
             // Create agent configuration matching BaseAgentConfig structure
@@ -109,7 +109,7 @@ describe('AgentActivityLoop Integration Tests', () => {
             agent = new CreativeWriterAgent(config, logger, brain);
             
             // Load a scenario for testing
-            scenario = repository.getScenario('short-story-writing/SS.00');
+            scenario = repository.getScenarioTemplateInternal('short-story-writing/SS.00');
             
             // Configure activity loop
             const loopConfig: ActivityLoopConfig = {

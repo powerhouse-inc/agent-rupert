@@ -1,6 +1,6 @@
 import { IAgentBrain } from '../agents/IAgentBrain.js';
-import { PromptScenario, ScenarioTask } from './types.js';
-import { PromptRepository } from './PromptRepository.js';
+import { ScenarioTemplate, ScenarioTaskTemplate } from './types.js';
+import { SkillsRepository } from './SkillsRepository.js';
 import {
   TaskExecutionState,
   TaskExecutionResult,
@@ -20,12 +20,12 @@ export class AgentActivityLoop {
   private agent: IAgentBrain;
   private config: Required<ActivityLoopConfig>;
   private callbacks: ActivityLoopCallbacks;
-  private repository: PromptRepository | null = null;
+  private repository: SkillsRepository | null = null;
   
   // State management
   private currentState: TaskExecutionState = TaskExecutionState.IDLE;
-  private currentTask: ScenarioTask | null = null;
-  private currentScenario: PromptScenario | null = null;
+  private currentTask: ScenarioTaskTemplate | null = null;
+  private currentScenario: ScenarioTemplate | null = null;
   private sessionContext: Map<string, any> = new Map();
   private completedTasks: Set<string> = new Set();
   private sessionId: string | undefined;  // Track session ID for conversation continuity
@@ -44,7 +44,7 @@ export class AgentActivityLoop {
     agent: IAgentBrain,
     config: ActivityLoopConfig = {},
     callbacks: ActivityLoopCallbacks = {},
-    repository?: PromptRepository
+    repository?: SkillsRepository
   ) {
     this.agent = agent;
     this.callbacks = callbacks;
@@ -64,7 +64,7 @@ export class AgentActivityLoop {
   /**
    * Initialize the activity loop with an agent
    */
-  async initialize(scenario: PromptScenario): Promise<void> {
+  async initialize(scenario: ScenarioTemplate): Promise<void> {
     this.currentScenario = scenario;
     this.loopStartTime = new Date();
     this.setState(TaskExecutionState.IDLE);
@@ -95,7 +95,7 @@ export class AgentActivityLoop {
    * Process all tasks in the scenario with optional context
    */
   async processScenario<TContext = any>(
-    scenario: PromptScenario, 
+    scenario: ScenarioTemplate, 
     context: TContext = {} as TContext
   ): Promise<ProgressReport> {
     await this.initialize(scenario);
@@ -111,9 +111,8 @@ export class AgentActivityLoop {
     
     // Send skill preamble if available
     if (skillName && this.repository) {
-      const skillPreamble = this.repository.getSkillPreamble(skillName);
-      if (skillPreamble) {
-        const preambleContent = skillPreamble(context);
+      const preambleContent = this.repository.getSkillPreamble(skillName, context);
+      if (preambleContent) {
         const result = await this.agent.sendMessage(preambleContent, this.sessionId);
         this.sessionId = result.sessionId;
       }
@@ -143,7 +142,7 @@ export class AgentActivityLoop {
    * Process a single task with optional context
    */
   async processTask<TContext = any>(
-    task: ScenarioTask, 
+    task: ScenarioTaskTemplate, 
     context: TContext = {} as TContext
   ): Promise<TaskExecutionResult> {
     this.currentTask = task;
@@ -210,7 +209,7 @@ export class AgentActivityLoop {
    * Execute a task with timeout
    */
   private async executeTaskWithTimeout<TContext = any>(
-    task: ScenarioTask,
+    task: ScenarioTaskTemplate,
     context: TContext
   ): Promise<TaskStatus> {
     return new Promise<TaskStatus>(async (resolve, reject) => {
@@ -233,7 +232,7 @@ export class AgentActivityLoop {
    * Execute a task and monitor for completion
    */
   private async executeTask<TContext = any>(
-    task: ScenarioTask,
+    task: ScenarioTaskTemplate,
     context: TContext
   ): Promise<TaskStatus> {
     // Build and send task prompt - use existing session to maintain conversation context
@@ -252,7 +251,7 @@ export class AgentActivityLoop {
   /**
    * Analyze agent response to determine task status
    */
-  private analyzeTaskResponse(response: string, _task: ScenarioTask): TaskStatus {
+  private analyzeTaskResponse(response: string, _task: ScenarioTaskTemplate): TaskStatus {
     const status: TaskStatus = {
       isComplete: false,
       isBlocked: false,
@@ -287,7 +286,7 @@ export class AgentActivityLoop {
   /**
    * Build system prompt for the scenario
    */
-  private buildSystemPrompt(scenario: PromptScenario): string {
+  private buildSystemPrompt(scenario: ScenarioTemplate): string {
     return `You are executing a structured sequence of tasks from the "${scenario.id}" scenario.
 Scenario: ${scenario.title}
 
@@ -305,7 +304,7 @@ Respond directly with the content requested. Do not use any tools.`;
   /**
    * Build task prompt
    */
-  private buildTaskPrompt<TContext = any>(task: ScenarioTask, context: TContext): string {
+  private buildTaskPrompt<TContext = any>(task: ScenarioTaskTemplate, context: TContext): string {
     return `## Task ${task.id}: ${task.title}
 
 ${task.content(context)}
@@ -485,7 +484,7 @@ Please complete this task by providing your response directly and indicate when 
   /**
    * Get current task
    */
-  getCurrentTask(): ScenarioTask | null {
+  getCurrentTask(): ScenarioTaskTemplate | null {
     return this.currentTask;
   }
 }

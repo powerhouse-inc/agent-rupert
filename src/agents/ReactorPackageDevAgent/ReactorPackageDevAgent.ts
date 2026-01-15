@@ -9,7 +9,7 @@ import type { AgentBrainPromptContext } from "../../types/prompt-context.js";
 import { createReactorProjectsManagerMcpServer, getReactorMcpToolNames } from "../../tools/reactorMcpServer.js";
 import { getSelfReflectionMcpToolNames } from "../../tools/selfReflectionMcpServer.js";
 import { AgentClaudeBrain } from "../AgentClaudeBrain.js";
-import { AgentSkillApplication } from "../../prompts/AgentSkillApplication.js";
+import { AgentSkillOrchestrator } from "../../prompts/AgentSkillApplication.js";
 import type { AgentInboxDocument } from "powerhouse-agent/document-models/agent-inbox";
 
 /**
@@ -58,7 +58,7 @@ export class ReactorPackageDevAgent extends AgentBase<IAgentBrain> {
     private cliExecutor: CLIExecutor;
     private serviceExecutor: ServiceExecutor;
     private projectsDir: string;
-    private skillApplication?: AgentSkillApplication;
+    private skillApplication?: AgentSkillOrchestrator;
     
     /**
      * Get the brain configuration for ReactorPackageDevAgent
@@ -226,7 +226,7 @@ export class ReactorPackageDevAgent extends AgentBase<IAgentBrain> {
         // Initialize skill application if not already done
         if (!this.skillApplication && this.brain) {
             try {
-                this.skillApplication = new AgentSkillApplication(
+                this.skillApplication = new AgentSkillOrchestrator(
                     this.brain,
                     './build/prompts',
                     { 

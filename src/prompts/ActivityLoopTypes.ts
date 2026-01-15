@@ -1,4 +1,4 @@
-import { ScenarioTask } from './types.js';
+import { ScenarioTaskTemplate } from './types.js';
 
 /**
  * Execution states for the activity loop
@@ -80,10 +80,10 @@ export interface ExecutionCheckpoint {
  * Callback functions for activity loop events
  */
 export interface ActivityLoopCallbacks {
-  onTaskStart?: (task: ScenarioTask) => void | Promise<void>;
-  onTaskComplete?: (task: ScenarioTask, result: TaskExecutionResult) => void | Promise<void>;
-  onTaskFailed?: (task: ScenarioTask, error: Error) => void | Promise<void>;
-  onTaskBlocked?: (task: ScenarioTask, reason: BlockedReason) => void | Promise<void>;
+  onTaskStart?: (task: ScenarioTaskTemplate) => void | Promise<void>;
+  onTaskComplete?: (task: ScenarioTaskTemplate, result: TaskExecutionResult) => void | Promise<void>;
+  onTaskFailed?: (task: ScenarioTaskTemplate, error: Error) => void | Promise<void>;
+  onTaskBlocked?: (task: ScenarioTaskTemplate, reason: BlockedReason) => void | Promise<void>;
   onProgressUpdate?: (report: ProgressReport) => void | Promise<void>;
   onStateChange?: (oldState: TaskExecutionState, newState: TaskExecutionState) => void | Promise<void>;
 }

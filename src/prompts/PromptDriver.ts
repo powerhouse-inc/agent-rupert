@@ -1,6 +1,6 @@
 import { IAgentBrain } from '../agents/IAgentBrain.js';
-import { PromptRepository } from './PromptRepository.js';
-import { PromptScenario, ScenarioTask } from './types.js';
+import { SkillsRepository } from './SkillsRepository.js';
+import { RenderedScenario, RenderedScenarioTask } from './types.js';
 
 export interface ExecutionResult {
   scenarioId: string;
@@ -17,21 +17,21 @@ export interface TaskResponse {
 }
 
 export class PromptDriver {
-  private repository: PromptRepository;
+  private repository: SkillsRepository;
   private agent: IAgentBrain;
   private sessionActive: boolean = false;
   private maxTurns: number = 5;  // Default maxTurns for message sending
 
   constructor(agent: IAgentBrain, repositoryPath: string = './build/prompts') {
     this.agent = agent;
-    this.repository = new PromptRepository(repositoryPath);
+    this.repository = new SkillsRepository(repositoryPath);
   }
 
   /**
    * Initialize the repository
    */
   async initialize(): Promise<void> {
-    await this.repository.load();
+    await this.repository.loadSkills();
   }
 
   /**
@@ -54,8 +54,8 @@ export class PromptDriver {
     context: TScenarioContext = {} as TScenarioContext,
     options?: { maxTurns?: number }
   ): Promise<ExecutionResult> {
-    // Load the scenario document
-    const scenario = this.repository.getScenario(scenarioKey);
+    // Get the rendered scenario with context applied
+    const scenario = this.repository.getScenarioByKey(scenarioKey, context);
     if (!scenario) {
       throw new Error(`Scenario not found: ${scenarioKey}`);
     }
@@ -74,9 +74,9 @@ export class PromptDriver {
         await this.startSessionWithContext(scenario, context, skillName);
       }
 
-      // Execute each task sequentially
+      // Execute each task sequentially (tasks are already rendered with context)
       for (const task of scenario.tasks) {
-        const response = await this.executeTaskWithContext(task, context, maxTurns);
+        const response = await this.executeRenderedTask(task, maxTurns);
         
         responses.push({
           taskId: task.id,
@@ -99,15 +99,14 @@ export class PromptDriver {
   }
 
   /**
-   * Execute a single task with context
+   * Execute a rendered task (content is already a string)
    */
-  private async executeTaskWithContext<TContext = any>(
-    task: ScenarioTask, 
-    context: TContext,
+  private async executeRenderedTask(
+    task: RenderedScenarioTask,
     maxTurns: number = 5
   ): Promise<string> {
     // Build the prompt for this task
-    const taskPrompt = this.buildTaskPromptWithContext(task, context);
+    const taskPrompt = `## Task ${task.id}: ${task.title}\n\n${task.content}`;
     
     // Send to agent and get response
     if (!this.agent.sendMessage) {
@@ -119,40 +118,48 @@ export class PromptDriver {
     return result.response;
   }
 
-  /**
-   * Build prompt string for a task with context
-   */
-  private buildTaskPromptWithContext<TContext = any>(
-    task: ScenarioTask, 
-    context: TContext
-  ): string {
-    // Include task ID and title as context
-    let prompt = `## Task ${task.id}: ${task.title}\n\n`;
-    
-    // Add the task content - call the function to render it with context
-    prompt += task.content(context);
-    
-    return prompt;
-  }
 
   /**
    * Start a new session with preamble and context
    */
   private async startSessionWithContext<TContext = any>(
-    scenario: PromptScenario, 
+    scenario: RenderedScenario, 
     context: TContext,
     skillName: string = 'default'
   ): Promise<void> {
     // Set system prompt with document context
     let systemPrompt = `You are executing a structured sequence of tasks from the "${scenario.id}" scenario.\n`;
     systemPrompt += `Scenario: ${scenario.title}\n\n`;
+
+    systemPrompt = 
+`
+=== BEGIN BRIEFING ===
+
+Listen to your briefing and acknowledge before proceeding. 
+
+# Scenario Overview
+
+After your briefing, you will be asked to execute a sequence 
+of tasks from the following scenario:
+
+<scenario>${scenario.id} : ${scenario.title}</scenario>
+
+<tasks>
+${scenario.tasks.map(t => ' - ' + t.id + ' ' + t.title).join("\n")}
+</tasks>
+
+Keep this overview in mind to proceed with one task at a time when 
+you're instructed to do so.
+
+`;
     
     if (scenario.preamble) {
-      // Call the preamble function to render it with context
-      systemPrompt += `Instructions:\n${scenario.preamble(context)}\n\n`;
+      // Preamble is already rendered with context
+      systemPrompt += `# Instructions\n\n${scenario.preamble}\n\n`;
     }
     
-    systemPrompt += `You will receive tasks one by one. Complete each task thoroughly before moving to the next.`;
+    systemPrompt += `You will now receive tasks one by one. Complete each task thoroughly before moving to the next.`;
+    systemPrompt += `=== END BRIEFING ===`;
     
     // Set the system prompt (this maintains the session context)
     if (this.agent.setSystemPrompt) {
@@ -160,12 +167,11 @@ export class PromptDriver {
     }
     
     // After setting system prompt, send skill preamble as a message if it exists
-    const skillPreamble = this.repository.getSkillPreamble(skillName);
+    const skillPreamble = this.repository.getSkillPreamble(skillName, context);
     if (skillPreamble && this.agent.sendMessage) {
-      const preambleContent = skillPreamble(context);
-      if (preambleContent && preambleContent.trim().length > 0) {
+      if (skillPreamble.trim().length > 0) {
         // Send skill preamble as first message with maxTurns
-        await this.agent.sendMessage(preambleContent, undefined, { maxTurns: this.maxTurns });
+        await this.agent.sendMessage(skillPreamble, undefined, { maxTurns: this.maxTurns });
       }
     }
     

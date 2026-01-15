@@ -376,7 +376,8 @@ describe('ReactorPackageDevAgent MCP Integration', () => {
         const expectedSkills = [
             'create-reactor-package',
             'document-modeling',
-            'document-editor-implementation'
+            'document-editor-implementation',
+            'handle-stakeholder-message'
         ];
         
         // Check that the agent reported the correct skills
@@ -387,8 +388,8 @@ describe('ReactorPackageDevAgent MCP Integration', () => {
             expect(hasSkill).toBe(true);
         }
         
-        // Should have exactly 3 skills
-        expect(jsonResponse.count).toBe(3);
+        // Should have exactly 4 skills
+        expect(jsonResponse.count).toBe(4);
     }, 30000);
     
     test('should get skill details using self-reflection MCP tools', async () => {
