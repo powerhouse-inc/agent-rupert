@@ -1,6 +1,8 @@
 import { IAgentBrain } from '../agents/IAgentBrain.js';
 import { SkillsRepository } from './SkillsRepository.js';
 import { RenderedScenario, RenderedScenarioTask } from './types.js';
+import type { IScenarioFlow } from './flows/IScenarioFlow.js';
+import { SequentialFlow } from './flows/SequentialFlow.js';
 
 export interface ExecutionResult {
   scenarioId: string;
@@ -14,6 +16,8 @@ export interface TaskResponse {
   taskTitle: string;
   response: string;
   timestamp: Date;
+  success: boolean;
+  error?: Error;
 }
 
 export class PromptDriver {
@@ -22,7 +26,10 @@ export class PromptDriver {
   private sessionActive: boolean = false;
   private maxTurns: number = 5;  // Default maxTurns for message sending
 
-  constructor(agent: IAgentBrain, repositoryPath: string = './build/prompts') {
+  constructor(
+    agent: IAgentBrain,
+    repositoryPath: string = './build/prompts'
+  ) {
     this.agent = agent;
     this.repository = new SkillsRepository(repositoryPath);
   }
@@ -43,14 +50,16 @@ export class PromptDriver {
   }
 
   /**
-   * Execute a complete scenario sequence with optional context
+   * Execute a scenario using the provided flow
    * @param scenarioKey The key or path to the scenario document
+   * @param flow The flow to use for execution
    * @param context Context object to pass to template functions (optional)
    * @param options Optional execution options
    * @returns ExecutionResult with all task responses
    */
-  async executeScenarioSequence<TScenarioContext = any>(
-    scenarioKey: string, 
+  async executeScenario<TScenarioContext = any>(
+    scenarioKey: string,
+    flow: IScenarioFlow,
     context: TScenarioContext = {} as TScenarioContext,
     options?: { maxTurns?: number }
   ): Promise<ExecutionResult> {
@@ -68,28 +77,59 @@ export class PromptDriver {
 
     const responses: TaskResponse[] = [];
 
+    // Reset flow for new scenario
+    flow.reset();
+
     try {
       // Start a new session if not active
       if (!this.sessionActive) {
         await this.startSessionWithContext(scenario, context, skillName);
       }
 
-      // Execute each task sequentially (tasks are already rendered with context)
-      for (const task of scenario.tasks) {
-        const response = await this.executeRenderedTask(task, maxTurns);
+      // Execute tasks using the flow
+      let task = flow.nextTask();
+      while (task !== null) {
+        try {
+          const response = await this.executeRenderedTask(task, maxTurns);
+          
+          responses.push({
+            taskId: task.id,
+            taskTitle: task.title,
+            response,
+            timestamp: new Date(),
+            success: true
+          });
+          
+          // Report success to flow
+          flow.reportTaskResult(true);
+        } catch (error) {
+          // Report failure to flow
+          const taskError = error as Error;
+          responses.push({
+            taskId: task.id,
+            taskTitle: task.title,
+            response: taskError.message,
+            timestamp: new Date(),
+            success: false,
+            error: taskError
+          });
+          
+          flow.reportTaskResult(false, taskError);
+          
+          // Check if flow continues after error
+          if (flow.finished()) {
+            break;
+          }
+        }
         
-        responses.push({
-          taskId: task.id,
-          taskTitle: task.title,
-          response,
-          timestamp: new Date()
-        });
+        // Get next task from flow
+        task = flow.nextTask();
       }
 
       return {
         scenarioId: scenario.id,
         totalTasks: scenario.tasks.length,
-        completedTasks: responses.length,
+        completedTasks: responses.filter(r => r.success).length,
         responses
       };
     } finally {
@@ -187,21 +227,22 @@ you're instructed to do so.
     // We just track whether we've initialized it with our prompt context
   }
 
+
   /**
-   * Execute multiple scenario sequences in order with optional context
+   * Helper method to create a SequentialFlow for a scenario
+   * @param scenarioKey The key or path to the scenario document
+   * @param context Context object to pass to template functions
+   * @returns A new SequentialFlow instance for the scenario
    */
-  async executeMultipleSequences<TContext = any>(
-    scenarioKeys: string[],
+  createSequentialFlow<TContext = any>(
+    scenarioKey: string,
     context: TContext = {} as TContext
-  ): Promise<ExecutionResult[]> {
-    const results: ExecutionResult[] = [];
-    
-    for (const key of scenarioKeys) {
-      const result = await this.executeScenarioSequence(key, context);
-      results.push(result);
+  ): SequentialFlow {
+    const scenario = this.repository.getScenarioByKey(scenarioKey, context);
+    if (!scenario) {
+      throw new Error(`Scenario not found: ${scenarioKey}`);
     }
-    
-    return results;
+    return new SequentialFlow(scenario);
   }
 
   /**
@@ -218,5 +259,12 @@ you're instructed to do so.
    */
   isReady(): boolean {
     return this.repository.isLoaded();
+  }
+
+  /**
+   * Get the repository instance for direct access if needed
+   */
+  getRepository(): SkillsRepository {
+    return this.repository;
   }
 }

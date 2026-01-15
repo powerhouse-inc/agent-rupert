@@ -120,8 +120,10 @@ export class AgentSkillOrchestrator {
             try {
                 // Execute the scenario using PromptDriver with configured maxTurns
                 const scenarioKey = `${skillName}/${scenario.id}`;
-                const scenarioResult = await this.promptDriver.executeScenarioSequence(
+                const flow = this.promptDriver.createSequentialFlow(scenarioKey, context);
+                const scenarioResult = await this.promptDriver.executeScenario(
                     scenarioKey,
+                    flow,
                     context,
                     { maxTurns: this.config.maxTurns }
                 );
@@ -194,7 +196,8 @@ export class AgentSkillOrchestrator {
         context: TContext = {} as TContext
     ) {
         const scenarioKey = `${skillName}/${scenarioId}`;
-        return await this.promptDriver.executeScenarioSequence(scenarioKey, context);
+        const flow = this.promptDriver.createSequentialFlow(scenarioKey, context);
+        return await this.promptDriver.executeScenario(scenarioKey, flow, context, { maxTurns: this.config.maxTurns });
     }
     
     /**
