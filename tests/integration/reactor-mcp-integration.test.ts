@@ -47,7 +47,7 @@ describe('ReactorPackageDevAgent MCP Integration', () => {
             debug: () => {},
             info: () => {},
             warn: () => {},
-            error: console.error
+            error: () => {}
         };
         
         // Use the actual test-projects directory where persistent-test-project exists

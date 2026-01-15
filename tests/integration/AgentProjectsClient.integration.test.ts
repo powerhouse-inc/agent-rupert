@@ -40,11 +40,11 @@ describe.skip('AgentProjectsClient Integration', () => {
             
             if (response.ok) {
                 serverAvailable = true;
-                console.log('✅ GraphQL server is running at http://localhost:4001/graphql');
+                // GraphQL server is running at http://localhost:4001/graphql
             }
         } catch (error) {
-            console.log('⚠️ GraphQL server not running. Integration tests will be skipped.');
-            console.log('   To run these tests, start a GraphQL server with AgentProjects subgraph');
+            // GraphQL server not running. Integration tests will be skipped.
+            // To run these tests, start a GraphQL server with AgentProjects subgraph
         }
 
         if (serverAvailable) {
@@ -66,7 +66,7 @@ describe.skip('AgentProjectsClient Integration', () => {
 
     beforeEach(() => {
         if (!serverAvailable) {
-            console.log('Skipping test - GraphQL server not available');
+            // Skipping test - GraphQL server not available
         }
     });
 

@@ -184,17 +184,17 @@ describe('AgentActivityLoop Integration Tests', () => {
                 const report: ProgressReport = await activityLoop.processScenario(scenario, context);
                 
                 // Output the actual story content
-                console.log('\n=== FLASH FICTION STORY FEATURING AL DENTE ===\n');
+                //console.log('\n=== FLASH FICTION STORY FEATURING AL DENTE ===\n');
                 
                 // Get the complete story task result (SS.00.6 - Review and polish the complete story)
                 const storyTask = report.taskResults.get('SS.00.6');
                 if (storyTask?.response) {
-                    console.log(storyTask.response);
+                    //console.log(storyTask.response);
                 } else {
-                    console.log('(No story generated)');
+                    //console.log('(No story generated)');
                 }
                 
-                console.log('\n=== END OF STORY ===\n');
+                //console.log('\n=== END OF STORY ===\n');
                 
                 // Also show other creative outputs
                 const titleTask = report.taskResults.get('SS.00.1');
@@ -203,12 +203,12 @@ describe('AgentActivityLoop Integration Tests', () => {
                 const endingTask = report.taskResults.get('SS.00.5');
                 const revisionTask = report.taskResults.get('SS.00.6');
                 
-                console.log('Other outputs:');
-                console.log('- Title:', titleTask?.response?.substring(0, 100) || 'N/A');
-                console.log('- Characters:', charactersTask?.response?.substring(0, 100) || 'N/A');
-                console.log('- Opening Hook:', openingTask?.response?.substring(0, 100) || 'N/A');
-                console.log('- Ending:', endingTask?.response?.substring(0, 100) || 'N/A');
-                console.log('- Revision Notes:', revisionTask?.response?.substring(0, 100) || 'N/A');
+                //console.log('Other outputs:');
+                //console.log('- Title:', titleTask?.response?.substring(0, 100) || 'N/A');
+                //console.log('- Characters:', charactersTask?.response?.substring(0, 100) || 'N/A');
+                //console.log('- Opening Hook:', openingTask?.response?.substring(0, 100) || 'N/A');
+                //console.log('- Ending:', endingTask?.response?.substring(0, 100) || 'N/A');
+                //console.log('- Revision Notes:', revisionTask?.response?.substring(0, 100) || 'N/A');
                 
                 // Validate results
                 expect(report.scenarioId).toBe('SS.00');
@@ -219,7 +219,7 @@ describe('AgentActivityLoop Integration Tests', () => {
                 // Verify that Al Dente appears in the story
                 const fullStory = storyTask?.response || '';
                 const hasCharacter = fullStory.toLowerCase().includes('al dente');
-                console.log('\n✓ Story includes "Al Dente":', hasCharacter);
+                //console.log('\n✓ Story includes "Al Dente":', hasCharacter);
                 if (report.completedTasks === 6) {
                     // Only check if all tasks completed successfully
                     expect(hasCharacter).toBe(true);

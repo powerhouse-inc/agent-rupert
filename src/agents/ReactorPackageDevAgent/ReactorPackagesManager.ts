@@ -273,7 +273,7 @@ export class ReactorPackagesManager {
             }
         } catch (error) {
             // Directory doesn't exist or other error
-            console.error(`Error listing projects: ${error}`);
+            // Error listing projects
         }
 
         return projects;
@@ -488,7 +488,7 @@ export class ReactorPackagesManager {
             // Listen for boot-timeout event (fallback if patterns don't match)
             const bootTimeoutHandler = (event: any) => {
                 if (event.handle.id === this.runningProject?.serviceHandle?.id) {
-                    console.warn(`Boot timeout for project '${project.name}': readiness patterns not matched within ${effectiveOptions.startupTimeout}ms`);
+                    // Boot timeout for project: readiness patterns not matched
                     if (serviceReadyResolve) {
                         // Clear the timeout since we're resolving
                         if (readinessTimeoutId) {
@@ -530,17 +530,13 @@ export class ReactorPackagesManager {
             const vetraOutputParams = await serviceReadyPromise;
             
             if (!vetraOutputParams.driveUrl) {
-                console.warn(
-                    `Warning: Drive URL not captured within ${effectiveOptions.startupTimeout}ms. ` +
-                    `Project may still be starting up. Check logs with getProjectLogs() for details.`
-                );
+                // Warning: Drive URL not captured within timeout
+                // Project may still be starting up. Check logs with getProjectLogs() for details.
             }
 
             if (!vetraOutputParams.mcpServer) {
-                console.warn(
-                    `Warning: MCP server not captured within ${effectiveOptions.startupTimeout}ms. ` +
-                    `Project may still be starting up. Check logs with getProjectLogs() for details.`
-                );
+                // Warning: MCP server not captured within timeout
+                // Project may still be starting up. Check logs with getProjectLogs() for details.
             }
 
             return {
@@ -607,15 +603,15 @@ export class ReactorPackagesManager {
         const serviceHandle = this.runningProject.serviceHandle;
         
         try {
-            console.log(`🛑 Shutting down project: ${projectName}`);
+            // Shutting down project
             
             // If we have a service handle, stop it gracefully
             if (serviceHandle) {
-                console.log(`📪 Stopping service handle ${serviceHandle.id}`);
+                // Stopping service handle
                 await this.serviceExecutor.stop(serviceHandle.id, {
                     timeout: 10000  // 10 second timeout for graceful shutdown
                 });
-                console.log(`✅ Service handle ${serviceHandle.id} stopped`);
+                // Service handle stopped
             }
             // Fallback: If we have a process reference, kill it directly
             else if (this.runningProject.process && !this.runningProject.process.killed) {
@@ -651,7 +647,7 @@ export class ReactorPackagesManager {
             // Clear the running project
             this.runningProject = null;
             
-            console.log(`✅ Project ${projectName} shutdown complete`);
+            // Project shutdown complete
             return {
                 success: true
             };

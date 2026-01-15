@@ -107,9 +107,9 @@ export class AgentClaudeBrain implements IAgentBrain {
                 const agentPart = agentName ? `_${agentName.replace(/\s+/g, '')}` : '';
                 const filename = path.join(promptsDir, `C${agentPart}_${timestamp}.md`);
                 writeFileSync(filename, prompt, 'utf-8');
-                console.log(`   DEBUG: Claude brain system prompt written to ${filename}`);
+                // Debug: Claude brain system prompt written to file
             } catch (error) {
-                console.error('   DEBUG: Failed to write Claude brain prompt to file:', error);
+                // Debug: Failed to write Claude brain prompt to file
             }
         }
     }
@@ -195,7 +195,7 @@ export class AgentClaudeBrain implements IAgentBrain {
      * Describe WBS operations in natural language using Agent SDK
      */
     async describeWbsOperations(operations: any[]): Promise<string> {
-        console.log("   AgentClaudeBrain: describeWbsOperations called with", operations.length, "operations");
+        // AgentClaudeBrain: describeWbsOperations called with operations
         try {
             const prompt = `Analyze these Work Breakdown Structure (WBS) operations and describe what changes occurred in simple, clear English. Focus on the business meaning, not technical details.
 
@@ -229,7 +229,7 @@ Provide a concise summary of what happened.`;
      * Describe inbox operations in natural language using Agent SDK
      */
     async describeInboxOperations(operations: any[]): Promise<string> {
-        console.log("   AgentClaudeBrain: describeInboxOperations called with", operations.length, "operations");
+        // AgentClaudeBrain: describeInboxOperations called with operations
         try {
             const prompt = `
 A data update to your inbox document was synchronized:
@@ -484,12 +484,7 @@ Reply to this prompt with a very short sentence summary of what you did.
                 queryOptions.resume = sessionId;
             }
             
-            // Log the MCP servers being passed
-            console.log('MCP Servers being passed to query:', Object.keys(mcpServers));
-            if (mcpServers['reactor_prjmgr']) {
-                console.log('reactor_prjmgr server type:', typeof mcpServers['reactor_prjmgr']);
-                console.log('reactor_prjmgr server keys:', mcpServers['reactor_prjmgr'] ? Object.keys(mcpServers['reactor_prjmgr']) : 'null');
-            }
+            // MCP servers being passed to query (debugging disabled)
             
             const q = query({
                 prompt: message,
@@ -588,7 +583,7 @@ Reply to this prompt with a very short sentence summary of what you did.
             
             // Write log file
             writeFileSync(logFile, logContent);
-            console.log(`   Conversation logged to: ${logFile}`);
+            // Conversation logged to file
             
             if (this.logger) {
                 this.logger.debug(`   AgentClaudeBrain: Received ${messageCount} messages, response length: ${response.length}`);
