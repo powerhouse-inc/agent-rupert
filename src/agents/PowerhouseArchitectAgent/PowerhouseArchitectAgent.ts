@@ -15,14 +15,6 @@ export class PowerhouseArchitectAgent extends AgentBase<IAgentBrain> {
     }
     
     /**
-     * Create the brain for this agent
-     */
-    protected createBrain(config: BrainConfig): IAgentBrain | null {
-        // For now, return null - will be implemented when migrating to ClaudeAgentBase
-        return null;
-    }
-    
-    /**
      * Get the brain configuration for PowerhouseArchitectAgent
      * Uses standard brain for simple operations
      */
@@ -39,7 +31,7 @@ export class PowerhouseArchitectAgent extends AgentBase<IAgentBrain> {
     /**
      * Get the prompt template paths for PowerhouseArchitectAgent
      */
-    static getPromptTemplatePaths(): string[] {
+    static getSystemPromptTemplatePaths(): string[] {
         return [
             'prompts/agent-profiles/AgentBase.md',
             'prompts/agent-profiles/PowerhouseArchitectAgent.md'
@@ -58,12 +50,12 @@ export class PowerhouseArchitectAgent extends AgentBase<IAgentBrain> {
     /**
      * Build the prompt context for PowerhouseArchitectAgent
      */
-    static buildPromptContext(
+    static buildSystemPromptContext(
         config: BaseAgentConfig,
         serverPort: number,
         mcpServers: string[] = []
     ): AgentBrainPromptContext {
-        const baseContext = AgentBase.buildPromptContext(config, serverPort, mcpServers);
+        const baseContext = AgentBase.buildSystemPromptContext(config, serverPort, mcpServers);
         
         return {
             ...baseContext,
@@ -89,61 +81,4 @@ export class PowerhouseArchitectAgent extends AgentBase<IAgentBrain> {
         // TODO: Add architect-specific cleanup
         await super.shutdown();
     }
-    
-    // Architect-specific methods
-    public async analyzeArchitecture() {
-        // TODO: Implement architecture analysis
-        throw new Error('analyzeArchitecture not yet implemented');
     }
-    
-    public async generateBlueprint() {
-        // TODO: Implement blueprint generation  
-        throw new Error('generateBlueprint not yet implemented');
-    }
-    
-    /**
-     * Handle updates to the inbox document
-     * This is where architecture requests and feedback arrive
-     */
-    protected async handleInboxUpdate(_documentId: string, operations: any[]): Promise<void> {
-        this.logger.info(`${this.config.name}: Processing inbox update with ${operations.length} operations`);
-        
-        // Use brain to describe the operations if available
-        if (this.brain) {
-            try {
-                const description = await this.brain.describeInboxOperations(operations);
-                this.logger.info(`${this.config.name}: Brain analysis: ${description}`);
-            } catch (error) {
-                this.logger.warn(`${this.config.name}: Failed to get brain analysis of inbox operations`);
-            }
-        }
-        
-        // TODO: Process inbox operations
-        // - Extract architecture requests
-        // - Process feedback on existing designs
-        // - Create architecture tasks in WBS
-    }
-    
-    /**
-     * Handle updates to the WBS document
-     * This is where architecture work progress is tracked
-     */
-    protected async handleWbsUpdate(_documentId: string, operations: any[]): Promise<void> {
-        this.logger.info(`${this.config.name}: Processing WBS update with ${operations.length} operations`);
-        
-        // Use brain to describe the operations if available
-        if (this.brain) {
-            try {
-                const description = await this.brain.describeWbsOperations(operations);
-                this.logger.info(`${this.config.name}: Brain analysis: ${description}`);
-            } catch (error) {
-                this.logger.warn(`${this.config.name}: Failed to get brain analysis of WBS operations`);
-            }
-        }
-        
-        // TODO: Process WBS operations
-        // - Monitor architecture design progress
-        // - Coordinate with ReactorPackageAgent for implementation
-        // - Update stakeholders on progress
-    }
-}

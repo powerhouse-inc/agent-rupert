@@ -80,8 +80,8 @@ describe('CreativeWriterAgent with SequentialSkillFlow', () => {
         };
         
         // Build prompt context
-        const promptContext = CreativeWriterAgent.buildPromptContext(config, 3000, []);
-        const promptPaths = CreativeWriterAgent.getPromptTemplatePaths();
+        const promptContext = CreativeWriterAgent.buildSystemPromptContext(config, 3000, []);
+        const promptPaths = CreativeWriterAgent.getSystemPromptTemplatePaths();
         
         // Set up the brain
         const brainConfig = CreativeWriterAgent.getBrainConfig(ANTHROPIC_API_KEY);

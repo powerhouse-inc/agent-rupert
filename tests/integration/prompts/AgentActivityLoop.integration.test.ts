@@ -92,10 +92,10 @@ describe('AgentActivityLoop Integration Tests', () => {
             }
             
             // Build prompt context
-            const promptContext = CreativeWriterAgent.buildPromptContext(config, 3000, []);
+            const promptContext = CreativeWriterAgent.buildSystemPromptContext(config, 3000, []);
             
             // Get prompt template paths
-            const promptPaths = CreativeWriterAgent.getPromptTemplatePaths();
+            const promptPaths = CreativeWriterAgent.getSystemPromptTemplatePaths();
             
             // Create brain using factory
             brain = await BrainFactory.create(

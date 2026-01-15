@@ -2,7 +2,7 @@ import { ReactorPackageDevAgent } from './ReactorPackageDevAgent/ReactorPackageD
 import { PowerhouseArchitectAgent } from './PowerhouseArchitectAgent/PowerhouseArchitectAgent.js';
 import type { AgentBase, ILogger } from './AgentBase.js';
 import type { ReactorPackageDevAgentConfig, PowerhouseArchitectAgentConfig } from '../types.js';
-import { BrainFactory, type BrainConfig } from './BrainFactory.js';
+import { BrainFactory } from './BrainFactory.js';
 import type { IAgentBrain } from './IAgentBrain.js';
 import type { CommonAgentInfo } from '../services/AgentsService.js';
 
@@ -59,8 +59,8 @@ export class AgentsManager {
                     }
                     
                     // Get template paths and build context
-                    const templatePaths = ReactorPackageDevAgent.getPromptTemplatePaths();
-                    const promptContext = ReactorPackageDevAgent.buildPromptContext(
+                    const templatePaths = ReactorPackageDevAgent.getSystemPromptTemplatePaths();
+                    const promptContext = ReactorPackageDevAgent.buildSystemPromptContext(
                         this.config.reactorPackageConfig,
                         this.config.serverPort || 3100,
                         this.config.agentManagerMcpUrl ? ['agent-manager-drive'] : []
@@ -107,8 +107,8 @@ export class AgentsManager {
                     }
                     
                     // Get template paths and build context
-                    const templatePaths = PowerhouseArchitectAgent.getPromptTemplatePaths();
-                    const promptContext = PowerhouseArchitectAgent.buildPromptContext(
+                    const templatePaths = PowerhouseArchitectAgent.getSystemPromptTemplatePaths();
+                    const promptContext = PowerhouseArchitectAgent.buildSystemPromptContext(
                         this.config.architectConfig,
                         this.config.serverPort || 3100,
                         this.config.agentManagerMcpUrl ? ['agent-manager-drive'] : []

@@ -41,15 +41,15 @@ export class BrainFactory {
      * Create a brain instance based on configuration
      * @param config Brain configuration
      * @param logger Optional logger for brain initialization
-     * @param promptTemplatePaths Optional paths to prompt template files
-     * @param promptContext Optional context data for prompt templates
+     * @param systemPromptTemplatePaths Optional paths to prompt template files
+     * @param systemPromptContext Optional context data for prompt templates
      * @returns Promise<IAgentBrain> instance
      */
     static async create<TContext = any>(
         config: BrainConfig, 
         logger?: IBrainLogger,
-        promptTemplatePaths?: string[],
-        promptContext?: TContext
+        systemPromptTemplatePaths?: string[],
+        systemPromptContext?: TContext
     ): Promise<IAgentBrain> {
         let brain: IAgentBrain;
         
@@ -79,12 +79,12 @@ export class BrainFactory {
         }
         
         // If prompt templates are provided, parse and set system prompt
-        if (promptTemplatePaths && promptTemplatePaths.length > 0 && promptContext) {
+        if (systemPromptTemplatePaths && systemPromptTemplatePaths.length > 0 && systemPromptContext) {
             const parser = new PromptParser<TContext>();
-            const systemPrompt = await parser.parseMultiple(promptTemplatePaths, promptContext);
+            const systemPrompt = await parser.parseMultiple(systemPromptTemplatePaths, systemPromptContext);
             if (brain.setSystemPrompt) {
                 // Extract agent name from context if available
-                const agentName = (promptContext as any).agentName;
+                const agentName = (systemPromptContext as any).agentName;
                 brain.setSystemPrompt(systemPrompt, agentName);
             }
         }

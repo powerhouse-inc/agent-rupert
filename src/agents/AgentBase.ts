@@ -67,7 +67,7 @@ export type { BaseAgentConfig } from '../types.js';
  *          - A goal can be moved from TODO to DELEGATED
  *      
  */
-export abstract class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
+export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
     protected reactor?: IDocumentDriveServer;
     protected config: BaseAgentConfig;
     protected logger: ILogger;
@@ -85,7 +85,6 @@ export abstract class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
      * Get the brain configuration for this agent type
      * @param apiKey Optional Anthropic API key
      * @returns BrainConfig or null if no brain is needed
-     * @deprecated Use createBrain() instance method instead
      */
     static getBrainConfig(apiKey?: string): BrainConfig | null {
         // Default implementation returns null (no brain)
@@ -94,17 +93,10 @@ export abstract class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
     }
     
     /**
-     * Create the brain for this agent
-     * @param config Brain configuration
-     * @returns Brain instance or null if no brain is needed
-     */
-    protected abstract createBrain(config: BrainConfig): TBrain | null;
-    
-    /**
      * Get the prompt template paths for this agent type
      * @returns Array of template file paths or empty array if no templates
      */
-    static getPromptTemplatePaths(): string[] {
+    static getSystemPromptTemplatePaths(): string[] {
         // Default implementation returns base template only
         return ['prompts/agent-profiles/AgentBase.md'];
     }
@@ -125,7 +117,7 @@ export abstract class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
      * @param mcpServers List of MCP server names
      * @returns Prompt context data
      */
-    static buildPromptContext(
+    static buildSystemPromptContext(
         config: BaseAgentConfig,
         serverPort: number,
         mcpServers: string[] = []
@@ -268,7 +260,7 @@ export abstract class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
                 driveDocumentModelModule,
                 documentModelDocumentModelModule
             ];
-        }
+    }
     
     /**
      * Override in subclasses to provide custom cache (optional)
@@ -289,23 +281,6 @@ export abstract class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
         } else {
             this.logger.info(`${this.config.name}: Using in-memory storage`);
             return new MemoryStorage();
-        }
-    }
-    
-    /**
-     * Initialize the agent's brain if configuration is provided
-     */
-    protected initializeBrain(brainConfig?: BrainConfig): void {
-        if (!brainConfig) {
-            this.logger.debug(`${this.config.name}: No brain config provided, skipping brain initialization`);
-            return;
-        }
-        
-        const brain = this.createBrain(brainConfig);
-        if (brain) {
-            this.brain = brain;
-            this.brain.setLogger(this.logger);
-            this.logger.info(`${this.config.name}: Brain initialized`);
         }
     }
     
@@ -559,7 +534,6 @@ export abstract class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
                         this.updateInbox(doc as AgentInboxDocument);
                     }
                 }
-                this.handleInboxUpdate(documentId, operations);
             }
             // Check if this is our WBS document
             else if (wbs?.documentId && documentId === wbs.documentId) {
@@ -570,7 +544,6 @@ export abstract class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
                         this.updateWbs(doc as WorkBreakdownStructureDocument);
                     }
                 }
-                this.handleWbsUpdate(documentId, operations);
             }
         });
         
@@ -586,18 +559,6 @@ export abstract class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
             }
         });
     }
-    
-    /**
-     * Abstract method - must be implemented by subclasses
-     * Called when the agent's inbox document receives updates
-     */
-    protected abstract handleInboxUpdate(documentId: string, operations: any[]): void | Promise<void>;
-    
-    /**
-     * Abstract method - must be implemented by subclasses  
-     * Called when the agent's WBS document receives updates
-     */
-    protected abstract handleWbsUpdate(documentId: string, operations: any[]): void | Promise<void>;
 
     /**
      * Strongly typed method for processing inbox document updates

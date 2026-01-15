@@ -102,7 +102,7 @@ describe('PromptDriver', () => {
     });
   });
 
-  describe('executeScenario', () => {
+  describe('executeScenarioFlow', () => {
     it('should execute a complete scenario', async () => {
       // Set up mock responses for briefing + each task
       const expectedResponses = [
@@ -118,7 +118,7 @@ describe('PromptDriver', () => {
 
       // Create a flow for the scenario
       const flow = driver.createSequentialFlow('document-modeling/DM.00');
-      const result = await driver.executeScenario('document-modeling/DM.00', flow);
+      const result = await driver.executeScenarioFlow('document-modeling/DM.00', flow);
 
       expect(result).toBeDefined();
       expect(result.scenarioId).toBe('DM.00');
@@ -145,7 +145,7 @@ describe('PromptDriver', () => {
       });
 
       const flow = driver.createSequentialFlow('document-modeling/DM.00');
-      await driver.executeScenario('document-modeling/DM.00', flow);
+      await driver.executeScenarioFlow('document-modeling/DM.00', flow);
 
       expect(briefingMessage).toBeDefined();
       expect(briefingMessage).toContain('DM.00');
@@ -167,7 +167,7 @@ describe('PromptDriver', () => {
       });
 
       const flow = driver.createSequentialFlow('document-modeling/DM.01');
-      const result = await driver.executeScenario('document-modeling/DM.01', flow);
+      const result = await driver.executeScenarioFlow('document-modeling/DM.01', flow);
 
       // DM.01 has 5 tasks + 1 briefing message = 6 total messages
       expect(callCount).toBe(6);
@@ -186,7 +186,7 @@ describe('PromptDriver', () => {
       });
 
       const flow = driver.createSequentialFlow('document-modeling/DM.00');
-      const result = await driver.executeScenario('document-modeling/DM.00', flow);
+      const result = await driver.executeScenarioFlow('document-modeling/DM.00', flow);
 
       // Should have 3 responses (2 success, 1 failure)
       expect(result.responses).toHaveLength(3);
@@ -206,7 +206,7 @@ describe('PromptDriver', () => {
       expect(flow.started()).toBe(true);
 
       // Execute scenario - should reset the flow
-      await driver.executeScenario('document-modeling/DM.00', flow);
+      await driver.executeScenarioFlow('document-modeling/DM.00', flow);
       
       // Flow should have been reset and completed
       expect(flow.finished()).toBe(true);
@@ -223,7 +223,7 @@ describe('PromptDriver', () => {
       });
 
       const flow = driver.createSequentialFlow('document-modeling/DM.00');
-      await driver.executeScenario('document-modeling/DM.00', flow);
+      await driver.executeScenarioFlow('document-modeling/DM.00', flow);
 
       // Should have captured the session ID
       expect(driver.getSessionId()).toBe('new-session-123');
@@ -242,7 +242,7 @@ describe('PromptDriver', () => {
       });
 
       const flow = driver.createSequentialFlow('document-modeling/DM.00');
-      await driver.executeScenario('document-modeling/DM.00', flow, {}, { sessionId: providedSessionId });
+      await driver.executeScenarioFlow('document-modeling/DM.00', flow, {}, { sessionId: providedSessionId });
       
       // Should use the provided session ID
       expect(capturedSessionId).toBe(providedSessionId);
@@ -259,10 +259,10 @@ describe('PromptDriver', () => {
       });
 
       const flow1 = driver.createSequentialFlow('document-modeling/DM.00');
-      await driver.executeScenario('document-modeling/DM.00', flow1);
+      await driver.executeScenarioFlow('document-modeling/DM.00', flow1);
       
       const flow2 = driver.createSequentialFlow('document-modeling/DM.01');
-      await driver.executeScenario('document-modeling/DM.01', flow2);
+      await driver.executeScenarioFlow('document-modeling/DM.01', flow2);
 
       // Briefing message should be sent for each scenario
       expect(briefingMessageCount).toBe(2);
@@ -277,7 +277,7 @@ describe('PromptDriver', () => {
       });
 
       const flow = driver.createSequentialFlow('document-modeling/DM.00');
-      await driver.executeScenario('document-modeling/DM.00', flow);
+      await driver.executeScenarioFlow('document-modeling/DM.00', flow);
       
       expect(driver.getSessionId()).toBe('session-789');
       
@@ -287,7 +287,7 @@ describe('PromptDriver', () => {
 
       // New execution should capture a new session ID
       const newFlow = driver.createSequentialFlow('document-modeling/DM.01');
-      await driver.executeScenario('document-modeling/DM.01', newFlow);
+      await driver.executeScenarioFlow('document-modeling/DM.01', newFlow);
       
       // Should have a new session ID
       expect(driver.getSessionId()).toBe('session-789');
@@ -305,7 +305,7 @@ describe('PromptDriver', () => {
       });
 
       const flow = driver.createSequentialFlow('document-modeling/DM.00');
-      await driver.executeScenario('document-modeling/DM.00', flow);
+      await driver.executeScenarioFlow('document-modeling/DM.00', flow);
       
       // After first message, all subsequent messages should use the same session ID
       const capturedSessionId = sessionIds.find(id => id);
@@ -325,7 +325,7 @@ describe('PromptDriver', () => {
       });
 
       const flow = driver.createSequentialFlow('document-modeling/DM.00');
-      await driver.executeScenario('document-modeling/DM.00', flow);
+      await driver.executeScenarioFlow('document-modeling/DM.00', flow);
       
       expect(mockAgent.sendMessage).toHaveBeenCalled();
     });
@@ -337,7 +337,7 @@ describe('PromptDriver', () => {
       });
 
       const flow = driver.createSequentialFlow('document-modeling/DM.00');
-      await driver.executeScenario('document-modeling/DM.00', flow, {}, { maxTurns: 10 });
+      await driver.executeScenarioFlow('document-modeling/DM.00', flow, {}, { maxTurns: 10 });
       
       expect(mockAgent.sendMessage).toHaveBeenCalled();
     });
@@ -351,7 +351,7 @@ describe('PromptDriver', () => {
       });
 
       const flow = driver.createSequentialFlow('document-modeling/DM.00');
-      await driver.executeScenario('document-modeling/DM.00', flow);
+      await driver.executeScenarioFlow('document-modeling/DM.00', flow);
       
       expect(mockAgent.sendMessage).toHaveBeenCalled();
     });

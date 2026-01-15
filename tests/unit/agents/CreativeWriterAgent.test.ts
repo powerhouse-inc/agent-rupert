@@ -54,7 +54,7 @@ describe('CreativeWriterAgent', () => {
         });
 
         it('should return correct prompt template paths', () => {
-            const paths = CreativeWriterAgent.getPromptTemplatePaths();
+            const paths = CreativeWriterAgent.getSystemPromptTemplatePaths();
             
             expect(paths).toEqual([
                 'prompts/agent-profiles/CreativeWriterAgent.md'
@@ -62,7 +62,7 @@ describe('CreativeWriterAgent', () => {
         });
 
         it('should build prompt context with genre property', () => {
-            const context = CreativeWriterAgent.buildPromptContext(config, 3000, ['test-server']);
+            const context = CreativeWriterAgent.buildSystemPromptContext(config, 3000, ['test-server']);
             
             expect(context.agentType).toBe('CreativeWriterAgent');
             expect(context.agentName).toBe('TestWriter');
@@ -72,7 +72,7 @@ describe('CreativeWriterAgent', () => {
 
         it('should include different genre in context', () => {
             const thrillerConfig = { ...config, genre: 'thriller' as const };
-            const context = CreativeWriterAgent.buildPromptContext(thrillerConfig, 3000);
+            const context = CreativeWriterAgent.buildSystemPromptContext(thrillerConfig, 3000);
             
             expect(context.genre).toBe('thriller');
             expect(context.capabilities).toBeUndefined();  // Capabilities removed
@@ -91,107 +91,6 @@ describe('CreativeWriterAgent', () => {
 
         it('should return the configured genre', () => {
             expect(agent.getGenre()).toBe('science-fiction');
-        });
-
-        it('should write creative piece with genre context', async () => {
-            mockBrain.sendMessage.mockResolvedValue({ 
-                response: 'A creative story...', 
-                sessionId: 'test-session-1' 
-            });
-            
-            const result = await agent.writeCreativePiece('Write a story about robots');
-            
-            expect(mockBrain.sendMessage).toHaveBeenCalledWith(
-                'Write in the science-fiction genre.\n\nWrite a story about robots'
-            );
-            expect(result).toBe('A creative story...');
-        });
-
-        it('should throw error if brain does not support sendMessage', async () => {
-            const limitedBrain = { 
-                setSystemPrompt: jest.fn(),
-                setLogger: jest.fn()
-            };
-            const agentWithLimitedBrain = new CreativeWriterAgent(
-                config, 
-                mockLogger, 
-                limitedBrain as IAgentBrain
-            );
-            
-            await expect(agentWithLimitedBrain.writeCreativePiece('Write something'))
-                .rejects.toThrow('Brain not initialized or does not support sendMessage');
-        });
-
-        it('should handle different genres', async () => {
-            const thrillerConfig = { ...config, genre: 'thriller' as const };
-            const thrillerAgent = new CreativeWriterAgent(thrillerConfig, mockLogger, mockBrain as IAgentBrain);
-            
-            mockBrain.sendMessage.mockResolvedValue('A thrilling story...');
-            
-            await thrillerAgent.writeCreativePiece('Write a suspenseful scene');
-            
-            expect(mockBrain.sendMessage).toHaveBeenCalledWith(
-                'Write in the thriller genre.\n\nWrite a suspenseful scene'
-            );
-        });
-    });
-
-    describe('document handlers', () => {
-        beforeEach(() => {
-            agent = new CreativeWriterAgent(config, mockLogger, mockBrain as IAgentBrain);
-        });
-
-        it('should handle inbox updates', async () => {
-            const operations = [{ type: 'insert', data: 'test' }];
-            mockBrain.describeInboxOperations.mockResolvedValue('New writing request');
-            
-            await (agent as any).handleInboxUpdate('doc-id', operations);
-            
-            expect(mockLogger.info).toHaveBeenCalledWith(
-                'TestWriter: Processing inbox update with 1 operations'
-            );
-            expect(mockBrain.describeInboxOperations).toHaveBeenCalledWith(operations);
-            expect(mockLogger.info).toHaveBeenCalledWith(
-                'TestWriter: Brain analysis: New writing request'
-            );
-        });
-
-        it('should handle inbox updates without brain', async () => {
-            const agentNoBrain = new CreativeWriterAgent(config, mockLogger);
-            const operations = [{ type: 'insert', data: 'test' }];
-            
-            await (agentNoBrain as any).handleInboxUpdate('doc-id', operations);
-            
-            expect(mockLogger.info).toHaveBeenCalledWith(
-                'TestWriter: Processing inbox update with 1 operations'
-            );
-            expect(mockBrain.describeInboxOperations).not.toHaveBeenCalled();
-        });
-
-        it('should handle WBS updates', async () => {
-            const operations = [{ type: 'update', data: 'progress' }];
-            mockBrain.describeWbsOperations.mockResolvedValue('Story task completed');
-            
-            await (agent as any).handleWbsUpdate('wbs-id', operations);
-            
-            expect(mockLogger.info).toHaveBeenCalledWith(
-                'TestWriter: Processing WBS update with 1 operations'
-            );
-            expect(mockBrain.describeWbsOperations).toHaveBeenCalledWith(operations);
-            expect(mockLogger.info).toHaveBeenCalledWith(
-                'TestWriter: Brain analysis: Story task completed'
-            );
-        });
-
-        it('should handle brain analysis errors gracefully', async () => {
-            const operations = [{ type: 'insert' }];
-            mockBrain.describeInboxOperations.mockRejectedValue(new Error('Analysis failed'));
-            
-            await (agent as any).handleInboxUpdate('doc-id', operations);
-            
-            expect(mockLogger.warn).toHaveBeenCalledWith(
-                'TestWriter: Failed to get brain analysis of inbox operations'
-            );
         });
     });
 

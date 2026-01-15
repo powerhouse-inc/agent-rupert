@@ -25,13 +25,13 @@ export interface IAgentBrain {
      * @param prompt System prompt text
      * @param agentName Optional agent name for debugging
      */
-    setSystemPrompt?(prompt: string, agentName?: string): void;
+    setSystemPrompt(prompt: string, agentName?: string): void;
 
     /**
      * Get the current system prompt
      * @returns Current system prompt or undefined if not set
      */
-    getSystemPrompt?(): string | undefined;
+    getSystemPrompt(): string | undefined;
 
     /**
      * Describe WBS operations in natural language

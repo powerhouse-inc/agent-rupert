@@ -18,14 +18,6 @@ export class CreativeWriterAgent extends AgentBase<IAgentBrain> {
     }
     
     /**
-     * Create the brain for this agent
-     */
-    protected createBrain(config: BrainConfig): IAgentBrain | null {
-        // For now, return null - will be implemented when migrating to ClaudeAgentBase
-        return null;
-    }
-    
-    /**
      * Get the brain configuration for CreativeWriterAgent
      * Uses Claude SDK brain for creative tasks
      */
@@ -42,7 +34,7 @@ export class CreativeWriterAgent extends AgentBase<IAgentBrain> {
     /**
      * Get the prompt template paths for CreativeWriterAgent
      */
-    static getPromptTemplatePaths(): string[] {
+    static getSystemPromptTemplatePaths(): string[] {
         return [
             'prompts/agent-profiles/CreativeWriterAgent.md'
         ];
@@ -60,12 +52,12 @@ export class CreativeWriterAgent extends AgentBase<IAgentBrain> {
     /**
      * Build the prompt context for CreativeWriterAgent
      */
-    static buildPromptContext(
+    static buildSystemPromptContext(
         config: BaseAgentConfig,
         serverPort: number,
         mcpServers: string[] = []
     ): AgentBrainPromptContext {
-        const baseContext = AgentBase.buildPromptContext(config, serverPort, mcpServers);
+        const baseContext = AgentBase.buildSystemPromptContext(config, serverPort, mcpServers);
         
         return {
             ...baseContext,
@@ -83,66 +75,5 @@ export class CreativeWriterAgent extends AgentBase<IAgentBrain> {
      */
     public getGenre(): string {
         return this.getConfig().genre;
-    }
-    
-    /**
-     * Write a creative piece based on a prompt
-     */
-    public async writeCreativePiece(prompt: string): Promise<string> {
-        if (!this.brain?.sendMessage) {
-            throw new Error('Brain not initialized or does not support sendMessage');
-        }
-        
-        const genreContext = `Write in the ${this.getConfig().genre} genre.`;
-        const fullPrompt = `${genreContext}\n\n${prompt}`;
-        
-        const result = await this.brain.sendMessage(fullPrompt);
-        return result.response;
-    }
-    
-    /**
-     * Handle updates to the inbox document
-     * This is where creative writing requests and feedback arrive
-     */
-    protected async handleInboxUpdate(_documentId: string, operations: any[]): Promise<void> {
-        this.logger.info(`${this.config.name}: Processing inbox update with ${operations.length} operations`);
-        
-        // Use brain to describe the operations if available
-        if (this.brain) {
-            try {
-                const description = await this.brain.describeInboxOperations(operations);
-                this.logger.info(`${this.config.name}: Brain analysis: ${description}`);
-            } catch (error) {
-                this.logger.warn(`${this.config.name}: Failed to get brain analysis of inbox operations`);
-            }
-        }
-        
-        // TODO: Process inbox operations
-        // - Extract writing requests
-        // - Process feedback on stories
-        // - Create writing tasks in WBS
-    }
-    
-    /**
-     * Handle updates to the WBS document
-     * This is where creative writing progress is tracked
-     */
-    protected async handleWbsUpdate(_documentId: string, operations: any[]): Promise<void> {
-        this.logger.info(`${this.config.name}: Processing WBS update with ${operations.length} operations`);
-        
-        // Use brain to describe the operations if available
-        if (this.brain) {
-            try {
-                const description = await this.brain.describeWbsOperations(operations);
-                this.logger.info(`${this.config.name}: Brain analysis: ${description}`);
-            } catch (error) {
-                this.logger.warn(`${this.config.name}: Failed to get brain analysis of WBS operations`);
-            }
-        }
-        
-        // TODO: Process WBS operations
-        // - Monitor writing progress
-        // - Track completed stories and chapters
-        // - Update stakeholders on progress
     }
 }
