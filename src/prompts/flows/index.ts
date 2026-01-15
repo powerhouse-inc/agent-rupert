@@ -1,2 +1,2 @@
 export type { IScenarioFlow, ScenarioFlowStatus } from './IScenarioFlow.js';
-export { SequentialFlow } from './SequentialFlow.js';
+export { SequentialScenarioFlow as SequentialFlow } from './SequentialFlow.js';

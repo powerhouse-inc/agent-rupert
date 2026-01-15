@@ -7,7 +7,7 @@ import { RenderedScenario, RenderedScenarioTask } from "../types.js";
  * - Terminates successfully when all tasks are completed
  * - Terminates with error if any task fails
  */
-export class SequentialFlow implements IScenarioFlow {
+export class SequentialScenarioFlow implements IScenarioFlow {
     private scenario: RenderedScenario;
     private currentTaskIndex: number = -1;
     private _started: boolean = false;
@@ -18,6 +18,14 @@ export class SequentialFlow implements IScenarioFlow {
 
     constructor(scenario: RenderedScenario) {
         this.scenario = scenario;
+    }
+
+    name(): string {
+        return "SequentialFlow";
+    }
+
+    description(): string {
+        return "Tasks will be executed in sequence until one of them fails or all tasks are completed.";
     }
 
     /**

@@ -2,7 +2,7 @@ import { IAgentBrain } from '../agents/IAgentBrain.js';
 import { SkillsRepository } from './SkillsRepository.js';
 import { RenderedScenario, RenderedScenarioTask } from './types.js';
 import type { IScenarioFlow } from './flows/IScenarioFlow.js';
-import { SequentialFlow } from './flows/SequentialFlow.js';
+import { SequentialScenarioFlow } from './flows/SequentialFlow.js';
 
 export interface ExecutionResult {
   scenarioId: string;
@@ -23,11 +23,12 @@ export interface TaskResponse {
 export class PromptDriver {
   private repository: SkillsRepository;
   private agent: IAgentBrain;
-  private sessionActive: boolean = false;
+  private sessionId: string | null = null;
   private maxTurns: number = 5;  // Default maxTurns for message sending
 
   constructor(
     agent: IAgentBrain,
+    // replace with repository: SkillsRepository
     repositoryPath: string = './build/prompts'
   ) {
     this.agent = agent;
@@ -49,31 +50,40 @@ export class PromptDriver {
     this.maxTurns = maxTurns;
   }
 
+  async sendSkillPreamble<TContext = any>(skill: string, context: TContext) {
+    const skillPreamble = this.repository.getSkillPreamble(skill, context);
+    if (skillPreamble && skillPreamble.trim().length > 0) {
+      await this.sendMessage(skillPreamble, this.maxTurns);
+    }
+  }
+
   /**
    * Execute a scenario using the provided flow
    * @param scenarioKey The key or path to the scenario document
    * @param flow The flow to use for execution
    * @param context Context object to pass to template functions (optional)
-   * @param options Optional execution options
+   * @param options Optional execution options including sessionId and maxTurns
    * @returns ExecutionResult with all task responses
    */
   async executeScenario<TScenarioContext = any>(
     scenarioKey: string,
     flow: IScenarioFlow,
     context: TScenarioContext = {} as TScenarioContext,
-    options?: { maxTurns?: number }
+    options?: { maxTurns?: number; sessionId?: string }
   ): Promise<ExecutionResult> {
     // Get the rendered scenario with context applied
     const scenario = this.repository.getScenarioByKey(scenarioKey, context);
     if (!scenario) {
       throw new Error(`Scenario not found: ${scenarioKey}`);
     }
-
-    // Extract skill name from scenario key (e.g., "short-story-writing/SS.00" -> "short-story-writing")
-    const skillName = scenarioKey.includes('/') ? scenarioKey.split('/')[0] : 'default';
     
     // Use provided maxTurns or fallback to instance default
     const maxTurns = options?.maxTurns ?? this.maxTurns;
+    
+    // Use provided sessionId if available
+    if (options?.sessionId) {
+      this.sessionId = options.sessionId;
+    }
 
     const responses: TaskResponse[] = [];
 
@@ -81,10 +91,8 @@ export class PromptDriver {
     flow.reset();
 
     try {
-      // Start a new session if not active
-      if (!this.sessionActive) {
-        await this.startSessionWithContext(scenario, context, skillName);
-      }
+      // Always send the briefing (regardless of session state)
+      await this.sendScenarioBriefing(scenario, flow, maxTurns);
 
       // Execute tasks using the flow
       let task = flow.nextTask();
@@ -139,6 +147,58 @@ export class PromptDriver {
   }
 
   /**
+   * Execute a single task directly
+   * @param task The task to execute
+   * @param options Execution options
+   * @returns The task response
+   */
+  async executeTask(
+    task: RenderedScenarioTask,
+    options?: { 
+      maxTurns?: number; 
+      sessionId?: string; 
+      captureSession?: boolean 
+    }
+  ): Promise<TaskResponse> {
+    // Use provided maxTurns or fallback to instance default
+    const maxTurns = options?.maxTurns ?? this.maxTurns;
+    
+    // Use provided sessionId if available
+    if (options?.sessionId) {
+      this.sessionId = options.sessionId;
+    }
+    
+    // Default to capturing session if not specified
+    const captureSession = options?.captureSession ?? true;
+    
+    try {
+      // Build the task prompt
+      const taskPrompt = `## Task ${task.id}: ${task.title}\n\n${task.content}`;
+      
+      // Send the task and optionally capture session
+      const result = await this.sendMessage(taskPrompt, maxTurns, captureSession);
+      
+      return {
+        taskId: task.id,
+        taskTitle: task.title,
+        response: result.response,
+        timestamp: new Date(),
+        success: true
+      };
+    } catch (error) {
+      const taskError = error as Error;
+      return {
+        taskId: task.id,
+        taskTitle: task.title,
+        response: taskError.message,
+        timestamp: new Date(),
+        success: false,
+        error: taskError
+      };
+    }
+  }
+
+  /**
    * Execute a rendered task (content is already a string)
    */
   private async executeRenderedTask(
@@ -148,39 +208,46 @@ export class PromptDriver {
     // Build the prompt for this task
     const taskPrompt = `## Task ${task.id}: ${task.title}\n\n${task.content}`;
     
-    // Send to agent and get response
-    if (!this.agent.sendMessage) {
-      throw new Error('Agent does not support sendMessage method');
-    }
-    
-    const result = await this.agent.sendMessage(taskPrompt, undefined, { maxTurns });
-    
+    const result = await this.sendMessage(taskPrompt, maxTurns);
     return result.response;
   }
 
 
   /**
-   * Start a new session with preamble and context
+   * Send briefing message (always sent, regardless of session state)
    */
-  private async startSessionWithContext<TContext = any>(
-    scenario: RenderedScenario, 
-    context: TContext,
-    skillName: string = 'default'
+  private async sendScenarioBriefing(
+    scenario: RenderedScenario,
+    flow: IScenarioFlow,
+    maxTurns: number = 5,
   ): Promise<void> {
-    // Set system prompt with document context
-    let systemPrompt = `You are executing a structured sequence of tasks from the "${scenario.id}" scenario.\n`;
-    systemPrompt += `Scenario: ${scenario.title}\n\n`;
+    // Start building the briefing message
+    let briefingMessage = this.getBriefingIntroMessage(scenario, flow);
+    
+    // Optionally add scenario preamble
+    const scenarioPreamble = this.getScenarioPreamble(scenario);
+    if (scenarioPreamble) {
+      briefingMessage += `\n\n${scenarioPreamble}`;
+    }
+    
+    // Always conclude the briefing
+    briefingMessage += `\n\nYou will now receive tasks one by one. Complete each task thoroughly before moving to the next and don't jump ahead.`;
+    briefingMessage += `\n\n=== END BRIEFING ===`;
+    
+    await this.sendMessage(briefingMessage, maxTurns);
+  }
+  
+  /**
+   * Build the base briefing message
+   */
+  private getBriefingIntroMessage(scenario: RenderedScenario, flow: IScenarioFlow): string {
+    return `=== BEGIN BRIEFING ===
 
-    systemPrompt = 
-`
-=== BEGIN BRIEFING ===
-
-Listen to your briefing and acknowledge before proceeding. 
+Listen to your briefing and acknowledge before proceeding.
 
 # Scenario Overview
 
-After your briefing, you will be asked to execute a sequence 
-of tasks from the following scenario:
+You are about to execute a structured sequence of tasks taken from the following scenario:
 
 <scenario>${scenario.id} : ${scenario.title}</scenario>
 
@@ -188,45 +255,57 @@ of tasks from the following scenario:
 ${scenario.tasks.map(t => ' - ' + t.id + ' ' + t.title).join("\n")}
 </tasks>
 
-Keep this overview in mind to proceed with one task at a time when 
-you're instructed to do so.
+Tasks will be following a ${flow.name()}. ${flow.description()}
 
-`;
+Keep this overview in mind to proceed with one task at a time when you're instructed to do so.`;
+  }
+  
+  /**
+   * Get scenario preamble if it exists
+   */
+  private getScenarioPreamble(scenario: RenderedScenario): string | null {
+    if (scenario.preamble && scenario.preamble.trim().length > 0) {
+      return `# Scenario Instructions\n\n${scenario.preamble}`;
+    }
+    return null;
+  }
+  
+  /**
+   * Send a message to the agent and capture the session ID if needed
+   * @param message The message to send
+   * @param maxTurns Maximum number of turns for the message exchange
+   * @returns The response from the agent
+   */
+  private async sendMessage(
+    message: string,
+    maxTurns: number = 5,
+    captureSession: boolean = true,
+  ): Promise<{ response: string; sessionId?: string }> {
+    const result = await this.agent.sendMessage(message, this.sessionId || undefined, { maxTurns });
     
-    if (scenario.preamble) {
-      // Preamble is already rendered with context
-      systemPrompt += `# Instructions\n\n${scenario.preamble}\n\n`;
+    // Capture sessionId from the response if we don't have one yet
+    if (captureSession && result.sessionId) {
+      this.sessionId = result.sessionId;
     }
     
-    systemPrompt += `You will now receive tasks one by one. Complete each task thoroughly before moving to the next.`;
-    systemPrompt += `=== END BRIEFING ===`;
-    
-    // Set the system prompt (this maintains the session context)
-    if (this.agent.setSystemPrompt) {
-      this.agent.setSystemPrompt(systemPrompt);
-    }
-    
-    // After setting system prompt, send skill preamble as a message if it exists
-    const skillPreamble = this.repository.getSkillPreamble(skillName, context);
-    if (skillPreamble && this.agent.sendMessage) {
-      if (skillPreamble.trim().length > 0) {
-        // Send skill preamble as first message with maxTurns
-        await this.agent.sendMessage(skillPreamble, undefined, { maxTurns: this.maxTurns });
-      }
-    }
-    
-    this.sessionActive = true;
+    return result;
   }
 
   /**
    * End the current session
    */
   async endSession(): Promise<void> {
-    this.sessionActive = false;
+    this.sessionId = null;
     // The agent brain maintains its own session lifecycle
-    // We just track whether we've initialized it with our prompt context
+    // We just clear our reference to the session
   }
-
+  
+  /**
+   * Get the current session ID
+   */
+  getSessionId(): string | null {
+    return this.sessionId;
+  }
 
   /**
    * Helper method to create a SequentialFlow for a scenario
@@ -237,12 +316,12 @@ you're instructed to do so.
   createSequentialFlow<TContext = any>(
     scenarioKey: string,
     context: TContext = {} as TContext
-  ): SequentialFlow {
+  ): SequentialScenarioFlow {
     const scenario = this.repository.getScenarioByKey(scenarioKey, context);
     if (!scenario) {
       throw new Error(`Scenario not found: ${scenarioKey}`);
     }
-    return new SequentialFlow(scenario);
+    return new SequentialScenarioFlow(scenario);
   }
 
   /**

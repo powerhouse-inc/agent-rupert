@@ -2,6 +2,16 @@ import { RenderedScenarioTask } from "../types.js";
 
 export interface IScenarioFlow {
     /**
+     * The name of the scenario flow, for example "SequentialFlow"
+     */
+    name(): string;
+
+    /**
+     * A short description that explains in what order tasks are executed.
+     */
+    description(): string;
+
+    /**
      * Returns null if the flow is finished.
      * Throws an exception if the previous task result was not reported.
      */

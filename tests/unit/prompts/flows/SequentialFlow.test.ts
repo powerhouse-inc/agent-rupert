@@ -1,8 +1,9 @@
-import { SequentialFlow } from '../../../../src/prompts/flows/SequentialFlow.js';
-import { RenderedScenario, RenderedScenarioTask } from '../../../../src/prompts/types.js';
+import { beforeEach, describe, expect, it } from '@jest/globals';
+import { SequentialScenarioFlow } from '../../../../src/prompts/flows/SequentialFlow.js';
+import { RenderedScenario } from '../../../../src/prompts/types.js';
 
 describe('SequentialFlow', () => {
-    let flow: SequentialFlow;
+    let flow: SequentialScenarioFlow;
     let scenario: RenderedScenario;
 
     beforeEach(() => {
@@ -17,7 +18,7 @@ describe('SequentialFlow', () => {
                 { id: 'TEST.00.3', title: 'Third Task', content: 'Do third thing' }
             ]
         };
-        flow = new SequentialFlow(scenario);
+        flow = new SequentialScenarioFlow(scenario);
     });
 
     describe('initial state', () => {
@@ -202,7 +203,7 @@ describe('SequentialFlow', () => {
                 title: 'Empty Scenario',
                 tasks: []
             };
-            const emptyFlow = new SequentialFlow(emptyScenario);
+            const emptyFlow = new SequentialScenarioFlow(emptyScenario);
 
             // Should immediately finish successfully
             const task = emptyFlow.nextTask();
@@ -217,7 +218,7 @@ describe('SequentialFlow', () => {
                 title: 'Single Task',
                 tasks: [{ id: 'SINGLE.1', title: 'Only Task', content: 'Do it' }]
             };
-            const singleFlow = new SequentialFlow(singleTaskScenario);
+            const singleFlow = new SequentialScenarioFlow(singleTaskScenario);
 
             const task = singleFlow.nextTask();
             expect(task).toEqual(singleTaskScenario.tasks[0]);

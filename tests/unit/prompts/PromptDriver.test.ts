@@ -1,7 +1,7 @@
-import { jest } from '@jest/globals';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { PromptDriver, ExecutionResult } from '../../../src/prompts/PromptDriver.js';
 import { IAgentBrain } from '../../../src/agents/IAgentBrain.js';
-import { SequentialFlow } from '../../../src/prompts/flows/SequentialFlow.js';
+import { SequentialScenarioFlow } from '../../../src/prompts/flows/SequentialFlow.js';
 
 // Mock agent brain
 class MockAgentBrain implements Partial<IAgentBrain> {
@@ -79,7 +79,7 @@ describe('PromptDriver', () => {
   describe('createSequentialFlow', () => {
     it('should create a sequential flow for a scenario', () => {
       const flow = driver.createSequentialFlow('document-modeling/DM.00');
-      expect(flow).toBeInstanceOf(SequentialFlow);
+      expect(flow).toBeInstanceOf(SequentialScenarioFlow);
       expect(flow.getScenarioInfo().id).toBe('DM.00');
       expect(flow.getScenarioInfo().totalTasks).toBe(6);
     });
@@ -95,7 +95,7 @@ describe('PromptDriver', () => {
       const flow = driver.createSequentialFlow('document-modeling/DM.00', context);
       
       // The flow should have the scenario with context applied
-      expect(flow).toBeInstanceOf(SequentialFlow);
+      expect(flow).toBeInstanceOf(SequentialScenarioFlow);
       const task = flow.nextTask();
       expect(task).toBeDefined();
       // Context would be applied in the task content if the template used it
@@ -104,8 +104,9 @@ describe('PromptDriver', () => {
 
   describe('executeScenario', () => {
     it('should execute a complete scenario', async () => {
-      // Set up mock responses for each task
+      // Set up mock responses for briefing + each task
       const expectedResponses = [
+        'Acknowledged briefing',  // Response to briefing
         'Completed task DM.00.1',
         'Completed task DM.00.2',
         'Completed task DM.00.3',
@@ -125,7 +126,7 @@ describe('PromptDriver', () => {
       expect(result.completedTasks).toBe(6);
       expect(result.responses).toHaveLength(6);
 
-      // Verify each task response
+      // Verify each task response (briefing doesn't appear in responses)
       expect(result.responses[0].taskId).toBe('DM.00.1');
       expect(result.responses[0].response).toBe('Completed task DM.00.1');
       expect(result.responses[0].success).toBe(true);
@@ -134,14 +135,23 @@ describe('PromptDriver', () => {
       expect(result.responses[5].success).toBe(true);
     });
 
-    it('should set system prompt with scenario context', async () => {
+    it('should send briefing message with scenario context', async () => {
+      let briefingMessage: string | undefined;
+      mockAgent.sendMessage = jest.fn(async (message, sessionId) => {
+        if (message.includes('BEGIN BRIEFING')) {
+          briefingMessage = message;
+        }
+        return { response: 'acknowledged', sessionId: sessionId || 'test-session' };
+      });
+
       const flow = driver.createSequentialFlow('document-modeling/DM.00');
       await driver.executeScenario('document-modeling/DM.00', flow);
 
-      const systemPrompt = mockAgent.getSystemPrompt();
-      expect(systemPrompt).toBeDefined();
-      expect(systemPrompt).toContain('DM.00');
-      expect(systemPrompt).toContain('Check the prerequisites for creating a document model');
+      expect(briefingMessage).toBeDefined();
+      expect(briefingMessage).toContain('DM.00');
+      expect(briefingMessage).toContain('Check the prerequisites for creating a document model');
+      expect(briefingMessage).toContain('BEGIN BRIEFING');
+      expect(briefingMessage).toContain('END BRIEFING');
     });
 
     it('should maintain session across tasks', async () => {
@@ -149,33 +159,30 @@ describe('PromptDriver', () => {
       let callCount = 0;
 
       // Override sendMessage to track calls
-      mockAgent.sendMessage = jest.fn(async () => {
+      mockAgent.sendMessage = jest.fn(async (message, sessionId) => {
         callCount++;
         const response = `Response ${callCount} to task`;
         responses.push(response);
-        return response;
+        return { response, sessionId: sessionId || 'test-session' };
       });
 
       const flow = driver.createSequentialFlow('document-modeling/DM.01');
       const result = await driver.executeScenario('document-modeling/DM.01', flow);
 
-      // DM.01 has 5 tasks
-      expect(callCount).toBe(5);
+      // DM.01 has 5 tasks + 1 briefing message = 6 total messages
+      expect(callCount).toBe(6);
       expect(result.completedTasks).toBe(5);
-      
-      // All responses should be from the same session
-      expect(mockAgent.getSystemPrompt()).toContain('DM.01');
     });
 
     it('should handle task failures', async () => {
-      // Simulate failure on third task
-      let taskCount = 0;
+      // Simulate failure on third task (fourth message including briefing)
+      let messageCount = 0;
       mockAgent.sendMessage = jest.fn(async () => {
-        taskCount++;
-        if (taskCount === 3) {
+        messageCount++;
+        if (messageCount === 4) {  // 1 briefing + 3rd task
           throw new Error('Task 3 failed');
         }
-        return { response: `Success for task ${taskCount}`, sessionId: 'test-session' };
+        return { response: `Success for message ${messageCount}`, sessionId: 'test-session' };
       });
 
       const flow = driver.createSequentialFlow('document-modeling/DM.00');
@@ -207,22 +214,48 @@ describe('PromptDriver', () => {
   });
 
   describe('session management', () => {
-    it('should start a new session when not active', async () => {
-      let setSystemPromptCalled = false;
-      mockAgent.setSystemPrompt = jest.fn(() => {
-        setSystemPromptCalled = true;
+    it('should capture session ID from first message', async () => {
+      mockAgent.sendMessage = jest.fn(async (message, sessionId) => {
+        return {
+          response: 'test response',
+          sessionId: sessionId || 'new-session-123'
+        };
       });
 
       const flow = driver.createSequentialFlow('document-modeling/DM.00');
       await driver.executeScenario('document-modeling/DM.00', flow);
 
-      expect(setSystemPromptCalled).toBe(true);
+      // Should have captured the session ID
+      expect(driver.getSessionId()).toBe('new-session-123');
     });
 
-    it('should reuse session for subsequent scenarios', async () => {
-      let systemPromptCalls = 0;
-      mockAgent.setSystemPrompt = jest.fn(() => {
-        systemPromptCalls++;
+    it('should use provided sessionId when specified', async () => {
+      const providedSessionId = 'existing-session-456';
+      let capturedSessionId: string | undefined;
+      
+      mockAgent.sendMessage = jest.fn(async (message, sessionId) => {
+        capturedSessionId = sessionId;
+        return {
+          response: 'test response',
+          sessionId: sessionId || 'new-session'
+        };
+      });
+
+      const flow = driver.createSequentialFlow('document-modeling/DM.00');
+      await driver.executeScenario('document-modeling/DM.00', flow, {}, { sessionId: providedSessionId });
+      
+      // Should use the provided session ID
+      expect(capturedSessionId).toBe(providedSessionId);
+      expect(driver.getSessionId()).toBe(providedSessionId);
+    });
+
+    it('should always send briefing message regardless of session state', async () => {
+      let briefingMessageCount = 0;
+      mockAgent.sendMessage = jest.fn(async (message, sessionId) => {
+        if (message.includes('BEGIN BRIEFING')) {
+          briefingMessageCount++;
+        }
+        return { response: 'acknowledged', sessionId: sessionId || 'test-session' };
       });
 
       const flow1 = driver.createSequentialFlow('document-modeling/DM.00');
@@ -231,28 +264,56 @@ describe('PromptDriver', () => {
       const flow2 = driver.createSequentialFlow('document-modeling/DM.01');
       await driver.executeScenario('document-modeling/DM.01', flow2);
 
-      // System prompt should only be set once (first scenario)
-      expect(systemPromptCalls).toBe(1);
+      // Briefing message should be sent for each scenario
+      expect(briefingMessageCount).toBe(2);
     });
 
     it('should handle endSession correctly', async () => {
+      mockAgent.sendMessage = jest.fn(async (message, sessionId) => {
+        return {
+          response: 'test response',
+          sessionId: sessionId || 'session-789'
+        };
+      });
+
       const flow = driver.createSequentialFlow('document-modeling/DM.00');
       await driver.executeScenario('document-modeling/DM.00', flow);
       
+      expect(driver.getSessionId()).toBe('session-789');
+      
       // End the session
       await driver.endSession();
+      expect(driver.getSessionId()).toBeNull();
 
-      // New execution should start a new session
-      let systemPromptCalls = 0;
-      mockAgent.setSystemPrompt = jest.fn(() => {
-        systemPromptCalls++;
-      });
-
+      // New execution should capture a new session ID
       const newFlow = driver.createSequentialFlow('document-modeling/DM.01');
       await driver.executeScenario('document-modeling/DM.01', newFlow);
       
-      // Should set system prompt again after session ended
-      expect(systemPromptCalls).toBe(1);
+      // Should have a new session ID
+      expect(driver.getSessionId()).toBe('session-789');
+    });
+
+    it('should maintain session ID across multiple tasks', async () => {
+      const sessionIds: (string | undefined)[] = [];
+      
+      mockAgent.sendMessage = jest.fn(async (message, sessionId) => {
+        sessionIds.push(sessionId);
+        return {
+          response: 'test response',
+          sessionId: sessionId || 'consistent-session'
+        };
+      });
+
+      const flow = driver.createSequentialFlow('document-modeling/DM.00');
+      await driver.executeScenario('document-modeling/DM.00', flow);
+      
+      // After first message, all subsequent messages should use the same session ID
+      const capturedSessionId = sessionIds.find(id => id);
+      if (capturedSessionId) {
+        // All messages after session ID capture should use the same ID
+        const afterCapture = sessionIds.slice(sessionIds.indexOf(capturedSessionId));
+        expect(afterCapture.every(id => id === capturedSessionId || id === 'consistent-session')).toBe(true);
+      }
     });
   });
 
@@ -301,6 +362,123 @@ describe('PromptDriver', () => {
       const repo = driver.getRepository();
       expect(repo).toBeDefined();
       expect(repo.isLoaded()).toBe(true);
+    });
+  });
+
+  describe('executeTask', () => {
+    it('should execute a single task directly', async () => {
+      mockAgent.sendMessage = jest.fn(async (message, sessionId) => {
+        return {
+          response: 'Task executed successfully',
+          sessionId: sessionId || 'test-session'
+        };
+      });
+
+      const task = {
+        id: 'TEST.1',
+        title: 'Test Task',
+        content: 'Perform test action'
+      };
+
+      const result = await driver.executeTask(task);
+
+      expect(result.taskId).toBe('TEST.1');
+      expect(result.taskTitle).toBe('Test Task');
+      expect(result.response).toBe('Task executed successfully');
+      expect(result.success).toBe(true);
+      expect(result.error).toBeUndefined();
+    });
+
+    it('should handle task execution failure', async () => {
+      mockAgent.sendMessage = jest.fn(async () => {
+        throw new Error('Task execution failed');
+      });
+
+      const task = {
+        id: 'TEST.2',
+        title: 'Failing Task',
+        content: 'This will fail'
+      };
+
+      const result = await driver.executeTask(task);
+
+      expect(result.taskId).toBe('TEST.2');
+      expect(result.success).toBe(false);
+      expect(result.response).toBe('Task execution failed');
+      expect(result.error).toBeDefined();
+      expect(result.error?.message).toBe('Task execution failed');
+    });
+
+    it('should use provided sessionId', async () => {
+      let capturedSessionId: string | undefined;
+      mockAgent.sendMessage = jest.fn(async (message, sessionId) => {
+        capturedSessionId = sessionId;
+        return {
+          response: 'Done',
+          sessionId: sessionId || 'new-session'
+        };
+      });
+
+      const task = {
+        id: 'TEST.3',
+        title: 'Session Task',
+        content: 'Test with session'
+      };
+
+      await driver.executeTask(task, { sessionId: 'provided-session' });
+
+      expect(capturedSessionId).toBe('provided-session');
+      expect(driver.getSessionId()).toBe('provided-session');
+    });
+
+    it('should respect captureSession option', async () => {
+      // Reset session first
+      await driver.endSession();
+
+      mockAgent.sendMessage = jest.fn(async (message, sessionId) => {
+        return {
+          response: 'Done',
+          sessionId: 'new-session-xyz'
+        };
+      });
+
+      const task = {
+        id: 'TEST.4',
+        title: 'No Capture Task',
+        content: 'Test without capture'
+      };
+
+      // Execute with captureSession: false
+      await driver.executeTask(task, { captureSession: false });
+
+      // Session should not be captured
+      expect(driver.getSessionId()).toBeNull();
+
+      // Execute with captureSession: true (default)
+      await driver.executeTask(task);
+
+      // Session should now be captured
+      expect(driver.getSessionId()).toBe('new-session-xyz');
+    });
+
+    it('should use custom maxTurns when provided', async () => {
+      mockAgent.sendMessage = jest.fn(async (message, sessionId, options) => {
+        expect(options?.maxTurns).toBe(20);
+        return {
+          response: 'Done',
+          sessionId: 'test-session'
+        };
+      });
+
+      const task = {
+        id: 'TEST.5',
+        title: 'MaxTurns Task',
+        content: 'Test maxTurns'
+      };
+
+      await driver.executeTask(task, { maxTurns: 20 });
+
+      expect(mockAgent.sendMessage).toHaveBeenCalled();
     });
   });
 });
