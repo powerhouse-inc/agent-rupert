@@ -5,7 +5,7 @@
 
 import { createSdkMcpServer } from '@anthropic-ai/claude-agent-sdk';
 import type { ReactorPackagesManager } from '../agents/ReactorPackageDevAgent/ReactorPackagesManager.js';
-import type { ILogger } from '../agents/AgentBase.js';
+import type { ILogger } from '../agents/AgentBase/AgentBase.js';
 import {
     createInitProjectTool,
     createListProjectsTool,

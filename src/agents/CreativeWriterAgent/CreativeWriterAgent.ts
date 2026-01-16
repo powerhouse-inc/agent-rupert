@@ -1,4 +1,4 @@
-import { AgentBase, BaseAgentConfig, type ILogger } from "../AgentBase.js";
+import { AgentBase, BaseAgentConfig, type ILogger } from "../AgentBase/AgentBase.js";
 import type { IAgentBrain } from "../IAgentBrain.js";
 import { BrainType, type BrainConfig } from "../BrainFactory.js";
 import type { AgentBrainPromptContext } from "../../types/prompt-context.js";

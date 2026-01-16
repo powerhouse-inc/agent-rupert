@@ -1,6 +1,6 @@
 import { AgentsManager } from '../agents/AgentsManager.js';
 import type { ServerConfig } from '../types.js';
-import type { ILogger } from '../agents/AgentBase.js';
+import type { ILogger } from '../agents/AgentBase/AgentBase.js';
 import { driveUrlToMcpUrl } from '../utils/url-utils.js';
 import fs from 'fs';
 import path from 'path';
@@ -121,7 +121,7 @@ export class AgentsService {
             
             this.agentsManager = new AgentsManager({
                 enableReactorPackageAgent: true,
-                enableArchitectAgent: true,
+                enableArchitectAgent: false,
                 reactorPackageConfig: reactorPackageDev,
                 architectConfig: powerhouseArchitect,
                 anthropicApiKey: config.anthropicApiKey,

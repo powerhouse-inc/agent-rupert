@@ -1,7 +1,7 @@
 import { tool } from '@anthropic-ai/claude-agent-sdk';
 import { z } from 'zod';
-import type { AgentBase } from '../agents/AgentBase.js';
-import type { ILogger } from '../agents/AgentBase.js';
+import type { AgentBase } from '../agents/AgentBase/AgentBase.js';
+import type { ILogger } from '../agents/AgentBase/AgentBase.js';
 
 export function createListSkillsTool(agent: AgentBase, logger?: ILogger) {
     return tool(

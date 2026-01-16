@@ -1,4 +1,4 @@
-import { AgentBase, type ILogger, type BaseAgentConfig } from "../AgentBase.js";
+import { AgentBase, type ILogger, type BaseAgentConfig } from "../AgentBase/AgentBase.js";
 import { ReactorPackagesManager, type RunProjectOptions } from "./ReactorPackagesManager.js";
 import { CLIExecutor } from "../../tasks/executors/cli-executor.js";
 import { ServiceExecutor } from "../../tasks/executors/service-executor.js";

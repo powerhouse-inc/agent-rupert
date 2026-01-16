@@ -1,6 +1,6 @@
 import { createSdkMcpServer } from '@anthropic-ai/claude-agent-sdk';
-import type { AgentBase } from '../agents/AgentBase.js';
-import type { ILogger } from '../agents/AgentBase.js';
+import type { AgentBase } from '../agents/AgentBase/AgentBase.js';
+import type { ILogger } from '../agents/AgentBase/AgentBase.js';
 import {
     createListSkillsTool,
     createGetSkillDetailsTool,

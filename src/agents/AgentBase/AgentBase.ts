@@ -1,21 +1,25 @@
 
 import { IDocumentDriveServer, InMemoryCache, MemoryStorage, ReactorBuilder, driveDocumentModelModule } from 'document-drive';
 import type { IDriveOperationStorage } from 'document-drive/storage/types';
-import type { BaseAgentConfig } from '../types.js';
+import type { BaseAgentConfig } from '../../types.js';
 import { documentModels } from 'powerhouse-agent';
 import type { AgentInboxDocument } from "powerhouse-agent/document-models/agent-inbox";
 import type { WorkBreakdownStructureDocument } from "powerhouse-agent/document-models/work-breakdown-structure";
 import { documentModelDocumentModelModule } from 'document-model';
 import { FilesystemStorage } from 'document-drive/storage/filesystem';
-import type { IAgentBrain } from './IAgentBrain.js';
-import type { BrainConfig } from './BrainFactory.js';
-import type { AgentBrainPromptContext } from '../types/prompt-context.js';
-import type { SkillInfo, ScenarioInfo } from '../prompts/types.js';
-import { PromptDriver, type SkillExecutionResult, type ScenarioExecutionResult, type TaskResponse } from '../prompts/PromptDriver.js';
-import { SequentialSkillFlow } from '../prompts/flows/SequentialSkillFlow.js';
-import { SequentialScenarioFlow } from '../prompts/flows/SequentialScenarioFlow.js';
-import { AgentClaudeBrain } from './AgentClaudeBrain.js';
-import { createSelfReflectionMcpServer } from '../tools/selfReflectionMcpServer.js';
+import type { IAgentBrain } from '../IAgentBrain.js';
+import type { BrainConfig } from '../BrainFactory.js';
+import type { AgentBrainPromptContext } from '../../types/prompt-context.js';
+import type { SkillInfo, ScenarioInfo } from '../../prompts/types.js';
+import { PromptDriver, type SkillExecutionResult, type ScenarioExecutionResult, type TaskResponse } from '../../prompts/PromptDriver.js';
+import { SequentialSkillFlow } from '../../prompts/flows/SequentialSkillFlow.js';
+import type { ISkillFlow } from '../../prompts/flows/ISkillFlow.js';
+import type { IScenarioFlow } from '../../prompts/flows/IScenarioFlow.js';
+import { SequentialScenarioFlow } from '../../prompts/flows/SequentialScenarioFlow.js';
+import { InboxHandlingFlow } from './InboxHandlingFlow.js';
+import type { InboxHandlingFlowContext } from './InboxHandlingFlowContext.js';
+import { AgentClaudeBrain } from '../AgentClaudeBrain.js';
+import { createSelfReflectionMcpServer } from '../../tools/selfReflectionMcpServer.js';
 
 // Logger interface for dependency injection
 export interface ILogger {
@@ -26,7 +30,7 @@ export interface ILogger {
 }
 
 // Re-export BaseAgentConfig type for convenience
-export type { BaseAgentConfig } from '../types.js';
+export type { BaseAgentConfig } from '../../types.js';
 
 /**
  *  The AgentBase class implements a Powerhouse Agent which operates as follows: 
@@ -355,12 +359,42 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
         }
         
         // Get scenarios for the skill with context
-        const scenarios = this.promptDriver.getRepository().getScenariosBySkill(skillName, context || {});
+        const scenarios = this.promptDriver.getRepository().getScenariosBySkill(skillName, context || {} as TContext);
         
         // Create a sequential skill flow
         const flow = new SequentialSkillFlow(skillName, scenarios);
         
         // Execute the skill using PromptDriver
+        return this.promptDriver.executeSkillFlow(
+            skillName,
+            flow,
+            context || {} as TContext,
+            options
+        );
+    }
+
+    /**
+     * Execute a skill with a custom flow
+     * @param skillName The name of the skill to execute
+     * @param flow Custom skill flow implementation
+     * @param context Context to pass to the templates
+     * @param options Execution options
+     * @returns Skill execution result
+     */
+    public async executeSkillWithFlow<TContext = any>(
+        skillName: string,
+        flow: ISkillFlow,
+        context?: TContext,
+        options?: {
+            maxTurns?: number;
+            sessionId?: string;
+            sendSkillPreamble?: boolean;
+        }
+    ): Promise<SkillExecutionResult> {
+        if (!this.promptDriver) {
+            throw new Error('PromptDriver not initialized - agent needs a brain to execute skills');
+        }
+        
         return this.promptDriver.executeSkillFlow(
             skillName,
             flow,
@@ -394,7 +428,7 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
         const scenarioKey = `${skillName}/${scenarioId}`;
         
         // Get the scenario from repository
-        const scenario = this.promptDriver.getRepository().getScenarioByKey(scenarioKey, context || {});
+        const scenario = this.promptDriver.getRepository().getScenarioByKey(scenarioKey, context || {} as TContext);
         if (!scenario) {
             throw new Error(`Scenario not found: ${scenarioKey}`);
         }
@@ -403,6 +437,39 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
         const flow = new SequentialScenarioFlow(scenario);
         
         // Execute the scenario using PromptDriver
+        return this.promptDriver.executeScenarioFlow<TContext>(
+            scenarioKey,
+            flow,
+            context || {} as TContext,
+            options
+        );
+    }
+
+    /**
+     * Execute a scenario with a custom flow
+     * @param skillName The name of the skill containing the scenario
+     * @param scenarioId The ID of the scenario to execute
+     * @param flow Custom scenario flow implementation
+     * @param context Context to pass to the templates
+     * @param options Execution options
+     * @returns Scenario execution result
+     */
+    public async executeScenarioWithFlow<TContext = any>(
+        skillName: string,
+        scenarioId: string,
+        flow: IScenarioFlow,
+        context?: TContext,
+        options?: {
+            maxTurns?: number;
+            sessionId?: string;
+        }
+    ): Promise<ScenarioExecutionResult> {
+        if (!this.promptDriver) {
+            throw new Error('PromptDriver not initialized - agent needs a brain to execute scenarios');
+        }
+        
+        const scenarioKey = `${skillName}/${scenarioId}`;
+        
         return this.promptDriver.executeScenarioFlow<TContext>(
             scenarioKey,
             flow,
@@ -687,12 +754,68 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
         });
     }
 
+    protected nextUpdatePending: boolean = false;
+    protected processing: boolean = false;
+
     /**
      * Strongly typed method for processing inbox document updates
+     * Processes one unread message at a time to avoid conflicts
      * Override in subclasses to handle specific inbox document processing
      */
-    protected updateInbox(inbox: AgentInboxDocument): void | Promise<void> {
+    protected async updateInbox(inbox: AgentInboxDocument): Promise<void> {
+        this.logger.info(" UPDATE INBOX ");
         this.documents.inbox = inbox;
+        
+        // Only process if we have a brain and promptDriver
+        if (!this.brain || !this.promptDriver) {
+            this.logger.info(`${this.config.name}: Skipping inbox processing - no brain configured`);
+            return;
+        }
+
+        // If already processing, ignore this update to prevent concurrent execution
+        if (this.processing) {
+            this.nextUpdatePending = true;
+            this.logger.info(`${this.config.name}: Already processing a message, skipping this inbox update`);
+            return;
+        }
+
+        do {
+            this.nextUpdatePending = false; // Will be set to true async if new updates come in
+            
+            try {
+                this.processing = true;
+                const nextMessage = InboxHandlingFlow.getNextUnreadMessage(this.documents.inbox, this.config.workDrive);
+
+                if (nextMessage === null) {
+                    this.logger.info(`${this.config.name}: All messages processed. No more unread messages.`);
+
+                } else {
+                    this.logger.info(`${this.config.name}: Processing message from ${nextMessage.stakeholder.name}: ${nextMessage.message.content.substring(0, 100)}...`);
+                    
+                    const result = await this.executeSkill<InboxHandlingFlowContext>(
+                        'handle-stakeholder-message',
+                        nextMessage,
+                        {
+                            maxTurns: 50,
+                            sendSkillPreamble: true,
+                        }
+                    );
+                    
+                    if (result.success) {
+                        this.logger.info(`${this.config.name}: Successfully processed message ${nextMessage.message.id}`);
+                    } else {
+                        this.logger.error(`${this.config.name}: Failed to process message ${nextMessage.message.id}`, result.error);
+                    }                    
+                }
+
+            } catch (error) {
+                this.logger.error(`${this.config.name}: Error processing next inbox update`, error);
+
+            } finally {
+                this.processing = false;
+            }
+
+        } while(this.nextUpdatePending);
     }
 
     /**

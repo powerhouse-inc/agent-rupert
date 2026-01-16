@@ -1,6 +1,6 @@
 import { ReactorPackageDevAgent } from './ReactorPackageDevAgent/ReactorPackageDevAgent.js';
 import { PowerhouseArchitectAgent } from './PowerhouseArchitectAgent/PowerhouseArchitectAgent.js';
-import type { AgentBase, ILogger } from './AgentBase.js';
+import type { AgentBase, ILogger } from './AgentBase/AgentBase.js';
 import type { ReactorPackageDevAgentConfig, PowerhouseArchitectAgentConfig } from '../types.js';
 import { BrainFactory } from './BrainFactory.js';
 import type { IAgentBrain } from './IAgentBrain.js';

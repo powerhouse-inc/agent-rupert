@@ -1,4 +1,4 @@
-import { AgentBase, type ILogger, type BaseAgentConfig } from "../AgentBase.js";
+import { AgentBase, type ILogger, type BaseAgentConfig } from "../AgentBase/AgentBase.js";
 import type { PowerhouseArchitectAgentConfig } from "../../types.js";
 import type { IAgentBrain } from "../IAgentBrain.js";
 import { BrainType, type BrainConfig } from "../BrainFactory.js";

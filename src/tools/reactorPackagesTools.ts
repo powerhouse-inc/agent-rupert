@@ -6,7 +6,7 @@
 import { tool } from '@anthropic-ai/claude-agent-sdk';
 import { z } from 'zod';
 import type { ReactorPackagesManager, RunProjectOptions } from '../agents/ReactorPackageDevAgent/ReactorPackagesManager.js';
-import type { ILogger } from '../agents/AgentBase.js';
+import type { ILogger } from '../agents/AgentBase/AgentBase.js';
 
 /**
  * Create the init_project tool
