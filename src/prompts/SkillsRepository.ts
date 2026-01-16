@@ -49,6 +49,10 @@ export class SkillsRepository {
       return;
     }
 
+    // Sort files alphabetically to ensure consistent loading order
+    // This ensures scenarios like 00.categorize, 01.wbs-update, 02.send-reply are loaded in order
+    jsFiles.sort();
+
     // Load each JS module
     for (const relativePath of jsFiles) {
       await this.loadScenarioTemplate(relativePath);

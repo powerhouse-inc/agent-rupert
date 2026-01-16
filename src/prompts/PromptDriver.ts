@@ -122,6 +122,7 @@ export class PromptDriver {
       let scenario = await flow.nextScenario();
       
       while (scenario !== null) {
+        console.log(`PromptDriver::executeSkillFlow - Starting scenario "${scenario.id} - ${scenario.title}"`);
         try {
           // Create a scenario flow for this scenario
           const scenarioFlow = await flow.createScenarioFlow(scenario);
@@ -147,6 +148,7 @@ export class PromptDriver {
             totalTasks: scenarioResult.totalTasks
           };
 
+          console.log(`PromptDriver::executeSkillFlow - Reporting scenario result: "${scenario.id} - ${scenario.title}"`);
           await flow.reportScenarioResult(result);
           
         } catch (error) {
@@ -182,6 +184,8 @@ export class PromptDriver {
         scenario = await flow.nextScenario();
       }
       
+      console.log(`PromptDriver::executeSkillFlow - Completed ${flow.getProgress().completedScenarios}/${flow.getProgress().totalScenarios} scenarios for skill ${skill}`);
+
       // Get final status from skill flow
       const finalStatus = flow.status();
       if (finalStatus.error) {
@@ -242,12 +246,14 @@ export class PromptDriver {
     flow.reset();
 
     try {
+      console.log(`PromptDriver::executeScenarioFlow - Sending scenario briefing "${scenario.id} - ${scenario.title}"`);
       // Always send the briefing (regardless of session state)
       await this.sendScenarioBriefing(scenario, flow, maxTurns);
 
       // Execute tasks using the flow
       let task = flow.nextTask();
       while (task !== null) {
+        console.log(`PromptDriver::executeScenarioFlow - Starting task "${task.id} - ${task.title}"`);
         try {
           const response = await this.executeRenderedTask(task, maxTurns);
           
@@ -284,6 +290,8 @@ export class PromptDriver {
         // Get next task from flow
         task = flow.nextTask();
       }
+
+      console.log(`PromptDriver::executeScenarioFlow - Finished ${scenario.tasks.length} tasks for scenario "${scenario.id} - ${scenario.title}"`);
 
       return {
         scenarioId: scenario.id,
