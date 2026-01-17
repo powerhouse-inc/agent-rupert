@@ -53,10 +53,13 @@ export interface TaskInfo {
 export interface ScenarioInfo {
   id: string;
   title: string;
+  hasPreamble: boolean;
   tasks: TaskInfo[];
 }
 
 export interface SkillInfo {
+  id: string;
   name: string;
+  hasPreamble: boolean;
   scenarios: ScenarioInfo[];
 }

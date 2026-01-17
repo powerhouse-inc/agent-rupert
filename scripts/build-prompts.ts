@@ -36,6 +36,7 @@ async function parseMdFile(filePath: string): Promise<PromptDocument | null> {
   let currentTask: { id: string; title: string; contentNodes: Content[] } | null = null;
   let collectingPreamble = true;
   const preambleNodes: Content[] = [];
+  let foundMainTask = false;
   
   // Process only top-level children of root
   const rootChildren = ast.children;
@@ -46,7 +47,7 @@ async function parseMdFile(filePath: string): Promise<PromptDocument | null> {
       
       if (heading.depth === 1) {
         // Main task (# header) - should match PREFIX.NUM (e.g., CRP.03)
-        collectingPreamble = false;
+        foundMainTask = true;
         const headingText = extractText(heading);
         const match = headingText.match(/^([A-Z]+\.\d+)\s+(.+)$/);
         if (match) {
@@ -55,8 +56,10 @@ async function parseMdFile(filePath: string): Promise<PromptDocument | null> {
             title: match[2]
           };
         }
+        // Keep collecting preamble until we hit the first ## heading
+        // This allows content between # and ## to be treated as preamble
       } else if (heading.depth === 2) {
-        // Subtask (## header)
+        // Subtask (## header) - this marks the end of preamble collection
         collectingPreamble = false;
         
         // Save previous task if exists
@@ -92,7 +95,11 @@ async function parseMdFile(filePath: string): Promise<PromptDocument | null> {
     } else {
       // Regular content
       if (collectingPreamble) {
-        preambleNodes.push(node);
+        // Only collect as preamble if we haven't found the main task yet
+        // OR if we've found the main task but haven't hit the first subtask
+        if (!foundMainTask || (foundMainTask && collectingPreamble)) {
+          preambleNodes.push(node);
+        }
       } else if (currentTask) {
         currentTask.contentNodes.push(node);
       }

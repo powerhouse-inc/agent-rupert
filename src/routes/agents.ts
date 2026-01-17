@@ -28,6 +28,28 @@ export function createAgentsRouter(agentsService: AgentsService): Router {
     res.json(properties);
   });
 
+  // GET /agents/:name/skills - Get full SkillInfo structures for an agent
+  router.get('/:name/skills', (req, res) => {
+    const agent = agentsService.getAgent(req.params.name);
+    if (!agent) {
+      return res.status(404).json({ error: 'Agent not found' });
+    }
+    if (!agent.initialized) {
+      return res.status(503).json({ error: 'Agent not initialized' });
+    }
+    
+    const skills = agentsService.getAgentSkills(req.params.name);
+    if (skills === null) {
+      return res.status(500).json({ error: 'Failed to retrieve skills' });
+    }
+    
+    res.json({
+      agent: agent.name,
+      type: agent.type,
+      skills: skills
+    });
+  });
+
   // GET /agents/reactor-dev/projects - Get projects list for ReactorPackageDevAgent
   router.get('/reactor-dev/projects', async (req, res) => {
     const agent = agentsService.getAgent('reactor-dev');

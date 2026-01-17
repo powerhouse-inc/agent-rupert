@@ -320,6 +320,30 @@ export class AgentsService {
     }
 
     /**
+     * Get full SkillInfo structures for an agent
+     */
+    getAgentSkills(name: string) {
+        if (!this.agentsManager) {
+            return null;
+        }
+
+        try {
+            if (name === 'reactor-dev' && this.agentsManager.hasReactorPackageAgent()) {
+                const agent = this.agentsManager.getReactorPackageAgent();
+                return agent.getSkills();
+            } else if (name === 'architect' && this.agentsManager.hasArchitectAgent()) {
+                const agent = this.agentsManager.getArchitectAgent();
+                return agent.getSkills();
+            }
+            
+            return null;
+        } catch (error) {
+            this.logger.error(`Failed to get skills for agent ${name}:`, error);
+            return null;
+        }
+    }
+
+    /**
      * Get projects list for ReactorPackageDevAgent
      */
     async getProjects() {

@@ -241,11 +241,23 @@ export class SkillsRepository {
     const skillTemplate = this.skills.get(skill);
     if (!skillTemplate) return undefined;
     
+    // Extract the prefix from the first scenario's ID (e.g., "CRP.00" -> "CRP")
+    let skillId = skill; // Default to skill name if we can't extract prefix
+    if (skillTemplate.scenarios.length > 0 && skillTemplate.scenarios[0].id) {
+      const match = skillTemplate.scenarios[0].id.match(/^([A-Z]+)\./);
+      if (match) {
+        skillId = match[1];
+      }
+    }
+    
     return {
+      id: skillId,  // Use the extracted prefix as the id
       name: skillTemplate.name,
+      hasPreamble: !!skillTemplate.preamble,  // Check if skill preamble function exists
       scenarios: skillTemplate.scenarios.map(scenario => ({
         id: scenario.id,
         title: scenario.title,
+        hasPreamble: !!scenario.preamble,  // Check if scenario preamble function exists
         tasks: scenario.tasks.map(task => ({
           id: task.id,
           title: task.title
