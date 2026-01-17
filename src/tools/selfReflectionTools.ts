@@ -6,20 +6,17 @@ import type { ILogger } from '../agents/AgentBase/AgentBase.js';
 export function createListSkillsTool(agent: AgentBase, logger?: ILogger) {
     return tool(
         'list_skills',
-        'List all skills available to this agent',
+        'List all skills available to this agent with complete templates and variables',
         {},
         async () => {
             try {
                 const skills = agent.getSkills();
-                const skillSummaries = skills.map(s => ({
-                    name: s.name,
-                    scenario_count: s.scenarios.length
-                }));
+                // Return full SkillInfo structure with templates and flattened variables
                 return {
                     content: [{
                         type: 'text' as const,
                         text: JSON.stringify({
-                            skills: skillSummaries,
+                            skills: skills,
                             total_skills: skills.length
                         }, null, 2)
                     }]
@@ -42,7 +39,7 @@ export function createListSkillsTool(agent: AgentBase, logger?: ILogger) {
 export function createGetSkillDetailsTool(agent: AgentBase, logger?: ILogger) {
     return tool(
         'get_skill_details',
-        'Get detailed information about a specific skill',
+        'Get detailed information about a specific skill including templates and variables',
         {
             skill_name: z.string().describe('Name of the skill to inspect')
         },
@@ -61,17 +58,11 @@ export function createGetSkillDetailsTool(agent: AgentBase, logger?: ILogger) {
                     };
                 }
                 
+                // Return full SkillInfo structure with templates and variables
                 return {
                     content: [{
                         type: 'text' as const,
-                        text: JSON.stringify({
-                            name: skill.name,
-                            scenarios: skill.scenarios.map(s => ({
-                                id: s.id,
-                                title: s.title,
-                                task_count: s.tasks.length
-                            }))
-                        }, null, 2)
+                        text: JSON.stringify(skill, null, 2)
                     }]
                 };
             } catch (error) {
@@ -145,14 +136,14 @@ export function createSearchScenariosTool(agent: AgentBase, logger?: ILogger) {
             try {
                 const results = agent.searchScenarios(args.query, args.skill_name);
                 
+                // Return full scenario information including templates and variables
                 return {
                     content: [{
                         type: 'text' as const,
                         text: JSON.stringify({
                             matches: results.map(r => ({
                                 skill: r.skill,
-                                scenario_id: r.scenario.id,
-                                title: r.scenario.title,
+                                scenario: r.scenario,  // Full scenario object with templates and variables
                                 match_context: r.matchContext
                             })),
                             total_matches: results.length

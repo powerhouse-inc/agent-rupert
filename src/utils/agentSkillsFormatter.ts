@@ -110,8 +110,20 @@ function formatSkillsAsMarkdown(
           lines.push('');
           
           if (scenario.tasks.length > 0) {
+            // Create table for tasks
+            lines.push('| Task ID | Title | Expected Outcome |');
+            lines.push('|---------|-------|------------------|');
+            
             scenario.tasks.forEach(task => {
-              lines.push(`- ${task.id}: ${task.title}`);
+              let expectedOutcomeText = '-';
+              if (task.expectedOutcome) {
+                // Handle both string and TemplateWithVars types
+                expectedOutcomeText = typeof task.expectedOutcome === 'string' 
+                  ? task.expectedOutcome 
+                  : task.expectedOutcome.text;
+              }
+              // Don't truncate - show full expected outcome text
+              lines.push(`| ${task.id} | ${task.title} | ${expectedOutcomeText} |`);
             });
             lines.push('');
           }
