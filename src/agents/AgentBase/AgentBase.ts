@@ -20,6 +20,8 @@ import { InboxHandlingFlow } from './InboxHandlingFlow.js';
 import type { InboxHandlingFlowContext } from './InboxHandlingFlowContext.js';
 import { AgentClaudeBrain } from '../AgentClaudeBrain.js';
 import { createSelfReflectionMcpServer } from '../../tools/selfReflectionMcpServer.js';
+import { PromptParser } from '../../utils/PromptParser.js';
+import type { TemplateWithVars } from '../../prompts/types.js';
 
 // Logger interface for dependency injection
 export interface ILogger {
@@ -641,6 +643,15 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
             this.logger.error(`${this.config.name}: Failed to get WBS state`, error);
             return null;
         }
+    }
+    
+    /**
+     * Get profile templates with extracted variables
+     */
+    public async getProfileTemplates(): Promise<(TemplateWithVars | undefined)[]> {
+        const templatePaths = (this.constructor as typeof AgentBase).getSystemPromptTemplatePaths();
+        const parser = new PromptParser<AgentBrainPromptContext>();
+        return await parser.getMultipleTemplatesWithVars(templatePaths);
     }
     
     /**

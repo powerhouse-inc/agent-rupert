@@ -322,23 +322,32 @@ export class AgentsService {
     /**
      * Get full SkillInfo structures for an agent
      */
-    getAgentSkills(name: string) {
+    async getAgentSkillsAndProfile(name: string) {
         if (!this.agentsManager) {
             return null;
         }
 
         try {
+            let agent = null;
             if (name === 'reactor-dev' && this.agentsManager.hasReactorPackageAgent()) {
-                const agent = this.agentsManager.getReactorPackageAgent();
-                return agent.getSkills();
+                agent = this.agentsManager.getReactorPackageAgent();
             } else if (name === 'architect' && this.agentsManager.hasArchitectAgent()) {
-                const agent = this.agentsManager.getArchitectAgent();
-                return agent.getSkills();
+                agent = this.agentsManager.getArchitectAgent();
             }
             
-            return null;
+            if (!agent) {
+                return null;
+            }
+            
+            const skills = agent.getSkills();
+            const profileTemplates = await agent.getProfileTemplates();
+            
+            return {
+                skills,
+                profile: profileTemplates
+            };
         } catch (error) {
-            this.logger.error(`Failed to get skills for agent ${name}:`, error);
+            this.logger.error(`Failed to get skills and profile for agent ${name}:`, error);
             return null;
         }
     }

@@ -28,8 +28,8 @@ export function createAgentsRouter(agentsService: AgentsService): Router {
     res.json(properties);
   });
 
-  // GET /agents/:name/skills - Get full SkillInfo structures for an agent
-  router.get('/:name/skills', (req, res) => {
+  // GET /agents/:name/skills - Get full SkillInfo structures and profile templates for an agent
+  router.get('/:name/skills', async (req, res) => {
     const agent = agentsService.getAgent(req.params.name);
     if (!agent) {
       return res.status(404).json({ error: 'Agent not found' });
@@ -38,15 +38,16 @@ export function createAgentsRouter(agentsService: AgentsService): Router {
       return res.status(503).json({ error: 'Agent not initialized' });
     }
     
-    const skills = agentsService.getAgentSkills(req.params.name);
-    if (skills === null) {
-      return res.status(500).json({ error: 'Failed to retrieve skills' });
+    const skillsAndProfile = await agentsService.getAgentSkillsAndProfile(req.params.name);
+    if (skillsAndProfile === null) {
+      return res.status(500).json({ error: 'Failed to retrieve skills and profile' });
     }
     
     res.json({
       agent: agent.name,
       type: agent.type,
-      skills: skills
+      profile: skillsAndProfile.profile,
+      skills: skillsAndProfile.skills
     });
   });
 

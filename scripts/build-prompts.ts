@@ -9,7 +9,7 @@ import type { Root, Heading, Content } from 'mdast';
 import Handlebars from 'handlebars';
 // Import from plain JS file
 import { getKnownHelpers } from '../src/prompts/handlebars-helpers.js';
-import { processTemplate } from './handlebars-parser';
+import { processTemplate } from '../src/utils/handlebars-parser.js';
 
 interface PromptTask {
   id: string;

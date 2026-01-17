@@ -2,6 +2,8 @@ import Handlebars from 'handlebars';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
 import { registerHelpers } from '../prompts/handlebars-helpers.js';
+import { processTemplate } from './handlebars-parser.js';
+import type { TemplateWithVars } from '../prompts/types.js';
 
 /**
  * Generic template parser using Handlebars
@@ -66,6 +68,39 @@ export class PromptParser<TContext> {
             return content;
         } catch (error) {
             throw new Error(`Failed to read template file ${templatePath}: ${error}`);
+        }
+    }
+    
+    /**
+     * Get template with extracted variables (without rendering)
+     * @param templatePath Path relative to project root
+     * @returns Template text with variables structure
+     */
+    async getTemplateWithVars(templatePath: string): Promise<TemplateWithVars | undefined> {
+        try {
+            const template = await this.readTemplate(templatePath);
+            return processTemplate(template);
+        } catch (error) {
+            throw new Error(`Failed to get template with vars ${templatePath}: ${error}`);
+        }
+    }
+    
+    /**
+     * Get multiple templates with extracted variables (without rendering)
+     * @param templatePaths Array of paths relative to project root
+     * @returns Array of templates with variables
+     */
+    async getMultipleTemplatesWithVars(templatePaths: string[]): Promise<(TemplateWithVars | undefined)[]> {
+        if (templatePaths.length === 0) {
+            return [];
+        }
+        
+        try {
+            return await Promise.all(
+                templatePaths.map(path => this.getTemplateWithVars(path))
+            );
+        } catch (error) {
+            throw new Error(`Failed to get multiple templates with vars: ${error}`);
         }
     }
 }
