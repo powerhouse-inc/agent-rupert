@@ -105,12 +105,16 @@ export class SkillsRepository {
         id: promptDoc.id,
         title: promptDoc.title,
         preamble: promptDoc.preamble ? promptDoc.preamble : undefined,
+        preambleText: promptDoc.preambleText,
         expectedOutcome: promptDoc.expectedOutcome ? promptDoc.expectedOutcome : undefined,
+        expectedOutcomeText: promptDoc.expectedOutcomeText,
         tasks: promptDoc.tasks.map((task: any) => ({
           id: task.id,
           title: task.title,
           content: task.content,  // Store the function itself
-          expectedOutcome: task.expectedOutcome ? task.expectedOutcome : undefined
+          contentText: task.contentText,  // Store the raw template text
+          expectedOutcome: task.expectedOutcome ? task.expectedOutcome : undefined,
+          expectedOutcomeText: task.expectedOutcomeText
         }))
       };
 
@@ -176,6 +180,7 @@ export class SkillsRepository {
       // Add preamble to skill
       const skill = this.skills.get(skillName)!;
       skill.preamble = preambleDoc.preamble;
+      skill.preambleText = preambleDoc.preambleText;
       
     } catch (error) {
       console.error(`Failed to load skill preamble ${relativePath}:`, error);
@@ -214,6 +219,7 @@ export class SkillsRepository {
       // Add expected outcome to skill
       const skill = this.skills.get(skillName)!;
       skill.expectedOutcome = resultDoc.expectedOutcome;
+      skill.expectedOutcomeText = resultDoc.expectedOutcomeText;
       
     } catch (error) {
       console.error(`Failed to load skill expected outcome ${relativePath}:`, error);
@@ -304,15 +310,18 @@ export class SkillsRepository {
       id: skillId,  // Use the extracted prefix as the id
       name: skillTemplate.name,
       hasPreamble: !!skillTemplate.preamble,  // Check if skill preamble function exists
+      preambleTemplate: skillTemplate.preambleText,  // Raw preamble template text
       expectedOutcome: skillTemplate.expectedOutcome ? skillTemplate.expectedOutcome() : undefined,  // Render without context
       scenarios: skillTemplate.scenarios.map(scenario => ({
         id: scenario.id,
         title: scenario.title,
         hasPreamble: !!scenario.preamble,  // Check if scenario preamble function exists
+        preambleTemplate: scenario.preambleText,  // Raw preamble template text
         expectedOutcome: scenario.expectedOutcome ? scenario.expectedOutcome() : undefined,  // Render without context
         tasks: scenario.tasks.map(task => ({
           id: task.id,
           title: task.title,
+          template: task.contentText || '',  // Raw task template text (required field)
           expectedOutcome: task.expectedOutcome ? task.expectedOutcome() : undefined  // Render without context
         }))
       }))

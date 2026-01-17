@@ -2,22 +2,28 @@ export interface ScenarioTaskTemplate<TContext = any> {
   id: string;
   title: string;
   content: (context?: TContext) => string;
+  contentText?: string;  // Raw template text
   expectedOutcome?: (context?: TContext) => string;
+  expectedOutcomeText?: string;  // Raw template text
 }
 
 export interface ScenarioTemplate<TContext = any> {
   id: string;
   title: string;
   preamble?: (context?: TContext) => string;
+  preambleText?: string;  // Raw template text
   tasks: ScenarioTaskTemplate<TContext>[];
   expectedOutcome?: (context?: TContext) => string;
+  expectedOutcomeText?: string;  // Raw template text
 }
 
 export interface SkillTemplate<TContext = any> {
   name: string;
   preamble?: (context?: TContext) => string;
+  preambleText?: string;  // Raw template text
   scenarios: ScenarioTemplate<TContext>[];
   expectedOutcome?: (context?: TContext) => string;
+  expectedOutcomeText?: string;  // Raw template text
 }
 
 // Rendered versions without functions
@@ -53,6 +59,7 @@ export interface ScenarioMetadata {
 export interface TaskInfo {
   id: string;
   title: string;
+  template: string;  // Raw task template text
   expectedOutcome?: string;
 }
 
@@ -60,6 +67,7 @@ export interface ScenarioInfo {
   id: string;
   title: string;
   hasPreamble: boolean;
+  preambleTemplate?: string;  // Raw preamble template text
   expectedOutcome?: string;
   tasks: TaskInfo[];
 }
@@ -68,6 +76,7 @@ export interface SkillInfo {
   id: string;
   name: string;
   hasPreamble: boolean;
+  preambleTemplate?: string;  // Raw preamble template text
   expectedOutcome?: string;
   scenarios: ScenarioInfo[];
 }

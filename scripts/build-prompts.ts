@@ -376,11 +376,13 @@ registerHelpers(Handlebars);
 
 // Precompiled preamble template
 const preambleTemplate = Handlebars.template(${precompiled});
+const preambleText = ${JSON.stringify(content)};
 
 // Export the skill preamble
 export default {
   skill: "${skillName}",
-  preamble: (context) => preambleTemplate(context || {})
+  preamble: (context) => preambleTemplate(context || {}),
+  preambleText: preambleText
 };
 
 // Export a render function for convenience
@@ -414,11 +416,13 @@ registerHelpers(Handlebars);
 
 // Precompiled result template
 const resultTemplate = Handlebars.template(${precompiled});
+const expectedOutcomeText = ${JSON.stringify(content)};
 
 // Export the skill expected outcome
 export default {
   skill: "${skillName}",
-  expectedOutcome: (context) => resultTemplate(context || {})
+  expectedOutcome: (context) => resultTemplate(context || {}),
+  expectedOutcomeText: expectedOutcomeText
 };
 
 // Export a render function for convenience
@@ -448,7 +452,9 @@ function generateModule(promptDoc: PromptDocument, relativePath: string): string
   const tasksWithCompiledContent = promptDoc.tasks.map(task => ({
     id: task.id,
     title: task.title,
+    content: task.content,  // Keep raw text
     contentCompiled: precompileTemplate(task.content),
+    expectedOutcome: task.expectedOutcome,  // Keep raw text
     expectedOutcomeCompiled: task.expectedOutcome 
       ? precompileTemplate(task.expectedOutcome)
       : null
@@ -470,18 +476,22 @@ registerHelpers(Handlebars);
 
 // Precompiled preamble template
 ${preambleCompiled ? `const preambleTemplate = Handlebars.template(${preambleCompiled});` : 'const preambleTemplate = null;'}
+${promptDoc.preamble ? `const preambleText = ${JSON.stringify(promptDoc.preamble)};` : 'const preambleText = null;'}
 
 // Precompiled expected outcome template
 ${expectedOutcomeCompiled ? `const expectedOutcomeTemplate = Handlebars.template(${expectedOutcomeCompiled});` : 'const expectedOutcomeTemplate = null;'}
+${promptDoc.expectedOutcome ? `const expectedOutcomeText = ${JSON.stringify(promptDoc.expectedOutcome)};` : 'const expectedOutcomeText = null;'}
 
 // Precompiled task templates
 const taskTemplates = [
 ${tasksWithCompiledContent.map(task => `  {
     id: "${task.id}",
     title: "${task.title.replace(/"/g, '\\"')}",
-    content: Handlebars.template(${task.contentCompiled})${
+    content: Handlebars.template(${task.contentCompiled}),
+    contentText: ${JSON.stringify(task.content)}${
     task.expectedOutcomeCompiled ? `,
-    expectedOutcome: Handlebars.template(${task.expectedOutcomeCompiled})` : ''}
+    expectedOutcome: Handlebars.template(${task.expectedOutcomeCompiled}),
+    expectedOutcomeText: ${JSON.stringify(task.expectedOutcome)}` : ''}
   }`).join(',\n')}
 ];
 
@@ -490,12 +500,16 @@ export default {
   id: "${promptDoc.id}",
   title: "${promptDoc.title.replace(/"/g, '\\"')}",
   preamble: preambleTemplate,
+  preambleText: preambleText,
   expectedOutcome: expectedOutcomeTemplate,
+  expectedOutcomeText: expectedOutcomeText,
   tasks: taskTemplates.map(t => ({
     id: t.id,
     title: t.title,
     content: (context) => t.content(context || {}),
-    expectedOutcome: t.expectedOutcome ? (context) => t.expectedOutcome(context || {}) : undefined
+    contentText: t.contentText,
+    expectedOutcome: t.expectedOutcome ? (context) => t.expectedOutcome(context || {}) : undefined,
+    expectedOutcomeText: t.expectedOutcomeText || undefined
   }))
 };
 
