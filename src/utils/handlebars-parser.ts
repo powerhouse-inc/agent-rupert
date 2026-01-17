@@ -17,11 +17,39 @@ export interface TemplateVariable {
 
 export type TemplateElement = TemplateVariable | TemplateSection;
 
+export type VariableTransformer = (variable: string, context: { 
+  parentPath: string; 
+  sectionType?: string;
+  sectionParams?: string;
+}) => string | null;
+
+// Default transformers
+export const defaultTransformers: VariableTransformer[] = [
+  // Transform 'this' to parent path
+  (variable, { parentPath, sectionType }) => {
+    if (variable === 'this' && parentPath) {
+      return parentPath;
+    }
+    return variable;
+  },
+  // Ignore 'else' as it's a control structure, not a variable
+  (variable) => {
+    if (variable === 'else') {
+      return null;
+    }
+    return variable;
+  }
+];
+
 /**
  * Extract variables and sections from a Handlebars template
- * Recursively processes nested sections
+ * Recursively processes nested sections with path context
  */
-export function extractTemplateVariables(template: string): {
+export function extractTemplateVariables(
+  template: string,
+  path: string = '',
+  transformers: VariableTransformer[] = defaultTransformers
+): {
   variables: TemplateVariable[];
   sections: TemplateSection[];
 } {
@@ -48,14 +76,24 @@ export function extractTemplateVariables(template: string): {
   
   let processedTemplate = template.replace(sectionRegex, (match, keyword, params, content) => {
     const placeholder = `__SECTION_${sectionIndex++}__`;
+    const sectionType = keyword.trim();
+    const sectionParams = params.trim();
     
-    // Recursively extract variables from section content
-    const sectionResult = extractTemplateVariables(content);
+    // Determine the new path based on section type
+    let newPath = path;
+    if (sectionType === 'each') {
+      // 'each' changes context to iterate over the collection
+      newPath = path ? `${path}.${sectionParams}` : sectionParams;
+    }
+    // 'if', 'unless', 'with' don't change the variable path context
+    
+    // Recursively extract variables from section content with the new path
+    const sectionResult = extractTemplateVariables(content, newPath, transformers);
     
     const section: TemplateSection = {
       type: 'section',
-      keyword: keyword.trim(),
-      params: params.trim(),
+      keyword: sectionType,
+      params: sectionParams,
       variables: sectionResult.variables,
       sections: sectionResult.sections
     };
@@ -71,10 +109,34 @@ export function extractTemplateVariables(template: string): {
   while ((variableMatch = variableRegex.exec(processedTemplate)) !== null) {
     // Skip placeholders
     if (!variableMatch[1].startsWith('__SECTION_')) {
-      result.variables.push({
-        type: 'variable',
-        expression: variableMatch[1].trim()
-      });
+      let variable = variableMatch[1].trim();
+      
+      // Apply transformers
+      for (const transformer of transformers) {
+        const transformed = transformer(variable, { 
+          parentPath: path,
+          sectionType: undefined,
+          sectionParams: undefined
+        });
+        if (transformed === null) {
+          // Skip this variable
+          variable = '';
+          break;
+        }
+        variable = transformed;
+      }
+      
+      if (variable) {
+        // Add path prefix if we're in a context
+        if (path && !variable.startsWith(path)) {
+          variable = `${path}.${variable}`;
+        }
+        
+        result.variables.push({
+          type: 'variable',
+          expression: variable
+        });
+      }
     }
   }
 
@@ -83,27 +145,37 @@ export function extractTemplateVariables(template: string): {
 }
 
 /**
+ * Collect all variables from a structure recursively
+ */
+function collectAllVariables(extracted: ReturnType<typeof extractTemplateVariables>): string[] {
+  const allVars: string[] = [];
+  
+  // Add top-level variables
+  allVars.push(...extracted.variables.map(v => v.expression));
+  
+  // Recursively collect from sections
+  for (const section of extracted.sections) {
+    allVars.push(...section.variables.map(v => v.expression));
+    allVars.push(...collectAllVariables({ variables: [], sections: section.sections }));
+  }
+  
+  return allVars;
+}
+
+/**
  * Convert the extracted template structure to a simplified format for API responses
  */
 export function simplifyTemplateStructure(extracted: ReturnType<typeof extractTemplateVariables>): any {
-  const simplified: any = {};
+  // Collect all variables from the entire structure
+  const allVariables = collectAllVariables(extracted);
   
-  // Add variables if present
-  if (extracted.variables.length > 0) {
-    simplified.vars = extracted.variables.map(v => v.expression);
-  }
+  // Deduplicate and sort for consistency
+  const uniqueVars = Array.from(new Set(allVariables)).sort();
   
-  // Add sections if present
-  if (extracted.sections.length > 0) {
-    simplified.sections = extracted.sections.map(section => ({
-      type: section.keyword,
-      params: section.params,
-      ...(section.variables.length > 0 ? { vars: section.variables.map(v => v.expression) } : {}),
-      ...(section.sections.length > 0 ? { sections: simplifyTemplateStructure({ variables: [], sections: section.sections }).sections } : {})
-    }));
-  }
-  
-  return simplified;
+  // Return flattened structure with just unique variables
+  return {
+    vars: uniqueVars
+  };
 }
 
 /**
