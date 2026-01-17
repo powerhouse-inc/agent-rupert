@@ -103,6 +103,8 @@
 
 ### Profile Template 1
 
+**Variables:** `agentName`, `documentIds.inbox`, `documentIds.wbs`, `driveUrl`, `mcpServers`, `serverPort`, `timestamp`
+
 ```md
 # Agent Base System Prompt
 
@@ -152,9 +154,9 @@ Available MCP servers for enhanced capabilities:
 《/if》
 ```
 
-**Variables:** `agentName`, `documentIds.inbox`, `documentIds.wbs`, `driveUrl`, `mcpServers`, `serverPort`, `timestamp`
-
 ### Profile Template 2
+
+**Variables:** `defaultProjectName`, `projectsDir`, `vetraConfig.connectPort`, `vetraConfig.startupTimeout`, `vetraConfig.switchboardPort`, `workingDirectory`
 
 ```md
 # ReactorPackageDevAgent Specialized Instructions
@@ -265,8 +267,6 @@ When managing Reactor packages:
 Remember: You are the technical executor for Powerhouse project development, ensuring reliable and efficient management of Reactor packages.
 ```
 
-**Variables:** `defaultProjectName`, `projectsDir`, `vetraConfig.connectPort`, `vetraConfig.startupTimeout`, `vetraConfig.switchboardPort`, `workingDirectory`
-
 ## Skills
 
 ### Skill: create-reactor-package (CRP)
@@ -276,6 +276,7 @@ Remember: You are the technical executor for Powerhouse project development, ens
 ##### CRP.00: Verify system is ready for new project
 
 **Scenario Preamble:**
+
 ```md
 Note on execution:
 
@@ -289,6 +290,7 @@ Note on execution:
 ###### CRP.00.1: List existing projects
 
 **Task Template:**
+
 ```md
 - Use the `mcp__reactor_prjmgr__list_projects` tool to get all existing projects
 - Note how many projects already exist in the system
@@ -298,6 +300,7 @@ Note on execution:
 ###### CRP.00.2: Check if any project is currently running
 
 **Task Template:**
+
 ```md
 - For each existing project, use `mcp__reactor_prjmgr__get_project_status` to check its status
 - Verify that NO project is currently in "running" state
@@ -307,6 +310,7 @@ Note on execution:
 ###### CRP.00.3: Get the projects directory
 
 **Task Template:**
+
 ```md
 - Use the `mcp__reactor_prjmgr__get_projects_dir` tool to get the base directory
 - This will be needed to verify project creation in later steps
@@ -315,6 +319,7 @@ Note on execution:
 ###### CRP.00.4: Return system status
 
 **Task Template:**
+
 ```md
 Return a JSON object confirming the system is ready:
 
@@ -351,6 +356,7 @@ If a project had to be stopped, include that information:
 ###### CRP.01.1: Generate unique project name
 
 **Task Template:**
+
 ```md
 - Create a project name with format: `test-reactor-<timestamp>`
 - Use current Unix timestamp in milliseconds for uniqueness
@@ -361,6 +367,7 @@ If a project had to be stopped, include that information:
 ###### CRP.01.2: Initialize the project
 
 **Task Template:**
+
 ```md
 - Use `mcp__reactor_prjmgr__init_project` with the generated project name
 - Wait for the initialization to complete
@@ -370,6 +377,7 @@ If a project had to be stopped, include that information:
 ###### CRP.01.3: Verify initialization success
 
 **Task Template:**
+
 ```md
 - Use `mcp__reactor_prjmgr__list_projects` to confirm the new project appears in the list
 - Use `mcp__reactor_prjmgr__get_project_status` to verify the project status is "stopped" or "initialized"
@@ -378,6 +386,7 @@ If a project had to be stopped, include that information:
 ###### CRP.01.4: Return initialization result
 
 **Task Template:**
+
 ```md
 Return a JSON object with the project details:
 
@@ -409,6 +418,7 @@ If initialization fails:
 ###### CRP.02.1: Start the project
 
 **Task Template:**
+
 ```md
 - Use `mcp__reactor_prjmgr__run_project` with the project name from step 01
 - The project will start running `ph dev` in the background
@@ -418,6 +428,7 @@ If initialization fails:
 ###### CRP.02.2: Wait for project to be ready
 
 **Task Template:**
+
 ```md
 - Use `mcp__reactor_prjmgr__is_project_ready` repeatedly to check if the project is ready
 - Poll every 2-3 seconds for up to 30 seconds
@@ -427,6 +438,7 @@ If initialization fails:
 ###### CRP.02.3: Get project status and logs
 
 **Task Template:**
+
 ```md
 - Once ready, use `mcp__reactor_prjmgr__get_project_status` to get the current status
 - Use `mcp__reactor_prjmgr__get_project_logs` to capture the startup logs
@@ -436,6 +448,7 @@ If initialization fails:
 ###### CRP.02.4: Parse and verify endpoints
 
 **Task Template:**
+
 ```md
 - From the logs, identify:
 - Vetra Connect port (typically 3000)
@@ -447,6 +460,7 @@ If initialization fails:
 ###### CRP.02.5: Return running status with endpoints
 
 **Task Template:**
+
 ```md
 Return a JSON object with the running project details:
 
@@ -483,6 +497,7 @@ If the project fails to start or become ready:
 ###### CRP.03.1: Verify project is running
 
 **Task Template:**
+
 ```md
 - Use `mcp__reactor_prjmgr__get_project_status` with the project name
 - Confirm the project is currently in "running" state
@@ -492,6 +507,7 @@ If the project fails to start or become ready:
 ###### CRP.03.2: Shutdown the project
 
 **Task Template:**
+
 ```md
 - Use `mcp__reactor_prjmgr__shutdown_project` with the project name
 - This will stop both Vetra Connect and Switchboard services
@@ -501,6 +517,7 @@ If the project fails to start or become ready:
 ###### CRP.03.3: Verify shutdown success
 
 **Task Template:**
+
 ```md
 - Use `mcp__reactor_prjmgr__get_project_status` to confirm the project is now "stopped"
 - Use `mcp__reactor_prjmgr__is_project_ready` to confirm it returns false
@@ -510,6 +527,7 @@ If the project fails to start or become ready:
 ###### CRP.03.4: Return completion status
 
 **Task Template:**
+
 ```md
 Return a JSON object confirming the entire skill execution:
 
@@ -542,6 +560,7 @@ If shutdown fails:
 ### Skill: document-modeling (DM)
 
 **Skill Expected Outcome:**
+
 ```md
 A new document model has been specified, implemented and tested. It is ready for use 
 in a document editor component in Connect, or through a Switchboard API endpoint.
@@ -552,6 +571,7 @@ in a document editor component in Connect, or through a Switchboard API endpoint
 ##### DM.00: Check the prerequisites for creating a document model
 
 **Scenario Preamble:**
+
 ```md
 Note on task management:
 
@@ -569,6 +589,7 @@ Then unblock the goal and move it back to In Progress.
 ```
 
 **Scenario Expected Outcome:**
+
 ```md
 All prerequisites are in place the agent to start writing the document model description.
 ```
@@ -578,6 +599,7 @@ All prerequisites are in place the agent to start writing the document model des
 ###### DM.00.1: Ensure you have the required input and context
 
 **Task Template:**
+
 ```md
 - Ensure you know who the stakeholder is who is requesting the new document model.
 - Ensure you can contact the stakeholder through your inbox to ask questions and share updates.
@@ -588,6 +610,7 @@ All prerequisites are in place the agent to start writing the document model des
 ```
 
 **Task Expected Outcome:**
+
 ```md
 The required input and context are available and the agent is ready to perform the next task.
 ```
@@ -595,6 +618,7 @@ The required input and context are available and the agent is ready to perform t
 ###### DM.00.2: Use the ReactorPackagesManager to run Vetra Connect and Switchboard
 
 **Task Template:**
+
 ```md
 - List the available reactor package projects and confirm it includes the one you need
 - Check which project is running, if any. If another project is running, shut it down first.
@@ -608,6 +632,7 @@ and verify it's working.
 ###### DM.00.3: Review the existing package specs and implementation
 
 **Task Template:**
+
 ```md
 - Review the specification documents in the Vetra drive and consider how the new document model
 will fit in.
@@ -620,6 +645,7 @@ existing functionality.
 ###### DM.00.4: Consider updating the Reactor Package information
 
 **Task Template:**
+
 ```md
 - Read the `powerhouse/package` document in the Vetra drive and check if the information is complete.
 - Consider the potentially expanded package scope with the new document model that will be added. Consider
@@ -630,6 +656,7 @@ information often. If the existing data still fits the purpose, then leave it.
 ```
 
 **Task Expected Outcome:**
+
 ```md
 The Reactor Package information is up-to-date and reflects the expanded scope.
 ```
@@ -637,6 +664,7 @@ The Reactor Package information is up-to-date and reflects the expanded scope.
 ###### DM.00.5: Create the document model specification document if needed
 
 **Task Template:**
+
 ```md
 - If the new document model specification document is not present in the Vetra drive yet,
 create a new one to work with
@@ -645,6 +673,7 @@ create a new one to work with
 ###### DM.00.6: Provide a stakeholder update
 
 **Task Template:**
+
 ```md
 - Request the Vetra Connect, Switchboard and MCP endpoints from the ReactorPackageManager
 - Notify the stakeholder that you started the document modeling task and summarize your task for them
@@ -659,6 +688,7 @@ based on your considerations to this point
 ###### DM.01.1: Start by listing the users who will use the new document model
 
 **Task Template:**
+
 ```md
 ### Example
 
@@ -672,6 +702,7 @@ based on your considerations to this point
 ###### DM.01.2: Come up with a good, concise description
 
 **Task Template:**
+
 ```md
 A good description includes its users, how they will use the document in a typical workflow, and it narrows
 its scope as much as possible by describing what will not be included.
@@ -706,6 +737,7 @@ logic should be precise and predictable: easy to implement and test.
 ###### DM.01.3: Come up with a document type identifier that fits the description
 
 **Task Template:**
+
 ```md
 - The document type must be of the form `{organization}/{document-type-name}`
 - For example: `pizza-plaza/order`
@@ -718,6 +750,7 @@ logic should be precise and predictable: easy to implement and test.
 ###### DM.01.4: Come up with a good document file extension
 
 **Task Template:**
+
 ```md
 - Reduce the document type to an abbreviation of 2 to 4 characters with a dot in front
 - Avoid abbreviations with problematice connotations
@@ -732,6 +765,7 @@ logic should be precise and predictable: easy to implement and test.
 ###### DM.01.5: Fill out the remaining package information in Vetra Studio drive
 
 **Task Template:**
+
 ```md
 -
 ```
@@ -745,6 +779,7 @@ logic should be precise and predictable: easy to implement and test.
 ##### ED.00: Check the prerequisites for creating a document model
 
 **Scenario Preamble:**
+
 ```md
 Note on task management:
 
@@ -766,6 +801,7 @@ Then unblock the goal and move it back to In Progress.
 ###### ED.00.1: Ensure you have the required input and context
 
 **Task Template:**
+
 ```md
 - Ensure you know who the stakeholder is who is requesting the new document model.
 - Ensure you can contact the stakeholder through your inbox to ask questions and share updates.
@@ -778,6 +814,7 @@ Then unblock the goal and move it back to In Progress.
 ###### ED.00.2: Use the ReactorPackagesManager to run Vetra Connect and Switchboard
 
 **Task Template:**
+
 ```md
 - List the available reactor package projects and confirm it includes the one you need
 - Check which project is running, if any. If another project is running, shut it down first.
@@ -791,6 +828,7 @@ and verify it's working.
 ###### ED.00.3: Review the existing package specs and implementation
 
 **Task Template:**
+
 ```md
 - Review the specification documents in the Vetra drive and consider how the new document model
 will fit in.
@@ -803,6 +841,7 @@ existing functionality.
 ###### ED.00.4: Consider updating the Reactor Package information
 
 **Task Template:**
+
 ```md
 - Read the `powerhouse/package` document in the Vetra drive and check if the information is complete.
 - Consider the potentially expanded package scope with the new document model that will be added. Consider
@@ -815,6 +854,7 @@ information often. If the existing data still fits the purpose, then leave it.
 ###### ED.00.5: Create the document model specification document if needed
 
 **Task Template:**
+
 ```md
 - If the new document model specification document is not present in the Vetra drive yet,
 create a new one to work with
@@ -823,6 +863,7 @@ create a new one to work with
 ###### ED.00.6: Provide a stakeholder update
 
 **Task Template:**
+
 ```md
 - Request the Vetra Connect, Switchboard and MCP endpoints from the ReactorPackageManager
 - Notify the stakeholder that you started the document modeling task and summarize your task for them
@@ -837,6 +878,7 @@ based on your considerations to this point
 ###### ED.01.1: Start by listing the users who will use the new document model
 
 **Task Template:**
+
 ```md
 ### Example
 
@@ -850,6 +892,7 @@ based on your considerations to this point
 ###### ED.01.2: Come up with a good, concise description
 
 **Task Template:**
+
 ```md
 A good description includes its users, how they will use the document in a typical workflow, and it narrows
 its scope as much as possible by describing what will not be included.
@@ -884,6 +927,7 @@ logic should be precise and predictable: easy to implement and test.
 ###### ED.01.3: Come up with a document type identifier that fits the description
 
 **Task Template:**
+
 ```md
 - The document type must be of the form `{organization}/{document-type-name}`
 - For example: `pizza-plaza/order`
@@ -896,6 +940,7 @@ logic should be precise and predictable: easy to implement and test.
 ###### ED.01.4: Come up with a good document file extension
 
 **Task Template:**
+
 ```md
 - Reduce the document type to an abbreviation of 2 to 4 characters with a dot in front
 - Avoid abbreviations with problematice connotations
@@ -910,6 +955,7 @@ logic should be precise and predictable: easy to implement and test.
 ###### ED.01.5: Fill out the remaining package information in Vetra Studio drive
 
 **Task Template:**
+
 ```md
 -
 ```
@@ -919,6 +965,8 @@ logic should be precise and predictable: easy to implement and test.
 ### Skill: handle-stakeholder-message (HSM)
 
 **Skill Preamble:**
+
+*Variables:* `documents.driveId`, `documents.inbox.id`, `documents.wbs.id`, `message.content`, `message.id`, `stakeholder.name`, `thread.id`, `thread.topic`
 ```md
 === BEGIN BRIEFING === 
 
@@ -983,7 +1031,6 @@ Content:
 === END BRIEFING ===
 
 ```
-*Variables:* `documents.driveId`, `documents.inbox.id`, `documents.wbs.id`, `message.content`, `message.id`, `stakeholder.name`, `thread.id`, `thread.topic`
 
 #### Scenarios
 
@@ -994,6 +1041,8 @@ Content:
 ###### HSM.00.1: Read and understand the message and its context
 
 **Task Template:**
+
+*Variables:* `documents.driveId`, `documents.inbox.id`, `thread.id`, `thread.topic`
 ```md
 - Use the agent-manager MCP tool to access the manager drive (ID: 《documents.driveId》)
 - Open your inbox document (ID: 《documents.inbox.id》) through the agent-manager tool and
@@ -1001,11 +1050,11 @@ locate the thread with id: 《thread.id》 about "《thread.topic》"
 - Review the conversation history to understand the context
 - Now consider the new message content and identify the main and any secondary intents
 ```
-*Variables:* `documents.driveId`, `documents.inbox.id`, `thread.id`, `thread.topic`
 
 ###### HSM.00.2: Categorize the message type
 
 **Task Template:**
+
 ```md
 Determine if the message is:
 
@@ -1022,16 +1071,19 @@ Determine if the message is:
 ###### HSM.01.1: Open and review your WBS document
 
 **Task Template:**
+
+*Variables:* `documents.driveId`, `documents.wbs.id`
 ```md
 - Use the agent-manager MCP tool to access the manager drive (ID: 《documents.driveId》)
 and open your WBS document (ID: 《documents.wbs.id》)
 - Check if any existing goals relate to the stakeholder's message
 ```
-*Variables:* `documents.driveId`, `documents.wbs.id`
 
 ###### HSM.01.2: Determine if a new goal is needed
 
 **Task Template:**
+
+*Variables:* `message.id`, `stakeholder.name`, `thread.id`
 ```md
 Based on your message categorization from HSM.00:
 
@@ -1053,11 +1105,11 @@ For new task requests that require a WBS goal:
 - Expected deliverables
 - Any specific requirements mentioned
 ```
-*Variables:* `message.id`, `stakeholder.name`, `thread.id`
 
 ###### HSM.01.3: Update existing goals if applicable
 
 **Task Template:**
+
 ```md
 If the message relates to existing goals:
 
@@ -1082,11 +1134,12 @@ Based on the message and your ability to proceed:
 ###### HSM.02.1: Mark the original message as read and reply
 
 **Task Template:**
+
+*Variables:* `message.id`, `thread.id`
 ```md
 - Use the agent-manager MCP tool to mark the stakeholder's message 《message.id》 as read
 - Use the agent-manager MCP tool to add your reply to the thread 《thread.id》.
 - Keep the reply message short: 1 sentence if it's appropriate. Up to 3 paragraphs if needed.
 ```
-*Variables:* `message.id`, `thread.id`
 
 ---

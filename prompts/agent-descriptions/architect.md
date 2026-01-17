@@ -15,6 +15,8 @@
 
 ### Profile Template 1
 
+**Variables:** `agentName`, `documentIds.inbox`, `documentIds.wbs`, `driveUrl`, `mcpServers`, `serverPort`, `timestamp`
+
 ```md
 # Agent Base System Prompt
 
@@ -63,8 +65,6 @@ Available MCP servers for enhanced capabilities:
 《/each》
 《/if》
 ```
-
-**Variables:** `agentName`, `documentIds.inbox`, `documentIds.wbs`, `driveUrl`, `mcpServers`, `serverPort`, `timestamp`
 
 ### Profile Template 2
 

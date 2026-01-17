@@ -32,6 +32,7 @@ function formatTemplate(template: TemplateWithVars | string | undefined, title: 
     sections.push('```');
   } else if (template && typeof template === 'object' && 'text' in template) {
     sections.push(`**${title}:**`);
+    sections.push('');
     
     if (template.vars && template.vars.length > 0) {
       sections.push(`*Variables:* ${template.vars.map(v => `\`${v}\``).join(', ')}`);
