@@ -3,8 +3,10 @@ export interface ScenarioTaskTemplate<TContext = any> {
   title: string;
   content: (context?: TContext) => string;
   contentText?: string;  // Raw template text
+  contentVars?: any;  // Variable structure
   expectedOutcome?: (context?: TContext) => string;
   expectedOutcomeText?: string;  // Raw template text
+  expectedOutcomeVars?: any;  // Variable structure
 }
 
 export interface ScenarioTemplate<TContext = any> {
@@ -12,18 +14,22 @@ export interface ScenarioTemplate<TContext = any> {
   title: string;
   preamble?: (context?: TContext) => string;
   preambleText?: string;  // Raw template text
+  preambleVars?: any;  // Variable structure
   tasks: ScenarioTaskTemplate<TContext>[];
   expectedOutcome?: (context?: TContext) => string;
   expectedOutcomeText?: string;  // Raw template text
+  expectedOutcomeVars?: any;  // Variable structure
 }
 
 export interface SkillTemplate<TContext = any> {
   name: string;
   preamble?: (context?: TContext) => string;
   preambleText?: string;  // Raw template text
+  preambleVars?: any;  // Variable structure
   scenarios: ScenarioTemplate<TContext>[];
   expectedOutcome?: (context?: TContext) => string;
   expectedOutcomeText?: string;  // Raw template text
+  expectedOutcomeVars?: any;  // Variable structure
 }
 
 // Rendered versions without functions
@@ -55,20 +61,32 @@ export interface ScenarioMetadata {
   filePath: string;
 }
 
+// Template with variables structure
+export interface TemplateWithVars {
+  text: string;
+  vars?: string[];
+  sections?: Array<{
+    type: string;
+    params: string;
+    vars?: string[];
+    sections?: any[];
+  }>;
+}
+
 // Information types (no functions)
 export interface TaskInfo {
   id: string;
   title: string;
-  template: string;  // Raw task template text
-  expectedOutcome?: string;
+  template: TemplateWithVars | string;  // Can be string for backwards compatibility
+  expectedOutcome?: TemplateWithVars | string;
 }
 
 export interface ScenarioInfo {
   id: string;
   title: string;
   hasPreamble: boolean;
-  preambleTemplate?: string;  // Raw preamble template text
-  expectedOutcome?: string;
+  preambleTemplate?: TemplateWithVars | string;
+  expectedOutcome?: TemplateWithVars | string;
   tasks: TaskInfo[];
 }
 
@@ -76,7 +94,7 @@ export interface SkillInfo {
   id: string;
   name: string;
   hasPreamble: boolean;
-  preambleTemplate?: string;  // Raw preamble template text
-  expectedOutcome?: string;
+  preambleTemplate?: TemplateWithVars | string;
+  expectedOutcome?: TemplateWithVars | string;
   scenarios: ScenarioInfo[];
 }

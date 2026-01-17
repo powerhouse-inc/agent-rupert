@@ -9,6 +9,7 @@ import type { Root, Heading, Content } from 'mdast';
 import Handlebars from 'handlebars';
 // Import from plain JS file
 import { getKnownHelpers } from '../src/prompts/handlebars-helpers.js';
+import { processTemplate } from './handlebars-parser';
 
 interface PromptTask {
   id: string;
@@ -377,12 +378,14 @@ registerHelpers(Handlebars);
 // Precompiled preamble template
 const preambleTemplate = Handlebars.template(${precompiled});
 const preambleText = ${JSON.stringify(content)};
+const preambleVars = ${JSON.stringify(processTemplate(content))};
 
 // Export the skill preamble
 export default {
   skill: "${skillName}",
   preamble: (context) => preambleTemplate(context || {}),
-  preambleText: preambleText
+  preambleText: preambleText,
+  preambleVars: preambleVars
 };
 
 // Export a render function for convenience
@@ -417,12 +420,14 @@ registerHelpers(Handlebars);
 // Precompiled result template
 const resultTemplate = Handlebars.template(${precompiled});
 const expectedOutcomeText = ${JSON.stringify(content)};
+const expectedOutcomeVars = ${JSON.stringify(processTemplate(content))};
 
 // Export the skill expected outcome
 export default {
   skill: "${skillName}",
   expectedOutcome: (context) => resultTemplate(context || {}),
-  expectedOutcomeText: expectedOutcomeText
+  expectedOutcomeText: expectedOutcomeText,
+  expectedOutcomeVars: expectedOutcomeVars
 };
 
 // Export a render function for convenience
@@ -477,22 +482,30 @@ registerHelpers(Handlebars);
 // Precompiled preamble template
 ${preambleCompiled ? `const preambleTemplate = Handlebars.template(${preambleCompiled});` : 'const preambleTemplate = null;'}
 ${promptDoc.preamble ? `const preambleText = ${JSON.stringify(promptDoc.preamble)};` : 'const preambleText = null;'}
+${promptDoc.preamble ? `const preambleVars = ${JSON.stringify(processTemplate(promptDoc.preamble))};` : 'const preambleVars = null;'}
 
 // Precompiled expected outcome template
 ${expectedOutcomeCompiled ? `const expectedOutcomeTemplate = Handlebars.template(${expectedOutcomeCompiled});` : 'const expectedOutcomeTemplate = null;'}
 ${promptDoc.expectedOutcome ? `const expectedOutcomeText = ${JSON.stringify(promptDoc.expectedOutcome)};` : 'const expectedOutcomeText = null;'}
+${promptDoc.expectedOutcome ? `const expectedOutcomeVars = ${JSON.stringify(processTemplate(promptDoc.expectedOutcome))};` : 'const expectedOutcomeVars = null;'}
 
 // Precompiled task templates
 const taskTemplates = [
-${tasksWithCompiledContent.map(task => `  {
+${tasksWithCompiledContent.map(task => {
+  const contentVars = processTemplate(task.content);
+  const expectedOutcomeVars = task.expectedOutcome ? processTemplate(task.expectedOutcome) : undefined;
+  return `  {
     id: "${task.id}",
     title: "${task.title.replace(/"/g, '\\"')}",
     content: Handlebars.template(${task.contentCompiled}),
-    contentText: ${JSON.stringify(task.content)}${
+    contentText: ${JSON.stringify(task.content)},
+    contentVars: ${JSON.stringify(contentVars)}${
     task.expectedOutcomeCompiled ? `,
     expectedOutcome: Handlebars.template(${task.expectedOutcomeCompiled}),
-    expectedOutcomeText: ${JSON.stringify(task.expectedOutcome)}` : ''}
-  }`).join(',\n')}
+    expectedOutcomeText: ${JSON.stringify(task.expectedOutcome)},
+    expectedOutcomeVars: ${JSON.stringify(expectedOutcomeVars)}` : ''}
+  }`;
+}).join(',\n')}
 ];
 
 // Export the prompt document
@@ -501,15 +514,19 @@ export default {
   title: "${promptDoc.title.replace(/"/g, '\\"')}",
   preamble: preambleTemplate,
   preambleText: preambleText,
+  preambleVars: preambleVars,
   expectedOutcome: expectedOutcomeTemplate,
   expectedOutcomeText: expectedOutcomeText,
+  expectedOutcomeVars: expectedOutcomeVars,
   tasks: taskTemplates.map(t => ({
     id: t.id,
     title: t.title,
     content: (context) => t.content(context || {}),
     contentText: t.contentText,
+    contentVars: t.contentVars,
     expectedOutcome: t.expectedOutcome ? (context) => t.expectedOutcome(context || {}) : undefined,
-    expectedOutcomeText: t.expectedOutcomeText || undefined
+    expectedOutcomeText: t.expectedOutcomeText || undefined,
+    expectedOutcomeVars: t.expectedOutcomeVars || undefined
   }))
 };
 

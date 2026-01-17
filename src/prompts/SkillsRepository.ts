@@ -106,15 +106,19 @@ export class SkillsRepository {
         title: promptDoc.title,
         preamble: promptDoc.preamble ? promptDoc.preamble : undefined,
         preambleText: promptDoc.preambleText,
+        preambleVars: promptDoc.preambleVars,
         expectedOutcome: promptDoc.expectedOutcome ? promptDoc.expectedOutcome : undefined,
         expectedOutcomeText: promptDoc.expectedOutcomeText,
+        expectedOutcomeVars: promptDoc.expectedOutcomeVars,
         tasks: promptDoc.tasks.map((task: any) => ({
           id: task.id,
           title: task.title,
           content: task.content,  // Store the function itself
           contentText: task.contentText,  // Store the raw template text
+          contentVars: task.contentVars,
           expectedOutcome: task.expectedOutcome ? task.expectedOutcome : undefined,
-          expectedOutcomeText: task.expectedOutcomeText
+          expectedOutcomeText: task.expectedOutcomeText,
+          expectedOutcomeVars: task.expectedOutcomeVars
         }))
       };
 
@@ -181,6 +185,7 @@ export class SkillsRepository {
       const skill = this.skills.get(skillName)!;
       skill.preamble = preambleDoc.preamble;
       skill.preambleText = preambleDoc.preambleText;
+      skill.preambleVars = preambleDoc.preambleVars;
       
     } catch (error) {
       console.error(`Failed to load skill preamble ${relativePath}:`, error);
@@ -220,6 +225,7 @@ export class SkillsRepository {
       const skill = this.skills.get(skillName)!;
       skill.expectedOutcome = resultDoc.expectedOutcome;
       skill.expectedOutcomeText = resultDoc.expectedOutcomeText;
+      skill.expectedOutcomeVars = resultDoc.expectedOutcomeVars;
       
     } catch (error) {
       console.error(`Failed to load skill expected outcome ${relativePath}:`, error);
@@ -306,23 +312,39 @@ export class SkillsRepository {
       }
     }
     
+    // Helper function to build template with vars structure
+    const buildTemplateWithVars = (text?: string, vars?: any) => {
+      if (!text) return undefined;
+      if (!vars) return text; // Return as plain string for backwards compatibility
+      return vars; // The vars object already contains text and variable structure
+    };
+    
     return {
       id: skillId,  // Use the extracted prefix as the id
       name: skillTemplate.name,
       hasPreamble: !!skillTemplate.preamble,  // Check if skill preamble function exists
-      preambleTemplate: skillTemplate.preambleText,  // Raw preamble template text
-      expectedOutcome: skillTemplate.expectedOutcome ? skillTemplate.expectedOutcome() : undefined,  // Render without context
+      preambleTemplate: buildTemplateWithVars(skillTemplate.preambleText, skillTemplate.preambleVars),
+      expectedOutcome: buildTemplateWithVars(
+        skillTemplate.expectedOutcome ? skillTemplate.expectedOutcome() : undefined,
+        skillTemplate.expectedOutcomeVars
+      ),
       scenarios: skillTemplate.scenarios.map(scenario => ({
         id: scenario.id,
         title: scenario.title,
         hasPreamble: !!scenario.preamble,  // Check if scenario preamble function exists
-        preambleTemplate: scenario.preambleText,  // Raw preamble template text
-        expectedOutcome: scenario.expectedOutcome ? scenario.expectedOutcome() : undefined,  // Render without context
+        preambleTemplate: buildTemplateWithVars(scenario.preambleText, scenario.preambleVars),
+        expectedOutcome: buildTemplateWithVars(
+          scenario.expectedOutcome ? scenario.expectedOutcome() : undefined,
+          scenario.expectedOutcomeVars
+        ),
         tasks: scenario.tasks.map(task => ({
           id: task.id,
           title: task.title,
-          template: task.contentText || '',  // Raw task template text (required field)
-          expectedOutcome: task.expectedOutcome ? task.expectedOutcome() : undefined  // Render without context
+          template: buildTemplateWithVars(task.contentText, task.contentVars) || '',
+          expectedOutcome: buildTemplateWithVars(
+            task.expectedOutcome ? task.expectedOutcome() : undefined,
+            task.expectedOutcomeVars
+          )
         }))
       }))
     };
