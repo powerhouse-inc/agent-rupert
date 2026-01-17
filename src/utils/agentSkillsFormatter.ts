@@ -32,13 +32,14 @@ function formatTemplate(template: TemplateWithVars | string | undefined, title: 
     sections.push('```');
   } else if (template && typeof template === 'object' && 'text' in template) {
     sections.push(`**${title}:**`);
-    sections.push('```md');
-    sections.push(escapeForMarkdownBlock(template.text));
-    sections.push('```');
     
     if (template.vars && template.vars.length > 0) {
       sections.push(`*Variables:* ${template.vars.map(v => `\`${v}\``).join(', ')}`);
     }
+    
+    sections.push('```md');
+    sections.push(escapeForMarkdownBlock(template.text));
+    sections.push('```');
   }
   
   return sections.length > 0 ? sections.join('\n') + '\n' : '';
@@ -133,15 +134,15 @@ function formatSkillsAsMarkdown(
       lines.push('');
       
       if (typeof template === 'object' && 'text' in template) {
-        lines.push('```md');
-        lines.push(escapeForMarkdownBlock(template.text));
-        lines.push('```');
-        lines.push('');
-        
         if (template.vars && template.vars.length > 0) {
           lines.push(`**Variables:** ${template.vars.map(v => `\`${v}\``).join(', ')}`);
           lines.push('');
         }
+        
+        lines.push('```md');
+        lines.push(escapeForMarkdownBlock(template.text));
+        lines.push('```');
+        lines.push('');
       }
     });
   }
