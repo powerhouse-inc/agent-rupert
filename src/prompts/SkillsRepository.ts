@@ -36,12 +36,12 @@ export class SkillsRepository {
       throw new Error(`Prompt repository path does not exist: ${this.basePath}`);
     }
 
-    // Find all JS files, excluding handlebars-helpers.js and preambles (we'll load those separately)
+    // Find all JS files, excluding handlebars-helpers.js, preambles and results (we'll load those separately)
     const pattern = '**/*.js';
     const jsFiles = await glob(pattern, {
       cwd: this.basePath,
       absolute: false,
-      ignore: ['handlebars-helpers.js', '**/.preamble.js']
+      ignore: ['handlebars-helpers.js', '**/.preamble.js', '**/.result.js']
     });
 
     if (jsFiles.length === 0) {
@@ -66,6 +66,16 @@ export class SkillsRepository {
     
     for (const preamblePath of preambleFiles) {
       await this.loadSkillPreamble(preamblePath);
+    }
+    
+    // Load skill expected outcomes (.result.js files)
+    const resultFiles = await glob('**/.result.js', {
+      cwd: this.basePath,
+      absolute: false
+    });
+    
+    for (const resultPath of resultFiles) {
+      await this.loadSkillExpectedOutcome(resultPath);
     }
   }
 
@@ -95,10 +105,12 @@ export class SkillsRepository {
         id: promptDoc.id,
         title: promptDoc.title,
         preamble: promptDoc.preamble ? promptDoc.preamble : undefined,
+        expectedOutcome: promptDoc.expectedOutcome ? promptDoc.expectedOutcome : undefined,
         tasks: promptDoc.tasks.map((task: any) => ({
           id: task.id,
           title: task.title,
-          content: task.content  // Store the function itself
+          content: task.content,  // Store the function itself
+          expectedOutcome: task.expectedOutcome ? task.expectedOutcome : undefined
         }))
       };
 
@@ -167,6 +179,44 @@ export class SkillsRepository {
       
     } catch (error) {
       console.error(`Failed to load skill preamble ${relativePath}:`, error);
+    }
+  }
+
+  /**
+   * Load a skill expected outcome module
+   */
+  private async loadSkillExpectedOutcome(relativePath: string): Promise<void> {
+    const fullPath = path.join(this.basePath, relativePath);
+    
+    try {
+      // Import the ES module
+      const moduleUrl = pathToFileURL(fullPath).href;
+      const module = await import(moduleUrl);
+      
+      // Get the default export which contains our expected outcome
+      const resultDoc = module.default;
+      
+      // Validate structure
+      if (!resultDoc || !resultDoc.skill || !resultDoc.expectedOutcome) {
+        console.warn(`Invalid result structure in ${relativePath}`);
+        return;
+      }
+      
+      // Get or create skill
+      const skillName = resultDoc.skill;
+      if (!this.skills.has(skillName)) {
+        this.skills.set(skillName, {
+          name: skillName,
+          scenarios: []
+        });
+      }
+      
+      // Add expected outcome to skill
+      const skill = this.skills.get(skillName)!;
+      skill.expectedOutcome = resultDoc.expectedOutcome;
+      
+    } catch (error) {
+      console.error(`Failed to load skill expected outcome ${relativePath}:`, error);
     }
   }
 
@@ -254,13 +304,16 @@ export class SkillsRepository {
       id: skillId,  // Use the extracted prefix as the id
       name: skillTemplate.name,
       hasPreamble: !!skillTemplate.preamble,  // Check if skill preamble function exists
+      expectedOutcome: skillTemplate.expectedOutcome ? skillTemplate.expectedOutcome() : undefined,  // Render without context
       scenarios: skillTemplate.scenarios.map(scenario => ({
         id: scenario.id,
         title: scenario.title,
         hasPreamble: !!scenario.preamble,  // Check if scenario preamble function exists
+        expectedOutcome: scenario.expectedOutcome ? scenario.expectedOutcome() : undefined,  // Render without context
         tasks: scenario.tasks.map(task => ({
           id: task.id,
-          title: task.title
+          title: task.title,
+          expectedOutcome: task.expectedOutcome ? task.expectedOutcome() : undefined  // Render without context
         }))
       }))
     };
@@ -401,6 +454,7 @@ export class SkillsRepository {
       id: scenario.id,
       title: scenario.title,
       preamble: scenario.preamble ? scenario.preamble(context) : undefined,
+      expectedOutcome: scenario.expectedOutcome ? scenario.expectedOutcome(context) : undefined,
       tasks: scenario.tasks.map(task => this.renderTaskWithContext(task, context))
     };
   }
@@ -415,7 +469,8 @@ export class SkillsRepository {
     return {
       id: task.id,
       title: task.title,
-      content: task.content(context)
+      content: task.content(context),
+      expectedOutcome: task.expectedOutcome ? task.expectedOutcome(context) : undefined
     };
   }
 }

@@ -14,6 +14,7 @@ interface PromptTask {
   id: string;
   title: string;
   content: string;
+  expectedOutcome?: string;
 }
 
 interface PromptDocument {
@@ -21,6 +22,7 @@ interface PromptDocument {
   title: string;
   preamble?: string;
   tasks: PromptTask[];
+  expectedOutcome?: string;
 }
 
 async function parseMdFile(filePath: string): Promise<PromptDocument | null> {
@@ -33,10 +35,13 @@ async function parseMdFile(filePath: string): Promise<PromptDocument | null> {
   let mainTask: { id: string; title: string } | null = null;
   let preamble = '';
   const tasks: PromptTask[] = [];
-  let currentTask: { id: string; title: string; contentNodes: Content[] } | null = null;
+  let currentTask: { id: string; title: string; contentNodes: Content[]; expectedOutcomeNodes?: Content[] } | null = null;
   let collectingPreamble = true;
   const preambleNodes: Content[] = [];
   let foundMainTask = false;
+  let scenarioExpectedOutcomeNodes: Content[] | null = null;
+  let collectingTaskOutcome = false;
+  let collectingScenarioOutcome = false;
   
   // Process only top-level children of root
   const rootChildren = ast.children;
@@ -44,11 +49,11 @@ async function parseMdFile(filePath: string): Promise<PromptDocument | null> {
   for (const node of rootChildren) {
     if (node.type === 'heading') {
       const heading = node as Heading;
+      const headingText = extractText(heading);
       
       if (heading.depth === 1) {
         // Main task (# header) - should match PREFIX.NUM (e.g., CRP.03)
         foundMainTask = true;
-        const headingText = extractText(heading);
         const match = headingText.match(/^([A-Z]+\.\d+)\s+(.+)$/);
         if (match) {
           mainTask = {
@@ -59,42 +64,77 @@ async function parseMdFile(filePath: string): Promise<PromptDocument | null> {
         // Keep collecting preamble until we hit the first ## heading
         // This allows content between # and ## to be treated as preamble
       } else if (heading.depth === 2) {
-        // Subtask (## header) - this marks the end of preamble collection
-        collectingPreamble = false;
-        
-        // Save previous task if exists
-        if (currentTask) {
-          tasks.push({
-            id: currentTask.id,
-            title: currentTask.title,
-            content: nodesToMarkdown(currentTask.contentNodes)
-          });
-        }
-        
-        // Start new task
-        const headingText = extractText(heading);
-        // Match task IDs that follow the pattern: PREFIX.NUM.NUM (e.g., CRP.03.1)
-        const match = headingText.match(/^([A-Z]+\.\d+\.\d+)\s+(.+)$/);
-        if (match) {
-          currentTask = {
-            id: match[1],
-            title: match[2],
-            contentNodes: []
-          };
+        // Check if this is "Expected Scenario Outcome"
+        if (headingText === 'Expected Scenario Outcome') {
+          collectingScenarioOutcome = true;
+          scenarioExpectedOutcomeNodes = [];
+          collectingPreamble = false;
+          collectingTaskOutcome = false;
+          
+          // Save current task if exists
+          if (currentTask) {
+            tasks.push({
+              id: currentTask.id,
+              title: currentTask.title,
+              content: nodesToMarkdown(currentTask.contentNodes),
+              expectedOutcome: currentTask.expectedOutcomeNodes 
+                ? nodesToMarkdown(currentTask.expectedOutcomeNodes).trim() 
+                : undefined
+            });
+            currentTask = null;
+          }
         } else {
-          // Skip headers that don't match the expected pattern and warn
-          const skillName = filePath.split('/').slice(-2, -1)[0] || 'unknown-skill';
-          console.warn(`  ⚠ WARNING in ${skillName}: Skipping invalid task header: "## ${headingText}"`);
-          // Set currentTask to null to ignore content until the next valid task
-          currentTask = null;
+          // Regular subtask (## header) - this marks the end of preamble collection
+          collectingPreamble = false;
+          collectingScenarioOutcome = false;
+          collectingTaskOutcome = false;
+          
+          // Save previous task if exists
+          if (currentTask) {
+            tasks.push({
+              id: currentTask.id,
+              title: currentTask.title,
+              content: nodesToMarkdown(currentTask.contentNodes),
+              expectedOutcome: currentTask.expectedOutcomeNodes 
+                ? nodesToMarkdown(currentTask.expectedOutcomeNodes).trim() 
+                : undefined
+            });
+          }
+          
+          // Start new task
+          // Match task IDs that follow the pattern: PREFIX.NUM.NUM (e.g., CRP.03.1)
+          const match = headingText.match(/^([A-Z]+\.\d+\.\d+)\s+(.+)$/);
+          if (match) {
+            currentTask = {
+              id: match[1],
+              title: match[2],
+              contentNodes: []
+            };
+          } else {
+            // Skip headers that don't match the expected pattern and warn
+            const skillName = filePath.split('/').slice(-2, -1)[0] || 'unknown-skill';
+            console.warn(`  ⚠ WARNING in ${skillName}: Skipping invalid task header: "## ${headingText}"`);
+            // Set currentTask to null to ignore content until the next valid task
+            currentTask = null;
+          }
         }
-      } else if (currentTask) {
-        // Level 3+ headers are part of the task content
+      } else if (heading.depth === 3 && headingText === 'Expected Task Outcome') {
+        // Start collecting expected outcome for current task
+        collectingTaskOutcome = true;
+        if (currentTask) {
+          currentTask.expectedOutcomeNodes = [];
+        }
+      } else if (currentTask && !collectingTaskOutcome) {
+        // Level 3+ headers are part of the task content (unless we're collecting outcome)
         currentTask.contentNodes.push(node);
       }
     } else {
       // Regular content
-      if (collectingPreamble) {
+      if (collectingScenarioOutcome && scenarioExpectedOutcomeNodes) {
+        scenarioExpectedOutcomeNodes.push(node);
+      } else if (collectingTaskOutcome && currentTask?.expectedOutcomeNodes) {
+        currentTask.expectedOutcomeNodes.push(node);
+      } else if (collectingPreamble) {
         // Only collect as preamble if we haven't found the main task yet
         // OR if we've found the main task but haven't hit the first subtask
         if (!foundMainTask || (foundMainTask && collectingPreamble)) {
@@ -111,7 +151,10 @@ async function parseMdFile(filePath: string): Promise<PromptDocument | null> {
     tasks.push({
       id: currentTask.id,
       title: currentTask.title,
-      content: nodesToMarkdown(currentTask.contentNodes)
+      content: nodesToMarkdown(currentTask.contentNodes),
+      expectedOutcome: currentTask.expectedOutcomeNodes 
+        ? nodesToMarkdown(currentTask.expectedOutcomeNodes).trim() 
+        : undefined
     });
   }
   
@@ -125,6 +168,12 @@ async function parseMdFile(filePath: string): Promise<PromptDocument | null> {
     preamble = nodesToMarkdown(preambleNodes).trim();
   }
   
+  // Convert scenario expected outcome nodes to markdown
+  let scenarioExpectedOutcome: string | undefined;
+  if (scenarioExpectedOutcomeNodes && scenarioExpectedOutcomeNodes.length > 0) {
+    scenarioExpectedOutcome = nodesToMarkdown(scenarioExpectedOutcomeNodes).trim();
+  }
+  
   // Validate task IDs
   validateTaskIds(tasks, filePath, mainTask.id);
   
@@ -132,7 +181,8 @@ async function parseMdFile(filePath: string): Promise<PromptDocument | null> {
     id: mainTask.id,
     title: mainTask.title,
     preamble: preamble || undefined,
-    tasks
+    tasks,
+    expectedOutcome: scenarioExpectedOutcome
   };
 }
 
@@ -343,6 +393,44 @@ export function render(context = {}) {
 }
 
 /**
+ * Generate a JavaScript module for a skill result/expected outcome
+ */
+function generateResultModule(content: string, skillName: string): string {
+  // Precompile the result template
+  const precompiled = precompileTemplate(content);
+  
+  // Calculate relative path
+  const skillDepth = skillName.split('/').filter(p => p).length;
+  const helperPath = '../'.repeat(skillDepth + 2) + 'src/prompts/handlebars-helpers.js';
+  
+  const moduleCode = `// Generated by build-prompts.ts
+// DO NOT EDIT - This file is auto-generated from .result.md
+
+import Handlebars from 'handlebars/runtime.js';
+import { registerHelpers } from '${helperPath}';
+
+// Register helpers with Handlebars runtime
+registerHelpers(Handlebars);
+
+// Precompiled result template
+const resultTemplate = Handlebars.template(${precompiled});
+
+// Export the skill expected outcome
+export default {
+  skill: "${skillName}",
+  expectedOutcome: (context) => resultTemplate(context || {})
+};
+
+// Export a render function for convenience
+export function render(context = {}) {
+  return resultTemplate(context);
+}
+`;
+  
+  return moduleCode;
+}
+
+/**
  * Generate a JavaScript module for a prompt document
  */
 function generateModule(promptDoc: PromptDocument, relativePath: string): string {
@@ -351,11 +439,19 @@ function generateModule(promptDoc: PromptDocument, relativePath: string): string
     ? precompileTemplate(promptDoc.preamble)
     : null;
   
-  // Precompile each task's content
+  // Precompile scenario expected outcome if it exists
+  const expectedOutcomeCompiled = promptDoc.expectedOutcome
+    ? precompileTemplate(promptDoc.expectedOutcome)
+    : null;
+  
+  // Precompile each task's content and expected outcome
   const tasksWithCompiledContent = promptDoc.tasks.map(task => ({
     id: task.id,
     title: task.title,
-    contentCompiled: precompileTemplate(task.content)
+    contentCompiled: precompileTemplate(task.content),
+    expectedOutcomeCompiled: task.expectedOutcome 
+      ? precompileTemplate(task.expectedOutcome)
+      : null
   }));
   
   // Calculate relative path from build/prompts/... to src/prompts/handlebars-helpers.js
@@ -375,12 +471,17 @@ registerHelpers(Handlebars);
 // Precompiled preamble template
 ${preambleCompiled ? `const preambleTemplate = Handlebars.template(${preambleCompiled});` : 'const preambleTemplate = null;'}
 
+// Precompiled expected outcome template
+${expectedOutcomeCompiled ? `const expectedOutcomeTemplate = Handlebars.template(${expectedOutcomeCompiled});` : 'const expectedOutcomeTemplate = null;'}
+
 // Precompiled task templates
 const taskTemplates = [
 ${tasksWithCompiledContent.map(task => `  {
     id: "${task.id}",
     title: "${task.title.replace(/"/g, '\\"')}",
-    content: Handlebars.template(${task.contentCompiled})
+    content: Handlebars.template(${task.contentCompiled})${
+    task.expectedOutcomeCompiled ? `,
+    expectedOutcome: Handlebars.template(${task.expectedOutcomeCompiled})` : ''}
   }`).join(',\n')}
 ];
 
@@ -389,10 +490,12 @@ export default {
   id: "${promptDoc.id}",
   title: "${promptDoc.title.replace(/"/g, '\\"')}",
   preamble: preambleTemplate,
+  expectedOutcome: expectedOutcomeTemplate,
   tasks: taskTemplates.map(t => ({
     id: t.id,
     title: t.title,
-    content: (context) => t.content(context || {})
+    content: (context) => t.content(context || {}),
+    expectedOutcome: t.expectedOutcome ? (context) => t.expectedOutcome(context || {}) : undefined
   }))
 };
 
@@ -402,10 +505,12 @@ export function render(context = {}) {
     id: "${promptDoc.id}",
     title: "${promptDoc.title.replace(/"/g, '\\"')}",
     preamble: preambleTemplate ? preambleTemplate(context) : undefined,
+    expectedOutcome: expectedOutcomeTemplate ? expectedOutcomeTemplate(context) : undefined,
     tasks: taskTemplates.map(t => ({
       id: t.id,
       title: t.title,
-      content: t.content(context)
+      content: t.content(context),
+      expectedOutcome: t.expectedOutcome ? t.expectedOutcome(context) : undefined
     }))
   };
 }
@@ -444,6 +549,14 @@ async function buildPrompts() {
   
   console.log(`Found ${preambleFiles.length} skill preamble files`);
   
+  // Find skill result files (.result.md)
+  const resultFiles = await glob('**/.result.md', {
+    cwd: promptsDir,
+    absolute: false
+  });
+  
+  console.log(`Found ${resultFiles.length} skill result files`);
+  
   // Process skill preambles first
   for (const preamblePath of preambleFiles) {
     const skillName = path.dirname(preamblePath);
@@ -469,6 +582,54 @@ async function buildPrompts() {
       }
     } catch (error) {
       console.error(`  ✗ Error processing preamble ${preamblePath}:`, error);
+    }
+  }
+  
+  // Process skill result files
+  for (const resultPath of resultFiles) {
+    const skillName = path.dirname(resultPath);
+    const inputPath = path.join(promptsDir, resultPath);
+    const outputPath = path.join(outputDir, skillName, '.result.js');
+    
+    if (verbose) {
+      console.log(`\nProcessing skill result: ${skillName}/.result.md`);
+    }
+    
+    try {
+      const content = await fs.readFile(inputPath, 'utf-8');
+      
+      // Extract content after "# Expected Skill Outcome" header if present
+      const lines = content.split('\n');
+      let outcomeContent = '';
+      let foundHeader = false;
+      
+      for (const line of lines) {
+        if (line.trim() === '# Expected Skill Outcome' || line.trim() === '## Expected Skill Outcome') {
+          foundHeader = true;
+          continue;
+        }
+        if (foundHeader) {
+          outcomeContent += line + '\n';
+        }
+      }
+      
+      // If no header found, use entire content
+      if (!foundHeader) {
+        outcomeContent = content;
+      }
+      
+      // Ensure output directory exists
+      await fs.ensureDir(path.dirname(outputPath));
+      
+      // Generate and write JavaScript module
+      const moduleCode = generateResultModule(outcomeContent.trim(), skillName);
+      await fs.writeFile(outputPath, moduleCode, 'utf-8');
+      
+      if (verbose) {
+        console.log(`  ✓ Generated skill result: ${outputPath}`);
+      }
+    } catch (error: any) {
+      console.error(`  ✗ Error processing ${resultPath}: ${error.message}`);
     }
   }
   
