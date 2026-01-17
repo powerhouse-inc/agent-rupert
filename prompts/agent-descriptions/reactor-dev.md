@@ -104,14 +104,15 @@
 |---------|-------|------------------|
 | HSM.00.1 | Read and understand the message and its context | - |
 | HSM.00.2 | Categorize the message type | - |
+| HSM.00.3 | Clearly state the tasks derived from the stakeholder request | - |
 
-**HSM.01: Review WBS and add task if needed**
+**HSM.01: Review WBS based on stakeholder request**
 
 | Task ID | Title | Expected Outcome |
 |---------|-------|------------------|
 | HSM.01.1 | Open and review your WBS document | - |
-| HSM.01.2 | Determine if a new goal (hierarchy) is needed | - |
-| HSM.01.3 | Update existing goals if applicable | - |
+| HSM.01.2 | Add a new goal (hierarchy) only if needed | - |
+| HSM.01.3 | Update existing goals only if needed | - |
 
 **HSM.02: Send the reply through your inbox**
 
@@ -162,8 +163,8 @@ Use the inbox document to communicate with stakeholders in the relevant message 
 Use the WBS document for tracking high-level goals and breaking them down to the level of Tasks available through the 
 self-reflection tool. For the creation and restructuring of goal hierarchies, make sure to set the correct parent goals and 
 
-DO NOT use the WBS by creating goals for immediate collaboration meta-tasks such as: "sending a reply", or "create a goal hierarchy". 
-If you need to add a goal to break it down later, add it instead as a draft goal. 
+DO NOT use the WBS by creating goals for planning-related tasks about tasks such as: "create a goal hierarchy for x", 
+or "break down goal Y into subgoals". If you need to add a goal to break it down later, add it as a DRAFT goal instead.
 《/if》
 
 ## Response Guidelines
@@ -1089,12 +1090,21 @@ locate the thread with id: 《thread.id》 about "《thread.topic》"
 Determine if the message is:
 
 - **Information request**: The stakeholder is asking for information, status updates, clarification, or explanations
-- **Task request**: The stakeholder is asking you to perform an action, create something, or complete a deliverable
-- **Both**: The message contains both information requests and task requests
+- **Planning request**: The stakeholder is asking you to make a plan for future work, which you will keep track of in your WBS document
+- **Both**: The message contains both information requests and planning requests
 - **Acknowledgment only**: The message is just confirming receipt or thanking you (no action needed)
 ```
 
-##### HSM.01: Review WBS and add task if needed
+###### HSM.00.3: Clearly state the tasks derived from the stakeholder request
+
+**Task Template:**
+
+```md
+For information requests, rephrase the request and consider which tools to use, if any, to fullfil the request.
+For planning requests, clearly state the intended goal(s) the stakeholder is targetting.
+```
+
+##### HSM.01: Review WBS based on stakeholder request
 
 **Tasks:**
 
@@ -1104,12 +1114,17 @@ Determine if the message is:
 
 *Variables:* `documents.driveId`, `documents.wbs.id`
 ```md
-- Use the agent-manager MCP tool to access the manager drive (ID: 《documents.driveId》)
+1. Use the agent-manager MCP tool to access the manager drive (ID: 《documents.driveId》)
 and open your WBS document (ID: 《documents.wbs.id》)
-- Check if any existing goals relate to the stakeholder's message
+2. Check if any existing goals relate to the stakeholder's message
+3. **CRITICAL** First review your own capabilities through the self-reflection tool.
+Refamiliarize yourself with the skills, scenarios and tasks you are capable of.
+Then consider how the intended goals you derived from the stakeholder request, should be
+broken down to the level of scenarios and tasks you identified in your capabilities. Breaking
+down goals into tasks you're capable of is the essence of planning!
 ```
 
-###### HSM.01.2: Determine if a new goal (hierarchy) is needed
+###### HSM.01.2: Add a new goal (hierarchy) only if needed
 
 **Task Template:**
 
@@ -1118,15 +1133,28 @@ and open your WBS document (ID: 《documents.wbs.id》)
 Based on your message categorization from HSM.00:
 
 - If the message is an **acknowledgment only**, no WBS update is needed
-- If the message is an **information request**, consider if gathering the information warrants a goal
-- If the message is a **task request**, check if it's already covered by existing goals
+- If the message is an **information request**, no WBS update is needed
+- If the message is a **planning request**, check if it's already covered by existing goals
 
-Create a new WBS goal (hierarchy) only if needed
-For new task requests that require a WBS goal (hierarchy):
+If you decide an update is needed, use the agent-manager MCP tool to update your WBS document.
 
-- Use the agent-manager MCP tool to update your WBS document
-- Create concise goal titles that reflect the stakeholder's request
-- Add the goal and potential subgoals under the appropriate parent goal in your WBS
+**Create a new WBS goal (hierarchy) only if needed**
+
+**Ensure that new goal(s) are broken down in scenarios and tasks you took from your self-reflected capability.**
+
+For stakeholder planning requests that require one or more WBS goals:
+
+- Lay out the goal hierarchy with the stakeholder request at the top level, broken down in subgoals following the
+(1) skills, (2) scenarios and (3) tasks from your capabilities.
+- Create short goal titles
+- For leaf goals mapped to a capability task use: `<task.id> <task title applied to stakeholder request>`
+For example, `DM.01.1 Start by listing the users who will use the new document model` becomes: `DM.01.1 List Pizza Order document `
+- For parent goals mapped to a capability scenarion use `<scenario.id> <scenario title applied to stakeholder request>`
+For example, `DM.00 Check Prerequisites` becomes: `DM.00 Check prerequisites for Pizza Order reactor module`
+- For parent goals mapped to a capability skills, use `<skill.id> <skill title applied to stakeholder request>`
+For example, `DM document-modelling` becomes: `DM. Pizza Order document modelling`
+- Try to keep the title length below 60 chars
+- Always add goals and potential subgoals under the appropriate parent goal in your WBS
 - Set the initial status (typically TODO or IN PROGRESS)
 - Add relevant details including:
 - Stakeholder name: 《stakeholder.name》
@@ -1136,16 +1164,15 @@ For new task requests that require a WBS goal (hierarchy):
 - Any specific requirements mentioned
 ```
 
-###### HSM.01.3: Update existing goals if applicable
+###### HSM.01.3: Update existing goals only if needed
 
 **Task Template:**
 
 ```md
-If the message relates to existing goals:
+Based on your planning work so far, consider if further updates to the WBS are needed.
 
-- Use the agent-manager MCP tool to update the relevant goals in your WBS
 - Consider moving goals in the right order
-- Update the goal status if needed (e.g., unblock if waiting for information)
+- Update goal statuses where needed (e.g., unblock if waiting for information)
 - Consider adding notes about the stakeholder's feedback or additional requirements.
 Don't use the notes for planning. Goals should be in the goal hierarchy itself.
 - Consider linking the message reference for traceability

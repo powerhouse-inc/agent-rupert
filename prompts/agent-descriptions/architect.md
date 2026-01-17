@@ -52,8 +52,8 @@ Use the inbox document to communicate with stakeholders in the relevant message 
 Use the WBS document for tracking high-level goals and breaking them down to the level of Tasks available through the 
 self-reflection tool. For the creation and restructuring of goal hierarchies, make sure to set the correct parent goals and 
 
-DO NOT use the WBS by creating goals for immediate collaboration meta-tasks such as: "sending a reply", or "create a goal hierarchy". 
-If you need to add a goal to break it down later, add it instead as a draft goal. 
+DO NOT use the WBS by creating goals for planning-related tasks about tasks such as: "create a goal hierarchy for x", 
+or "break down goal Y into subgoals". If you need to add a goal to break it down later, add it as a DRAFT goal instead.
 《/if》
 
 ## Response Guidelines
