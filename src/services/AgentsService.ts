@@ -121,7 +121,7 @@ export class AgentsService {
             
             this.agentsManager = new AgentsManager({
                 enableReactorPackageAgent: true,
-                enableArchitectAgent: false,
+                enableArchitectAgent: true,
                 reactorPackageConfig: reactorPackageDev,
                 architectConfig: powerhouseArchitect,
                 anthropicApiKey: config.anthropicApiKey,

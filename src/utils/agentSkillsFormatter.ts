@@ -5,11 +5,15 @@ import type { SkillInfo, TemplateWithVars } from '../prompts/types.js';
 const { writeFile, ensureDir } = fs;
 
 /**
- * Escape backticks in template text for markdown code blocks
+ * Escape backticks and replace template tags in template text for markdown code blocks
  */
-function escapeBackticks(text: string): string {
+function escapeForMarkdownBlock(text: string): string {
   // Replace ``` with \`\`\` to escape them in markdown
-  return text.replace(/```/g, '\\`\\`\\`');
+  let escaped = text.replace(/```/g, '\\`\\`\\`');
+  // Replace {{ and }} with double angle brackets
+  escaped = escaped.replace(/\{\{/g, '《');
+  escaped = escaped.replace(/\}\}/g, '》');
+  return escaped;
 }
 
 /**
@@ -24,12 +28,12 @@ function formatTemplate(template: TemplateWithVars | string | undefined, title: 
   if (typeof template === 'string') {
     sections.push(`**${title}:**`);
     sections.push('```md');
-    sections.push(escapeBackticks(template));
+    sections.push(escapeForMarkdownBlock(template));
     sections.push('```');
   } else if (template && typeof template === 'object' && 'text' in template) {
     sections.push(`**${title}:**`);
     sections.push('```md');
-    sections.push(escapeBackticks(template.text));
+    sections.push(escapeForMarkdownBlock(template.text));
     sections.push('```');
     
     if (template.vars && template.vars.length > 0) {
@@ -38,6 +42,23 @@ function formatTemplate(template: TemplateWithVars | string | undefined, title: 
   }
   
   return sections.length > 0 ? sections.join('\n') + '\n' : '';
+}
+
+/**
+ * Extract profile template title (first line of text)
+ */
+function getProfileTemplateTitle(template: TemplateWithVars | undefined, index: number): string {
+  if (!template) return `Profile Template ${index + 1}`;
+  
+  const text = typeof template === 'object' && 'text' in template ? template.text : '';
+  if (!text) return `Profile Template ${index + 1}`;
+  
+  // Get first non-empty line
+  const firstLine = text.split('\n').find(line => line.trim() !== '');
+  if (!firstLine) return `Profile Template ${index + 1}`;
+  
+  // Clean up the line (remove markdown, trim)
+  return firstLine.replace(/^#*\s*/, '').trim() || `Profile Template ${index + 1}`;
 }
 
 /**
@@ -57,6 +78,49 @@ function formatSkillsAsMarkdown(
   lines.push(`**Type:** ${agentType}`);
   lines.push('');
   
+  // Overview Section
+  lines.push('## Overview');
+  lines.push('');
+  
+  // Profile Templates Overview
+  if (profile && profile.length > 0) {
+    lines.push('### Profile Templates');
+    lines.push('');
+    profile.forEach((template, index) => {
+      const title = getProfileTemplateTitle(template, index);
+      lines.push(`- ${title}`);
+    });
+    lines.push('');
+  }
+  
+  // Skills Overview
+  if (skills && skills.length > 0) {
+    lines.push('### Skills');
+    lines.push('');
+    
+    skills.forEach(skill => {
+      lines.push(`#### ${skill.name} (${skill.id})`);
+      lines.push('');
+      
+      if (skill.scenarios.length > 0) {
+        skill.scenarios.forEach(scenario => {
+          lines.push(`**${scenario.id}: ${scenario.title}**`);
+          lines.push('');
+          
+          if (scenario.tasks.length > 0) {
+            scenario.tasks.forEach(task => {
+              lines.push(`- ${task.id}: ${task.title}`);
+            });
+            lines.push('');
+          }
+        });
+      }
+    });
+  }
+  
+  lines.push('---');
+  lines.push('');
+  
   // Profile Templates
   if (profile && profile.length > 0) {
     lines.push('## System Prompt Templates');
@@ -70,7 +134,7 @@ function formatSkillsAsMarkdown(
       
       if (typeof template === 'object' && 'text' in template) {
         lines.push('```md');
-        lines.push(escapeBackticks(template.text));
+        lines.push(escapeForMarkdownBlock(template.text));
         lines.push('```');
         lines.push('');
         
