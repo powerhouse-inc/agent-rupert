@@ -5,6 +5,7 @@ import type { ReactorPackageDevAgentConfig, PowerhouseArchitectAgentConfig } fro
 import { BrainFactory } from './BrainFactory.js';
 import type { IAgentBrain } from './IAgentBrain.js';
 import type { CommonAgentInfo } from '../services/AgentsService.js';
+import { writeAgentSkillsInfo } from '../utils/agentSkillsFormatter.js';
 
 export interface AgentsConfig {
     enableReactorPackageAgent?: boolean;
@@ -138,6 +139,45 @@ export class AgentsManager {
             this.logger.info("AgentsManager: PowerhouseArchitectAgent initialized successfully");
             this.agents.set('architect', this.architectAgent);
         }
+        
+        // Write agent skills info if enabled
+        if (process.env.WRITE_AGENTS_SKILLS_INFO === 'true') {
+            this.logger.info("AgentsManager: Writing agent skills info to markdown files");
+            
+            try {
+                // Write skills info for each initialized agent
+                if (this.reactorPackageAgent) {
+                    const skills = this.reactorPackageAgent.getSkills();
+                    const profile = await this.reactorPackageAgent.getProfileTemplates();
+                    await writeAgentSkillsInfo('reactor-dev', 'ReactorPackageDevAgent', { skills, profile });
+                }
+                
+                if (this.architectAgent) {
+                    const skills = this.architectAgent.getSkills();
+                    const profile = await this.architectAgent.getProfileTemplates();
+                    await writeAgentSkillsInfo('architect', 'PowerhouseArchitectAgent', { skills, profile });
+                }
+                
+                this.logger.info("AgentsManager: Agent skills info written successfully");
+            } catch (error) {
+                this.logger.error("AgentsManager: Failed to write agent skills info:", error);
+            }
+        }
+    }
+    
+    /**
+     * Get agent skills and profile information
+     */
+    async getSkillsAndProfile(agentName: string) {
+        const agent = this.agents.get(agentName);
+        if (!agent) {
+            return null;
+        }
+        
+        const skills = agent.getSkills();
+        const profile = await agent.getProfileTemplates();
+        
+        return { skills, profile };
     }
     
     /**
