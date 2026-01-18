@@ -209,7 +209,14 @@ export class AgentRoutine {
         this.wbs.document = wbs;
     }
 
-    public queueWorkItem<TContext = any>(type: WorkItemType, params: WorkItemParams<TContext>) {
+    public queueWorkItem<TContext = any>(
+        type: WorkItemType, 
+        params: WorkItemParams<TContext>,
+        callbacks?: {
+            onSuccess?: () => void | Promise<void>;
+            onFailure?: () => void | Promise<void>;
+        }
+    ) {
         const validationErrors = this.validateWorkItemParams(type, params);
 
         if (validationErrors.length > 0) {
@@ -221,6 +228,7 @@ export class AgentRoutine {
             status: "queued",
             params: params,
             result: null,
+            callbacks
         });
     }
 
@@ -415,6 +423,7 @@ export class AgentRoutine {
     /**
      * Ensure we have the appropriate context for executing WBS goal-driven work
      * Creates a new context if needed or reuses existing if it matches the goal chain
+     * @deprecated This method is not currently used
      */
     private async ensureContext(goalChain: Goal[]): Promise<AgentRoutineContext> {
         // Check if we need a new context
@@ -476,6 +485,7 @@ export class AgentRoutine {
             const driveUrl = this.agent.getReactorDriveUrl() || '';
             const workItem = InboxRoutineHandler.getNextWorkItem(this.inbox.document, driveUrl, this.wbs.id);
             if (workItem !== null) {
+                // InboxRoutineHandler doesn't provide callbacks, so pass undefined
                 this.queueWorkItem(workItem.type, workItem.params);
             }
         } 
@@ -491,7 +501,7 @@ export class AgentRoutine {
                 if (skillsRepository && brain) {
                     const workItem = await WbsRoutineHandler.getNextWorkItem(this.wbs.document, reactor, skillsRepository, brain);
                     if (workItem !== null) {
-                        this.queueWorkItem(workItem.type, workItem.params);
+                        this.queueWorkItem(workItem.type, workItem.params, workItem.callbacks);
                     }
                 }
             }

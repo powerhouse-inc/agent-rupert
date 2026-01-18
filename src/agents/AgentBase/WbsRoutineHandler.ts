@@ -43,7 +43,6 @@ export class WbsRoutineHandler {
                 try {
                     // Mark the goal as IN_PROGRESS
                     await this.markInProgress(nextGoal, wbs.header.id, reactor);
-                    console.log(`Marked goal ${nextGoal.id} as IN_PROGRESS: ${nextGoal.description}`);
 
                     // Extract skill, scenario and task info from goal chain
                     const skillWorkId = goalChain.find(g => g.instructions?.workType === "SKILL")?.instructions?.workId;
