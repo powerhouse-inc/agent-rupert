@@ -3,8 +3,8 @@ import { IScenarioFlow } from "../../prompts/flows/IScenarioFlow.js";
 import { ISkillFlow } from "../../prompts/flows/ISkillFlow.js";
 import { AgentInboxDocument } from "powerhouse-agent/document-models/agent-inbox";
 import { WorkBreakdownStructureDocument } from "powerhouse-agent/document-models/work-breakdown-structure";
-import { InboxRoutineHandler } from "./InboxHandlingFlow.js";
-import { WbsRoutineHandler } from "./WbsHandler.js";
+import { InboxRoutineHandler } from "./InboxRoutineHandler.js";
+import { WbsRoutineHandler } from "./WbsRoutineHandler.js";
 import { AgentBase, ILogger } from "./AgentBase.js";
 
 export type WorkItemType = 'skill' | 'scenario' | 'task' | 'idle';
