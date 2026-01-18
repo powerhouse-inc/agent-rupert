@@ -6,7 +6,7 @@ import { WorkBreakdownStructureDocument } from "powerhouse-agent/document-models
 import { InboxRoutineHandler } from "./InboxHandlingFlow.js";
 import { WbsRoutineHandler } from "./WbsHandler.js";
 import { AgentBase, ILogger } from "./AgentBase.js";
-import type { IDocumentDriveServer } from '@powerhousedao/reactor';
+import type { IDocumentDriveServer } from 'document-drive';
 import type { BaseAgentConfig } from '../../types.js';
 import type { InboxHandlingFlowContext } from './InboxHandlingFlowContext.js';
 

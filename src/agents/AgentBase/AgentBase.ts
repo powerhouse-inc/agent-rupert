@@ -16,8 +16,6 @@ import { SequentialSkillFlow } from '../../prompts/flows/SequentialSkillFlow.js'
 import type { ISkillFlow } from '../../prompts/flows/ISkillFlow.js';
 import type { IScenarioFlow } from '../../prompts/flows/IScenarioFlow.js';
 import { SequentialScenarioFlow } from '../../prompts/flows/SequentialScenarioFlow.js';
-import { InboxRoutineHandler } from './InboxHandlingFlow.js';
-import type { InboxHandlingFlowContext } from './InboxHandlingFlowContext.js';
 import { AgentClaudeBrain } from '../AgentClaudeBrain.js';
 import { createSelfReflectionMcpServer } from '../../tools/selfReflectionMcpServer.js';
 import { PromptParser } from '../../utils/PromptParser.js';
@@ -335,16 +333,6 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
         return Promise.resolve();
     }
     
-    /**
-     * Get the reactor instance
-     */
-    protected getReactor(): IDocumentDriveServer {
-        if (!this.reactor) {
-            throw new Error('Reactor not initialized - call initialize() first');
-        }
-
-        return this.reactor;
-    }
 
     public getName(): string {
         return this.config.name;
@@ -643,6 +631,7 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
         }
         
         const reactor = this.getReactor();
+        if (!reactor) return null;
         const inboxId = this.config.workDrive?.documents?.inbox?.documentId;
         if (!inboxId) return null;
         
@@ -664,6 +653,7 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
         }
         
         const reactor = this.getReactor();
+        if (!reactor) return null;
         const wbsId = this.config.workDrive?.documents?.wbs?.documentId;
         if (!wbsId) return null;
         
