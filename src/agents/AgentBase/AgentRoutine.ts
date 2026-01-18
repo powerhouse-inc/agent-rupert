@@ -34,6 +34,10 @@ export type AgentRoutineWorkItem<TContext = any> = {
     promise?: {
         resolve: (value: any) => void;
         reject: (reason?: any) => void;
+    },
+    callbacks?: {
+        onSuccess?: () => void | Promise<void>;
+        onFailure?: () => void | Promise<void>;
     }
 }
 
@@ -541,6 +545,11 @@ export class AgentRoutine {
                 workItem.promise.resolve(workItem.result);
             }
             
+            // Call success callback if present
+            if (workItem.callbacks?.onSuccess) {
+                await workItem.callbacks.onSuccess();
+            }
+            
             // Remove from queue if completed
             this.queue = this.queue.filter(item => item !== workItem);
             
@@ -560,6 +569,11 @@ export class AgentRoutine {
             // Reject promise if present
             if (workItem.promise) {
                 workItem.promise.reject(error);
+            }
+            
+            // Call failure callback if present
+            if (workItem.callbacks?.onFailure) {
+                await workItem.callbacks.onFailure();
             }
             
             // Remove from queue even if failed (could optionally retry)

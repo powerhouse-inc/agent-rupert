@@ -22,7 +22,14 @@ export class WbsRoutineHandler {
         reactor: IDocumentDriveServer,
         skillsRepository: ISkillsRepository,
         brain: IAgentBrain
-    ): Promise<{ type: WorkItemType, params: WorkItemParams } | null> {
+    ): Promise<{ 
+        type: WorkItemType, 
+        params: WorkItemParams,
+        callbacks?: {
+            onSuccess?: () => void | Promise<void>;
+            onFailure?: () => void | Promise<void>;
+        }
+    } | null> {
         // Find the next goal to work on (returns ancestor chain with siblings)
         const result = this.findNextGoal(wbs);
         
@@ -82,6 +89,14 @@ export class WbsRoutineHandler {
                                         maxTurns: 50,
                                         captureSession: false
                                     }
+                                },
+                                callbacks: {
+                                    onSuccess: async () => {
+                                        await this.markCompleted(nextGoal, wbs.header.id, reactor);
+                                    },
+                                    onFailure: async () => {
+                                        await this.markBlocked(nextGoal, wbs.header.id, reactor);
+                                    },
                                 }
                             };
                         }
@@ -438,6 +453,78 @@ export class WbsRoutineHandler {
         if (!result || result.error) {
             throw new Error(
                 `Failed to mark goal ${goal.id} as IN_PROGRESS: ${
+                    result?.error?.message || 'Unknown error'
+                }`
+            );
+        }
+    }
+
+    /**
+     * Mark a goal as DONE (completed) in the WBS document
+     * This will update the goal status and propagate the change up to ancestors
+     * 
+     * @param goal - The goal to mark as completed
+     * @param wbsDocumentId - The ID of the WBS document containing the goal
+     * @param reactor - The reactor instance to submit the action
+     * @returns Promise that resolves when the operation is complete
+     */
+    public static async markCompleted(
+        goal: Goal,
+        wbsDocumentId: string,
+        reactor: IDocumentDriveServer
+    ): Promise<void> {
+        console.log(`Marking goal ${goal.id} as DONE: ${goal.description}`);
+        
+        // Create the markCompleted action
+        const action = actions.markCompleted({
+            id: goal.id
+        });
+
+        // Submit the action to the reactor
+        const result = await reactor.addAction(wbsDocumentId, action);
+        
+        // Check if the operation was successful
+        if (!result || result.error) {
+            throw new Error(
+                `Failed to mark goal ${goal.id} as DONE: ${
+                    result?.error?.message || 'Unknown error'
+                }`
+            );
+        }
+    }
+
+    /**
+     * Mark a goal as BLOCKED in the WBS document
+     * This will update the goal status to indicate it cannot proceed
+     * 
+     * @param goal - The goal to mark as blocked
+     * @param wbsDocumentId - The ID of the WBS document containing the goal
+     * @param reactor - The reactor instance to submit the action
+     * @returns Promise that resolves when the operation is complete
+     */
+    public static async markBlocked(
+        goal: Goal,
+        wbsDocumentId: string,
+        reactor: IDocumentDriveServer
+    ): Promise<void> {
+        console.log(`Marking goal ${goal.id} as BLOCKED: ${goal.description}`);
+        
+        // Create the reportBlocked action
+        const action = actions.reportBlocked({
+            id: goal.id,
+            question: {
+                id: `blocked-${Date.now()}`,
+                note: 'Task execution failed. Please review the error and provide guidance.'
+            }
+        });
+
+        // Submit the action to the reactor
+        const result = await reactor.addAction(wbsDocumentId, action);
+        
+        // Check if the operation was successful
+        if (!result || result.error) {
+            throw new Error(
+                `Failed to mark goal ${goal.id} as BLOCKED: ${
                     result?.error?.message || 'Unknown error'
                 }`
             );
