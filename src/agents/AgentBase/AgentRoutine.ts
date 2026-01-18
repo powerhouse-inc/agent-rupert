@@ -23,7 +23,7 @@ export type WorkItemParams<TContext = any> = {
     },
     skillFlow?: ISkillFlow,
     scenarioFlow?: IScenarioFlow,
-    useDefaultPromptDriver?: boolean,
+    routineContext?: AgentRoutineContext,
 };
 
 export type AgentRoutineWorkItem<TContext = any> = {
@@ -383,17 +383,11 @@ export class AgentRoutine {
                 if (!params.taskId) {
                     errors.push('taskId is required for task work items');
                 }
-                if (params.useDefaultPromptDriver === undefined) {
-                    errors.push('useDefaultPromptDriver must be explicitly set for task work items');
-                }
                 // Fall through to next case
 
             case "scenario":
                 if (type === "scenario" && !params.scenarioId) {
                     errors.push('scenarioId is required for scenario work items');
-                }
-                if (type === "scenario" && params.useDefaultPromptDriver === undefined) {
-                    errors.push('useDefaultPromptDriver must be explicitly set for scenario work items');
                 }
                 // Fall through to next case
 
@@ -401,13 +395,10 @@ export class AgentRoutine {
                 if (type === "skill" && !params.skillName) {
                     errors.push('skillName is required for skill work items');
                 }
-                if (type === "skill" && params.useDefaultPromptDriver === undefined) {
-                    errors.push('useDefaultPromptDriver must be explicitly set for skill work items');
-                }
                 break;
 
             case "idle":
-                // No validation needed for idle - doesn't use PromptDriver
+                // No validation needed for idle
                 break;
                 
             default:
@@ -578,27 +569,25 @@ export class AgentRoutine {
     
     /**
      * Get the appropriate PromptDriver for a work item
-     * If useDefaultPromptDriver is false and we have a context, use context driver
+     * If routineContext is provided, ensure it's set up and use its driver
      * Otherwise use the agent's default driver
      */
     private async getPromptDriverForWorkItem(workItem: AgentRoutineWorkItem): Promise<PromptDriver> {
-        const { useDefaultPromptDriver } = workItem.params;
+        const { routineContext } = workItem.params;
         
-        if (useDefaultPromptDriver === false) {
-            // Need to use context driver
-            if (!this.currentContext) {
-                // Try to create context from current WBS goal if available
-                if (this.wbs.document) {
-                    const goalChain = WbsRoutineHandler.findNextGoal(this.wbs.document);
-                    if (goalChain) {
-                        await this.ensureContext(goalChain);
-                    }
-                }
-                
-                if (!this.currentContext) {
-                    throw new Error('Context PromptDriver requested but no context available');
-                }
+        if (routineContext) {
+            // Check if we need to switch contexts
+            if (!this.currentContext || !this.currentContext.matchesContext(routineContext)) {
+                this.currentContext = routineContext;
             }
+            
+            // Ensure context is set up (will skip if already done)
+            const brain = this.agent.getBrain();
+            if (!brain) {
+                throw new Error('Brain not available for context setup');
+            }
+            await this.currentContext.setup(brain);
+            
             return this.currentContext.getPromptDriver();
         } else {
             // Use default driver

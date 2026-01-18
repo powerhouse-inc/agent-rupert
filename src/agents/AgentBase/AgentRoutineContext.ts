@@ -153,7 +153,31 @@ export class AgentRoutineContext {
     }
 
     /**
+     * Get skill information
+     */
+    public getSkill(): { name: string; preambleSent: boolean } {
+        return this.skill;
+    }
+    
+    /**
+     * Get scenario information
+     */
+    public getScenario(): { id: string; preambleSent: boolean } {
+        return this.scenario;
+    }
+    
+    /**
+     * Check if this context matches another context
+     */
+    public matchesContext(other: AgentRoutineContext): boolean {
+        // Compare if they represent the same skill and scenario
+        return this.getSkill().name === other.getSkill().name && 
+               this.getScenario().id === other.getScenario().id;
+    }
+    
+    /**
      * Check if this context matches a goal chain
+     * @deprecated Use matchesContext instead
      */
     public matchesGoalChain(goalChain: Goal[]): boolean {
         // Compare skill and scenario IDs

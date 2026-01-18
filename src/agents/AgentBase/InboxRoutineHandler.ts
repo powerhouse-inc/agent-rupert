@@ -24,7 +24,7 @@ export class InboxRoutineHandler {
         }
         
         // Return a skill work item for handling the stakeholder message
-        // Uses default PromptDriver as inbox skills need access to all templates
+        // No routineContext means it uses default PromptDriver with all templates
         return {
             type: 'skill',
             params: {
@@ -33,8 +33,7 @@ export class InboxRoutineHandler {
                 options: {
                     maxTurns: 50,
                     sendSkillPreamble: true,
-                },
-                useDefaultPromptDriver: true
+                }
             }
         };
     }
