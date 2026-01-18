@@ -19,6 +19,7 @@ export type WorkItemParams<TContext = any> = {
         maxTurns?: number;
         sessionId?: string;
         captureSession?: boolean;
+        sendSkillPreamble?: boolean;
     },
     skillFlow?: ISkillFlow,
     scenarioFlow?: IScenarioFlow,
@@ -63,10 +64,6 @@ export class AgentRoutine {
 
     // Flag indicating if new inbox messages are waiting
     private unreadMessagesPending: boolean = false;
-    
-    // Processing flags for inbox updates
-    private nextUpdatePending: boolean = false;
-    private processing: boolean = false;
 
     private inbox: {
         id: string;
@@ -181,74 +178,20 @@ export class AgentRoutine {
 
     /**
      * Strongly typed method for processing inbox document updates
-     * Processes one unread message at a time to avoid conflicts
+     * Simply updates the inbox state - processing happens in the main loop
      */
-    public async updateInbox(inbox: AgentInboxDocument): Promise<void> {
-        this.logger.info(" UPDATE INBOX ");
-        this.inbox.document = inbox;
-        this.unreadMessagesPending = InboxRoutineHandler.hasUnreadMessages(inbox);
-        
+    public updateInbox(inbox: AgentInboxDocument): void {
         const agentName = this.agent.getName();
+        this.logger.info(`${agentName}: Inbox document updated`);
         
-        // Only process if we have a brain and promptDriver on the agent
-        if (!this.agent.getBrain() || !this.agent.getPromptDriver()) {
-            this.logger.info(`${agentName}: Skipping inbox processing - no brain configured`);
-            return;
+        this.inbox.document = inbox;
+        
+        // Check if there are unread messages
+        const hasUnread = InboxRoutineHandler.hasUnreadMessages(inbox);
+        if (hasUnread && !this.unreadMessagesPending) {
+            this.unreadMessagesPending = true;
+            this.logger.info(`${agentName}: New unread messages detected, will process in next iteration`);
         }
-
-        // If already processing, ignore this update to prevent concurrent execution
-        if (this.processing) {
-            this.nextUpdatePending = true;
-            this.logger.info(`${agentName}: Already processing a message, skipping this inbox update`);
-            return;
-        }
-
-        do {
-            this.nextUpdatePending = false; // Will be set to true async if new updates come in
-            
-            try {
-                this.processing = true;
-                
-                // Ensure we have inbox document
-                if (!this.inbox.document) {
-                    this.logger.error(`${agentName}: No inbox document available for processing`);
-                    break;
-                }
-                
-                // Get the drive URL and WBS ID for the message context
-                const driveUrl = this.agent.getReactorDriveUrl() || '';
-                const nextMessage = InboxRoutineHandler.getNextUnreadMessage(this.inbox.document, driveUrl, this.wbs.id);
-
-                if (nextMessage === null) {
-                    this.logger.info(`${agentName}: All messages processed. No more unread messages.`);
-
-                } else {
-                    this.logger.info(`${agentName}: Processing message from ${nextMessage.stakeholder.name}: ${nextMessage.message.content.substring(0, 100)}...`);
-                    
-                    const result = await this.agent.executeSkill<InboxHandlingFlowContext>(
-                        'handle-stakeholder-message',
-                        nextMessage,
-                        {
-                            maxTurns: 50,
-                            sendSkillPreamble: true,
-                        }
-                    );
-                    
-                    if (result.success) {
-                        this.logger.info(`${agentName}: Successfully processed message ${nextMessage.message.id}`);
-                    } else {
-                        this.logger.error(`${agentName}: Failed to process message ${nextMessage.message.id}`, result.error);
-                    }                    
-                }
-
-            } catch (error) {
-                this.logger.error(`${agentName}: Error processing next inbox update`, error);
-
-            } finally {
-                this.processing = false;
-            }
-
-        } while(this.nextUpdatePending);
     }
 
     /**
@@ -465,7 +408,8 @@ export class AgentRoutine {
 
         if (this.unreadMessagesPending && this.inbox.document) {
             this.unreadMessagesPending = false;
-            const workItem = InboxRoutineHandler.getNextWorkItem(this.inbox.document);
+            const driveUrl = this.agent.getReactorDriveUrl() || '';
+            const workItem = InboxRoutineHandler.getNextWorkItem(this.inbox.document, driveUrl, this.wbs.id);
             if (workItem !== null) {
                 this.queueWorkItem(workItem.type, workItem.params);
             }

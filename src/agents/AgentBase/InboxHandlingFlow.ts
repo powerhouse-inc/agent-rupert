@@ -7,8 +7,34 @@ import { WorkItemParams, WorkItemType } from './AgentRoutine.js';
  */
 export class InboxRoutineHandler {
 
-    public static getNextWorkItem(inbox: AgentInboxDocument): { type: WorkItemType, params: WorkItemParams } | null {
-        throw new Error("Not yet implemented");
+    public static getNextWorkItem(
+        inbox: AgentInboxDocument,
+        driveUrl?: string,
+        wbsId?: string
+    ): { type: WorkItemType, params: WorkItemParams<InboxHandlingFlowContext> } | null {
+        // Get the next unread message context
+        const nextMessage = this.getNextUnreadMessage(
+            inbox,
+            driveUrl || '',
+            wbsId || ''
+        );
+        
+        if (!nextMessage) {
+            return null;
+        }
+        
+        // Return a skill work item for handling the stakeholder message
+        return {
+            type: 'skill',
+            params: {
+                skillName: 'handle-stakeholder-message',
+                context: nextMessage,
+                options: {
+                    maxTurns: 50,
+                    sendSkillPreamble: true,
+                }
+            }
+        };
     }
 
     public static hasUnreadMessages(inbox: AgentInboxDocument): boolean {
