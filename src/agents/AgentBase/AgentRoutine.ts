@@ -11,7 +11,7 @@ import type { InboxHandlingFlowContext } from './InboxHandlingFlowContext.js';
 export type WorkItemType = 'skill' | 'scenario' | 'task' | 'idle';
 
 export type WorkItemParams<TContext = any> = {
-    skillName: string,
+    skillName?: string,
     scenarioId?: string,
     taskId?: string,
     context?: TContext,
@@ -431,28 +431,22 @@ export class AgentRoutine {
     private validateWorkItemParams(type: WorkItemType, params: WorkItemParams): string[] {
         const errors: string[] = [];
 
-        // Common validation
-        if (!params.skillName && type !== 'idle') {
-            errors.push('skillName is required for non-idle work items');
-        }
-
         switch(type) {
-            case "skill":
-                // Skill validation - just needs skillName which is checked above
-                break;
+            case "task":
+                if (!params.taskId) {
+                    errors.push('taskId is required for task work items');
+                }
+                // Fall through to next case
 
             case "scenario":
                 if (!params.scenarioId) {
                     errors.push('scenarioId is required for scenario work items');
                 }
-                break;
+                // Fall through to next case
 
-            case "task":
-                if (!params.scenarioId) {
-                    errors.push('scenarioId is required for task work items');
-                }
-                if (!params.taskId) {
-                    errors.push('taskId is required for task work items');
+            case "skill":
+                if (!params.skillName) {
+                    errors.push('skillName is required for scenario work items');
                 }
                 break;
 
@@ -566,9 +560,9 @@ export class AgentRoutine {
         const { skillName, context, options, skillFlow } = workItem.params;
         
         if (skillFlow) {
-            return this.agent.executeSkillWithFlow(skillName, skillFlow, context, options);
+            return this.agent.executeSkillWithFlow(skillName || 'default', skillFlow, context, options);
         } else {
-            return this.agent.executeSkill(skillName, context, options);
+            return this.agent.executeSkill(skillName || 'default', context, options);
         }
     }
     
@@ -580,9 +574,9 @@ export class AgentRoutine {
         }
         
         if (scenarioFlow) {
-            return this.agent.executeScenarioWithFlow(skillName, scenarioId, scenarioFlow, context, options);
+            return this.agent.executeScenarioWithFlow(skillName || 'default', scenarioId, scenarioFlow, context, options);
         } else {
-            return this.agent.executeScenario(skillName, scenarioId, context, options);
+            return this.agent.executeScenario(skillName || 'default', scenarioId, context, options);
         }
     }
     
@@ -593,7 +587,7 @@ export class AgentRoutine {
             throw new Error('Scenario ID and Task ID are required for task work items');
         }
         
-        return this.agent.executeTask(skillName, scenarioId, taskId, context, options);
+        return this.agent.executeTask(skillName || 'default', scenarioId, taskId, context, options);
     }
 
     private hasWorkPending(): boolean {
