@@ -34,7 +34,15 @@ export class WbsRoutineHandler {
                     console.log(`Marked goal ${nextGoal.id} as IN_PROGRESS: ${nextGoal.description}`);
 
                     // Create PromptDriver for this goal chain (for future use)
-                    // const promptDriver = this.createGoalChainPromptDriver(goalChain, skillsRepository, brain);
+                    const promptDriver = this.createGoalChainPromptDriver(goalChain, skillsRepository, brain);
+
+                    const skill = goalChain.find(g => g.instructions?.workType == "SKILL")?.instructions?.workId;
+                    const scenario = goalChain.find(g => g.instructions?.workType == "SCENARIO")?.instructions?.workId;
+
+                    console.log(skill, scenario, promptDriver?.getRepository().getScenarioRequiredVariables(
+                        skill || 'default', 
+                        scenario || 'unknown'
+                    ));
                     
                 } catch (error) {
                     console.error(`Failed to mark goal ${nextGoal.id} as IN_PROGRESS:`, error);

@@ -176,11 +176,28 @@ export abstract class SkillsRepositoryBase implements ISkillsRepository {
    * Includes parent skill variables, scenario variables, and all child task variables
    * Returns a deduplicated array of variable names
    */
-  getScenarioRequiredVariables(skillName: string, scenarioId: string): string[] {
+  public getScenarioRequiredVariables(skillName: string, scenarioId: string): string[] {
     const variables = new Set<string>();
     
-    // Get skill template
-    const skill = this.skills.get(skillName);
+    // Get skill template - try direct match first
+    let skill = this.skills.get(skillName);
+    
+    // If not found by direct name, try to find by prefix
+    if (!skill) {
+      // Check if skillName is a prefix (like "CRP") and find matching skill
+      for (const [name, skillData] of this.skills.entries()) {
+        // Check if any scenario ID starts with the skillName prefix
+        const hasMatchingPrefix = skillData.scenarios.some(s => 
+          s.id && s.id.startsWith(skillName + '.')
+        );
+        // Also check if the skill name itself matches
+        if (hasMatchingPrefix || name === skillName) {
+          skill = skillData;
+          break;
+        }
+      }
+    }
+    
     if (!skill) {
       return [];
     }

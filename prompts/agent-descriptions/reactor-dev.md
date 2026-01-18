@@ -104,14 +104,6 @@
 |---------|-------|------------------|
 | HSM.02.1 | Mark the original message as read and reply | - |
 
-**HSM.01: Review WBS based on stakeholder request**
-
-| Task ID | Title | Expected Outcome |
-|---------|-------|------------------|
-| HSM.01.1 | Open and review your WBS document | - |
-| HSM.01.2 | Add a new goal (hierarchy) only if needed | - |
-| HSM.01.3 | Update existing goals only if needed | - |
-
 **HSM.00: Categorize the stakeholder message**
 
 | Task ID | Title | Expected Outcome |
@@ -119,6 +111,14 @@
 | HSM.00.1 | Read and understand the message and its context | - |
 | HSM.00.2 | Categorize the message type | - |
 | HSM.00.3 | Clearly state the tasks derived from the stakeholder request | - |
+
+**HSM.01: Review WBS based on stakeholder request**
+
+| Task ID | Title | Expected Outcome |
+|---------|-------|------------------|
+| HSM.01.1 | Open and review your WBS document | - |
+| HSM.01.2 | Add a new goal (hierarchy) only if needed | - |
+| HSM.01.3 | Update existing goals only if needed | - |
 
 ---
 
@@ -1080,6 +1080,45 @@ Content:
 - Keep the reply message short: 1 sentence if it's appropriate. Up to 3 paragraphs if needed.
 ```
 
+##### HSM.00: Categorize the stakeholder message
+
+**Tasks:**
+
+###### HSM.00.1: Read and understand the message and its context
+
+**Task Template:**
+
+*Variables:* `documents.driveId`, `documents.inbox.id`, `thread.id`, `thread.topic`
+```md
+- Use the agent-manager MCP tool to access the manager drive (ID: 《documents.driveId》)
+- Open your inbox document (ID: 《documents.inbox.id》) through the agent-manager tool and
+locate the thread with id: 《thread.id》 about "《thread.topic》"
+- Review the conversation history to understand the context
+- Now consider the new message content and identify the main and any secondary intents
+```
+
+###### HSM.00.2: Categorize the message type
+
+**Task Template:**
+
+```md
+Determine if the message is:
+
+- **Information request**: The stakeholder is asking for information, status updates, clarification, or explanations
+- **Planning request**: The stakeholder is asking you to make a plan for future work, which you will keep track of in your WBS document
+- **Both**: The message contains both information requests and planning requests
+- **Acknowledgment only**: The message is just confirming receipt or thanking you (no action needed)
+```
+
+###### HSM.00.3: Clearly state the tasks derived from the stakeholder request
+
+**Task Template:**
+
+```md
+For information requests, rephrase the request and consider which tools to use, if any, to fullfil the request.
+For planning requests, clearly state the intended goal(s) the stakeholder is targetting.
+```
+
 ##### HSM.01: Review WBS based on stakeholder request
 
 **Tasks:**
@@ -1160,45 +1199,6 @@ Based on the message and your ability to proceed:
 - **Blocked**: You need clarification or are waiting for stakeholder input
 - **Done**: Task is complete (if the message confirms completion)
 - **WontDo**: Stakeholder asked to cancel the goal
-```
-
-##### HSM.00: Categorize the stakeholder message
-
-**Tasks:**
-
-###### HSM.00.1: Read and understand the message and its context
-
-**Task Template:**
-
-*Variables:* `documents.driveId`, `documents.inbox.id`, `thread.id`, `thread.topic`
-```md
-- Use the agent-manager MCP tool to access the manager drive (ID: 《documents.driveId》)
-- Open your inbox document (ID: 《documents.inbox.id》) through the agent-manager tool and
-locate the thread with id: 《thread.id》 about "《thread.topic》"
-- Review the conversation history to understand the context
-- Now consider the new message content and identify the main and any secondary intents
-```
-
-###### HSM.00.2: Categorize the message type
-
-**Task Template:**
-
-```md
-Determine if the message is:
-
-- **Information request**: The stakeholder is asking for information, status updates, clarification, or explanations
-- **Planning request**: The stakeholder is asking you to make a plan for future work, which you will keep track of in your WBS document
-- **Both**: The message contains both information requests and planning requests
-- **Acknowledgment only**: The message is just confirming receipt or thanking you (no action needed)
-```
-
-###### HSM.00.3: Clearly state the tasks derived from the stakeholder request
-
-**Task Template:**
-
-```md
-For information requests, rephrase the request and consider which tools to use, if any, to fullfil the request.
-For planning requests, clearly state the intended goal(s) the stakeholder is targetting.
 ```
 
 ---
