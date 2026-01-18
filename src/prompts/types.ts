@@ -1,12 +1,20 @@
+/**
+ * Structure for template variables extracted from Handlebars templates
+ */
+export interface TemplateVars {
+  text: string;    // Original template text with Handlebars placeholders
+  vars: string[];  // Extracted variable names (e.g., ["documents.driveId", "thread.id"])
+}
+
 export interface ScenarioTaskTemplate<TContext = any> {
   id: string;
   title: string;
   content: (context?: TContext) => string;
   contentText?: string;  // Raw template text
-  contentVars?: any;  // Variable structure
+  contentVars?: TemplateVars;  // Variable structure
   expectedOutcome?: (context?: TContext) => string;
   expectedOutcomeText?: string;  // Raw template text
-  expectedOutcomeVars?: any;  // Variable structure
+  expectedOutcomeVars?: TemplateVars;  // Variable structure
 }
 
 export interface ScenarioTemplate<TContext = any> {
@@ -14,22 +22,22 @@ export interface ScenarioTemplate<TContext = any> {
   title: string;
   preamble?: (context?: TContext) => string;
   preambleText?: string;  // Raw template text
-  preambleVars?: any;  // Variable structure
+  preambleVars?: TemplateVars;  // Variable structure
   tasks: ScenarioTaskTemplate<TContext>[];
   expectedOutcome?: (context?: TContext) => string;
   expectedOutcomeText?: string;  // Raw template text
-  expectedOutcomeVars?: any;  // Variable structure
+  expectedOutcomeVars?: TemplateVars;  // Variable structure
 }
 
 export interface SkillTemplate<TContext = any> {
   name: string;
   preamble?: (context?: TContext) => string;
   preambleText?: string;  // Raw template text
-  preambleVars?: any;  // Variable structure
+  preambleVars?: TemplateVars;  // Variable structure
   scenarios: ScenarioTemplate<TContext>[];
   expectedOutcome?: (context?: TContext) => string;
   expectedOutcomeText?: string;  // Raw template text
-  expectedOutcomeVars?: any;  // Variable structure
+  expectedOutcomeVars?: TemplateVars;  // Variable structure
 }
 
 // Rendered versions without functions

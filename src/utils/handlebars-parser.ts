@@ -181,7 +181,7 @@ export function simplifyTemplateStructure(extracted: ReturnType<typeof extractTe
 /**
  * Process a template string and return both the text and extracted variables
  */
-export function processTemplate(template: string | undefined): { text: string; vars?: any } | undefined {
+export function processTemplate(template: string | undefined): { text: string; vars?: string[] } | undefined {
   if (!template) {
     return undefined;
   }

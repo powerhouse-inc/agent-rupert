@@ -417,12 +417,13 @@ export class AgentRoutine {
         if (!this.hasWorkPending() && this.wbs.document) {
             const reactor = this.agent.getReactor();
             if (reactor) {
-                // Get skills repository if available
+                // Get skills repository and brain if available
                 const promptDriver = this.agent.getPromptDriver();
                 const skillsRepository = promptDriver?.getRepository();
+                const brain = this.agent.getBrain();
 
-                if (skillsRepository) {
-                    const workItem = await WbsRoutineHandler.getNextWorkItem(this.wbs.document, reactor, skillsRepository);
+                if (skillsRepository && brain) {
+                    const workItem = await WbsRoutineHandler.getNextWorkItem(this.wbs.document, reactor, skillsRepository, brain);
                     if (workItem !== null) {
                         this.queueWorkItem(workItem.type, workItem.params);
                     }

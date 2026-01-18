@@ -69,4 +69,13 @@ export interface ISkillsRepository {
      * Returns the raw template with functions
      */
     getSkillTemplate(skill: string): SkillTemplate | undefined;
+
+    /**
+     * Collect all variables required for a scenario
+     * Includes parent skill variables, scenario variables, and all child task variables
+     * @param skillName - Name of the skill containing the scenario
+     * @param scenarioId - ID of the scenario
+     * @returns Array of unique variable names required for the scenario
+     */
+    getScenarioRequiredVariables(skillName: string, scenarioId: string): string[];
 }

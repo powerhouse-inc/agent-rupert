@@ -17,7 +17,8 @@ export class WbsRoutineHandler {
     public static async getNextWorkItem(
         wbs: WorkBreakdownStructureDocument,
         reactor: IDocumentDriveServer,
-        skillsRepository: ISkillsRepository
+        skillsRepository: ISkillsRepository,
+        brain: IAgentBrain
     ): Promise<{ type: WorkItemType, params: WorkItemParams } | null> {
         // Find the next goal to work on (returns ancestor chain)
         const goalChain = this.findNextGoal(wbs);
@@ -31,39 +32,10 @@ export class WbsRoutineHandler {
                     // Mark the goal as IN_PROGRESS
                     await this.markInProgress(nextGoal, wbs.header.id, reactor);
                     console.log(`Marked goal ${nextGoal.id} as IN_PROGRESS: ${nextGoal.description}`);
+
+                    // Create PromptDriver for this goal chain (for future use)
+                    // const promptDriver = this.createGoalChainPromptDriver(goalChain, skillsRepository, brain);
                     
-                    // Log the full ancestor chain for context
-                    const chainDescription = goalChain.map(g => g.description).join(' > ');
-                    console.log(`Goal chain: ${chainDescription}`);
-                    
-                    // Collect and log context information if repository is available
-                    if (skillsRepository) {
-                        // Debug: Log goal instructions
-                        console.log('\n=== Goal Instructions Debug ===');
-                        goalChain.forEach((goal, index) => {
-                            console.log(`Goal ${index}: ${goal.description}`);
-                            if (goal.instructions) {
-                                console.log(`  - workType: ${goal.instructions.workType || 'undefined'}`);
-                                console.log(`  - workId: ${goal.instructions.workId || 'undefined'}`);
-                                console.log(`  - comments: ${goal.instructions.comments || 'undefined'}`);
-                            } else {
-                                console.log('  - No instructions');
-                            }
-                        });
-                        console.log('================================\n');
-                        
-                        const contextInfo = this.getGoalChainSkillTemplates(goalChain, skillsRepository);
-                        if (contextInfo) {
-                            console.log('\n=== Task Context Information ===');
-                            console.log('Skill:', contextInfo.skillTemplate?.name || 'None');
-                            console.log('Scenario:', contextInfo.scenarioTemplate?.title || 'None');
-                            console.log('Current Task:', contextInfo.taskTemplate?.title || 'None');
-                            console.log('Preceding Tasks:', contextInfo.precedingTaskTemplates.map(t => t.title).join(', ') || 'None');
-                            console.log('================================\n');
-                        } else {
-                            console.log('No context information available for this goal chain');
-                        }
-                    }
                 } catch (error) {
                     console.error(`Failed to mark goal ${nextGoal.id} as IN_PROGRESS:`, error);
                     // Continue even if marking fails - we still want to return a work item

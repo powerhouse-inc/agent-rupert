@@ -36,7 +36,7 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
     protected config: BaseAgentConfig;
     protected logger: ILogger;
     protected brain?: TBrain;
-    protected promptDriver?: PromptDriver;
+    protected defaultPromptDriver?: PromptDriver;
     protected routine?: AgentRoutine;
     protected documentIds: {
         inbox: string | null;
@@ -277,8 +277,8 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
         
         // Initialize PromptDriver if brain is available
         if (this.brain) {
-            this.promptDriver = new PromptDriver(this.brain, './build/prompts');
-            await this.promptDriver.initialize();
+            this.defaultPromptDriver = new PromptDriver(this.brain, './build/prompts');
+            await this.defaultPromptDriver.initialize();
             
             const skillNames = (this.constructor as typeof AgentBase).getDefaultSkillNames();
             this.logger.info(`${this.config.name}: PromptDriver initialized with skills: ${skillNames.join(', ')}`);
@@ -356,18 +356,18 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
             sendSkillPreamble?: boolean;
         }
     ): Promise<SkillExecutionResult> {
-        if (!this.promptDriver) {
+        if (!this.defaultPromptDriver) {
             throw new Error('PromptDriver not initialized - agent needs a brain to execute skills');
         }
         
         // Get scenarios for the skill with context
-        const scenarios = this.promptDriver.getRepository().getScenariosBySkill(skillName, context || {} as TContext);
+        const scenarios = this.defaultPromptDriver.getRepository().getScenariosBySkill(skillName, context || {} as TContext);
         
         // Create a sequential skill flow
         const flow = new SequentialSkillFlow(skillName, scenarios);
         
         // Execute the skill using PromptDriver
-        return this.promptDriver.executeSkillFlow(
+        return this.defaultPromptDriver.executeSkillFlow(
             skillName,
             flow,
             context || {} as TContext,
@@ -393,11 +393,11 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
             sendSkillPreamble?: boolean;
         }
     ): Promise<SkillExecutionResult> {
-        if (!this.promptDriver) {
+        if (!this.defaultPromptDriver) {
             throw new Error('PromptDriver not initialized - agent needs a brain to execute skills');
         }
         
-        return this.promptDriver.executeSkillFlow(
+        return this.defaultPromptDriver.executeSkillFlow(
             skillName,
             flow,
             context || {} as TContext,
@@ -422,7 +422,7 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
             sessionId?: string;
         }
     ): Promise<ScenarioExecutionResult> {
-        if (!this.promptDriver) {
+        if (!this.defaultPromptDriver) {
             throw new Error('PromptDriver not initialized - agent needs a brain to execute scenarios');
         }
         
@@ -430,7 +430,7 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
         const scenarioKey = `${skillName}/${scenarioId}`;
         
         // Get the scenario from repository
-        const scenario = this.promptDriver.getRepository().getScenarioByKey(scenarioKey, context || {} as TContext);
+        const scenario = this.defaultPromptDriver.getRepository().getScenarioByKey(scenarioKey, context || {} as TContext);
         if (!scenario) {
             throw new Error(`Scenario not found: ${scenarioKey}`);
         }
@@ -439,7 +439,7 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
         const flow = new SequentialScenarioFlow(scenario);
         
         // Execute the scenario using PromptDriver
-        return this.promptDriver.executeScenarioFlow<TContext>(
+        return this.defaultPromptDriver.executeScenarioFlow<TContext>(
             scenarioKey,
             flow,
             context || {} as TContext,
@@ -466,13 +466,13 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
             sessionId?: string;
         }
     ): Promise<ScenarioExecutionResult> {
-        if (!this.promptDriver) {
+        if (!this.defaultPromptDriver) {
             throw new Error('PromptDriver not initialized - agent needs a brain to execute scenarios');
         }
         
         const scenarioKey = `${skillName}/${scenarioId}`;
         
-        return this.promptDriver.executeScenarioFlow<TContext>(
+        return this.defaultPromptDriver.executeScenarioFlow<TContext>(
             scenarioKey,
             flow,
             context || {} as TContext,
@@ -500,15 +500,15 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
             captureSession?: boolean;
         }
     ): Promise<TaskResponse> {
-        if (!this.promptDriver) {
+        if (!this.defaultPromptDriver) {
             throw new Error('PromptDriver not initialized - agent needs a brain to execute tasks');
         }
         
         // Build the scenario key
-        const scenarioKey = this.promptDriver.getRepository().generateScenarioKey(skillName, scenarioId);
+        const scenarioKey = this.defaultPromptDriver.getRepository().generateScenarioKey(skillName, scenarioId);
         
         // Get the scenario from repository
-        const scenario = this.promptDriver.getRepository().getScenarioByKey(scenarioKey, context || {});
+        const scenario = this.defaultPromptDriver.getRepository().getScenarioByKey(scenarioKey, context || {});
         if (!scenario) {
             throw new Error(`Scenario not found: ${scenarioKey}`);
         }
@@ -520,10 +520,10 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
         }
         
         // Execute the single task using PromptDriver's message sending
-        return this.promptDriver.executeTask(
+        return this.defaultPromptDriver.executeTask(
             task,
             {
-                maxTurns: options?.maxTurns || this.promptDriver.getMaxTurns(),
+                maxTurns: options?.maxTurns || this.defaultPromptDriver.getMaxTurns(),
                 sessionId: options?.sessionId || undefined,
                 captureSession: options?.captureSession || undefined,
             }
@@ -541,7 +541,7 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
      * Get the prompt driver instance
      */
     public getPromptDriver(): PromptDriver | undefined {
-        return this.promptDriver;
+        return this.defaultPromptDriver;
     }
     
     /**
@@ -567,12 +567,12 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
      * Get the skills available to this agent instance
      */
     public getSkills(): SkillInfo[] {
-        if (!this.promptDriver) {
+        if (!this.defaultPromptDriver) {
             return [];
         }
         
         // Get all skills from the repository
-        const repository = this.promptDriver.getRepository();
+        const repository = this.defaultPromptDriver.getRepository();
         const skillNames = (this.constructor as typeof AgentBase).getDefaultSkillNames();
         
         const skills: SkillInfo[] = [];
@@ -590,10 +590,10 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
      * Get detailed information about a specific skill
      */
     public getSkillDetails(skillName: string): SkillInfo | null {
-        if (!this.promptDriver) {
+        if (!this.defaultPromptDriver) {
             return null;
         }
-        return this.promptDriver.getRepository().getSkillInformation(skillName) || null;
+        return this.defaultPromptDriver.getRepository().getSkillInformation(skillName) || null;
     }
     
     /**

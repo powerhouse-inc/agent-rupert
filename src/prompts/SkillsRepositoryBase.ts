@@ -6,6 +6,7 @@ import type {
   RenderedScenario,
   RenderedScenarioTask,
   SkillInfo,
+  TemplateVars,
 } from './types.js';
 
 /**
@@ -68,7 +69,7 @@ export abstract class SkillsRepositoryBase implements ISkillsRepository {
     }
     
     // Helper function to build template with vars structure
-    const buildTemplateWithVars = (text?: string, vars?: any) => {
+    const buildTemplateWithVars = (text?: string, vars?: TemplateVars) => {
       if (!text) return undefined;
       if (!vars) return text; // Return as plain string for backwards compatibility
       return vars; // The vars object already contains text and variable structure
@@ -168,6 +169,71 @@ export abstract class SkillsRepositoryBase implements ISkillsRepository {
       tasks: renderedTasks,
       expectedOutcome: scenario.expectedOutcome ? scenario.expectedOutcome(context) : undefined
     };
+  }
+
+  /**
+   * Collect all variables required for a scenario
+   * Includes parent skill variables, scenario variables, and all child task variables
+   */
+  getScenarioRequiredVariables(skillName: string, scenarioId: string): string[] {
+    const variables = new Set<string>();
+    
+    // Get skill template
+    const skill = this.skills.get(skillName);
+    if (!skill) {
+      return [];
+    }
+    
+    // Helper function to extract variables from a TemplateVars object
+    const extractVariables = (varsObj: TemplateVars | undefined): void => {
+      if (!varsObj) return;
+      
+      // Add all variables from the vars array
+      if (Array.isArray(varsObj.vars)) {
+        varsObj.vars.forEach((v: string) => variables.add(v));
+      }
+    };
+    
+    // Add skill preamble variables
+    if (skill.preambleVars) {
+      extractVariables(skill.preambleVars);
+    }
+    
+    // Add skill expected outcome variables
+    if (skill.expectedOutcomeVars) {
+      extractVariables(skill.expectedOutcomeVars);
+    }
+    
+    // Find the specific scenario
+    const scenario = skill.scenarios.find(s => s.id === scenarioId);
+    if (!scenario) {
+      return Array.from(variables);
+    }
+    
+    // Add scenario preamble variables
+    if (scenario.preambleVars) {
+      extractVariables(scenario.preambleVars);
+    }
+    
+    // Add scenario expected outcome variables
+    if (scenario.expectedOutcomeVars) {
+      extractVariables(scenario.expectedOutcomeVars);
+    }
+    
+    // Add all task variables
+    for (const task of scenario.tasks) {
+      // Task content variables
+      if (task.contentVars) {
+        extractVariables(task.contentVars);
+      }
+      
+      // Task expected outcome variables
+      if (task.expectedOutcomeVars) {
+        extractVariables(task.expectedOutcomeVars);
+      }
+    }
+    
+    return Array.from(variables);
   }
 
   /**
