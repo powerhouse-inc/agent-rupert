@@ -3,6 +3,9 @@ import { WorkItemParams, WorkItemType } from "./AgentRoutine.js";
 import type { IDocumentDriveServer } from "document-drive";
 import type { ISkillsRepository } from "../../prompts/ISkillsRepository.js";
 import type { SkillTemplate, ScenarioTemplate, ScenarioTaskTemplate } from "../../prompts/types.js";
+import { MemorySkillsRepository } from "../../prompts/MemorySkillsRepository.js";
+import { PromptDriver } from "../../prompts/PromptDriver.js";
+import type { IAgentBrain } from "../IAgentBrain.js";
 
 export class WbsRoutineHandler {
     
@@ -49,7 +52,7 @@ export class WbsRoutineHandler {
                         });
                         console.log('================================\n');
                         
-                        const contextInfo = this.collectContextInfo(wbs, goalChain, skillsRepository);
+                        const contextInfo = this.getGoalChainSkillTemplates(goalChain, skillsRepository);
                         if (contextInfo) {
                             console.log('\n=== Task Context Information ===');
                             console.log('Skill:', contextInfo.skillTemplate?.name || 'None');
@@ -130,16 +133,14 @@ export class WbsRoutineHandler {
     }
 
     /**
-     * Collect context information from the goal chain
+     * Get skill templates from the goal chain
      * Traverses the chain to extract skill, scenario, and task templates
      * 
-     * @param wbs - The Work Breakdown Structure document
      * @param goalChain - Array of goals from root to leaf
      * @param skillRepository - Repository to look up skill templates
      * @returns Object containing skill, scenario, and task templates or null
      */
-    public static collectContextInfo(
-        wbs: WorkBreakdownStructureDocument,
+    public static getGoalChainSkillTemplates(
         goalChain: Goal[],
         skillRepository: ISkillsRepository
     ): {
@@ -232,6 +233,49 @@ export class WbsRoutineHandler {
             precedingTaskTemplates,
             taskTemplate
         };
+    }
+
+    /**
+     * Create a PromptDriver with only the templates needed for the goal chain
+     * 
+     * @param goalChain - Array of goals from root to leaf
+     * @param skillRepository - Repository to look up skill templates
+     * @param brain - The agent brain to use for the PromptDriver
+     * @returns PromptDriver with filtered templates or null if no templates found
+     */
+    public static createGoalChainPromptDriver(
+        goalChain: Goal[],
+        skillRepository: ISkillsRepository,
+        brain: IAgentBrain
+    ): PromptDriver | null {
+        // Get the templates from the goal chain
+        const templates = this.getGoalChainSkillTemplates(goalChain, skillRepository);
+        if (!templates || !templates.skillTemplate) {
+            return null;
+        }
+
+        // Create a filtered skill template with only the relevant scenario
+        let filteredSkillTemplate: SkillTemplate;
+        
+        if (templates.scenarioTemplate) {
+            // Create a skill with just the one scenario
+            filteredSkillTemplate = {
+                ...templates.skillTemplate,
+                scenarios: [templates.scenarioTemplate]
+            };
+        } else {
+            // Use the skill as-is if no specific scenario
+            filteredSkillTemplate = templates.skillTemplate;
+        }
+
+        // Create a memory repository with just this skill
+        const memoryRepository = new MemorySkillsRepository(
+            [filteredSkillTemplate],
+            [] // No additional scenarios needed
+        );
+
+        // Create and return the PromptDriver
+        return new PromptDriver(brain, memoryRepository);
     }
 
     /**
