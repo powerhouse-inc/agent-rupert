@@ -1147,11 +1147,11 @@ For stakeholder planning requests that require one or more WBS goals:
 - Lay out the goal hierarchy with the stakeholder request at the top level, broken down in subgoals following the
 (1) skills, (2) scenarios and (3) tasks from your capabilities.
 - Create short goal titles
-- For leaf goals mapped to a capability task use: `<task.id> <task title applied to stakeholder request>`
-For example, `DM.01.1 Start by listing the users who will use the new document model` becomes: `DM.01.1 List Pizza Order document `
-- For parent goals mapped to a capability scenarion use `<scenario.id> <scenario title applied to stakeholder request>`
+- For leaf goals mapped to a capability task use: `<task.id> - <task title applied to stakeholder request>`
+For example, `DM.01.1 Start by listing the users who will use the new document model` becomes: `DM.01.1 List Pizza Order document users`
+- For parent goals mapped to a capability scenarion use `<scenario.id> - <scenario title applied to stakeholder request>`
 For example, `DM.00 Check Prerequisites` becomes: `DM.00 Check prerequisites for Pizza Order reactor module`
-- For parent goals mapped to a capability skills, use `<skill.id> <skill title applied to stakeholder request>`
+- For parent goals mapped to a capability skills, use `<skill.id> - <skill title applied to stakeholder request>`
 For example, `DM document-modelling` becomes: `DM. Pizza Order document modelling`
 - Try to keep the title length below 60 chars
 - Always add goals and potential subgoals under the appropriate parent goal in your WBS

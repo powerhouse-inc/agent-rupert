@@ -3,8 +3,6 @@ import { IDocumentDriveServer, InMemoryCache, MemoryStorage, ReactorBuilder, dri
 import type { IDriveOperationStorage } from 'document-drive/storage/types';
 import type { BaseAgentConfig } from '../../types.js';
 import { documentModels } from 'powerhouse-agent';
-import type { AgentInboxDocument } from "powerhouse-agent/document-models/agent-inbox";
-import type { WorkBreakdownStructureDocument } from "powerhouse-agent/document-models/work-breakdown-structure";
 import { documentModelDocumentModelModule } from 'document-model';
 import { FilesystemStorage } from 'document-drive/storage/filesystem';
 import type { IAgentBrain } from '../IAgentBrain.js';
@@ -40,9 +38,9 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
     protected brain?: TBrain;
     protected promptDriver?: PromptDriver;
     protected routine?: AgentRoutine;
-    protected documents: {
-        inbox: AgentInboxDocument | null;
-        wbs: WorkBreakdownStructureDocument | null;
+    protected documentIds: {
+        inbox: string | null;
+        wbs: string | null;
     } = {
         inbox: null,
         wbs: null,
@@ -50,10 +48,10 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
     
     /**
      * Get the brain configuration for this agent type
-     * @param apiKey Optional Anthropic API key
+     * @param _apiKey Optional Anthropic API key
      * @returns BrainConfig or null if no brain is needed
      */
-    static getBrainConfig(apiKey?: string): BrainConfig | null {
+    static getBrainConfig(_apiKey?: string): BrainConfig | null {
         // Default implementation returns null (no brain)
         // Subclasses should override this to provide their specific configuration
         return null;
@@ -155,37 +153,23 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
     }
     
     /**
-     * Set up minimal event listeners to capture initial documents before AgentRoutine is created
+     * Set up minimal event listeners to capture initial document IDs before AgentRoutine is created
      */
     private setupInitialDocumentListeners(): void {
         if (!this.reactor) return;
         
         const { inbox, wbs } = this.config.workDrive.documents;
         
-        // Listen for operations on documents
-        this.reactor.on('operationsAdded', async (documentId: string, operations: any[]) => {
-            // Only process if we don't have a routine yet
-            if (!this.routine) {
-                // Check if this is our inbox document
-                if (inbox?.documentId && documentId === inbox.documentId) {
-                    if (this.reactor) {
-                        const doc = await this.reactor.getDocument(inbox.documentId);
-                        if (inbox.documentType == 'powerhouse/agent-inbox') {
-                            await this.updateInbox(doc as AgentInboxDocument);
-                        }
-                    }
-                }
-                // Check if this is our WBS document
-                else if (wbs?.documentId && documentId === wbs.documentId) {
-                    if (this.reactor) {
-                        const doc = await this.reactor.getDocument(wbs.documentId);
-                        if (wbs.documentType == 'powerhouse/work-breakdown-structure') {
-                            this.updateWbs(doc as WorkBreakdownStructureDocument);
-                        }
-                    }
-                }
-            }
-        });
+        // Set document IDs from config
+        if (inbox?.documentId) {
+            this.documentIds.inbox = inbox.documentId;
+        }
+        if (wbs?.documentId) {
+            this.documentIds.wbs = wbs.documentId;
+        }
+        
+        // Try to initialize routine if we have both IDs
+        this.tryInitializeRoutine();
     }
     
     /**
@@ -309,17 +293,35 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
         
         this.logger.info(`${this.config.name}: Initialization complete`);
         
-        // Initialize AgentRoutine if we have both documents
-        if (this.documents.inbox && this.documents.wbs) {
+        // Try to initialize routine if we have document IDs
+        await this.tryInitializeRoutine();
+    }
+    
+    /**
+     * Try to initialize AgentRoutine if we have both document IDs
+     */
+    private async tryInitializeRoutine(): Promise<void> {
+        // Skip if already initialized or missing IDs
+        if (this.routine || !this.documentIds.inbox || !this.documentIds.wbs) {
+            if (!this.routine && (!this.documentIds.inbox || !this.documentIds.wbs)) {
+                this.logger.info(`${this.config.name}: AgentRoutine not initialized - missing document IDs`);
+            }
+            return;
+        }
+        
+        try {
             this.routine = new AgentRoutine(
                 this,
-                this.documents.inbox,
-                this.documents.wbs,
-                this.logger,
+                this.documentIds.inbox,
+                this.documentIds.wbs,
+                this.logger
             );
-            this.logger.info(`${this.config.name}: AgentRoutine initialized`);
-        } else {
-            this.logger.warn(`${this.config.name}: AgentRoutine not initialized - missing inbox or wbs document`);
+            
+            await this.routine.initialize();
+            this.logger.info(`${this.config.name}: AgentRoutine initialized and ready`);
+        } catch (error) {
+            this.logger.error(`${this.config.name}: Failed to initialize AgentRoutine`, error);
+            this.routine = undefined;
         }
     }
     
@@ -634,15 +636,13 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
     
     /**
      * Get the complete inbox document state as JSON
+     * Note: This method will retrieve the document state from the reactor
      */
     public async getInboxState(): Promise<any> {
-        if (this.documents.inbox) {
-            return this.documents.inbox.state || null;
-        }
-        
         const reactor = this.getReactor();
         if (!reactor) return null;
-        const inboxId = this.config.workDrive?.documents?.inbox?.documentId;
+        
+        const inboxId = this.documentIds.inbox;
         if (!inboxId) return null;
         
         try {
@@ -655,16 +655,14 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
     }
     
     /**
-     * Get the complete WBS document state as JSON
+     * Get the complete WBS document state as JSON  
+     * Note: This method will retrieve the document state from the reactor
      */
     public async getWbsState(): Promise<any> {
-        if (this.documents.wbs) {
-            return this.documents.wbs.state || null;
-        }
-        
         const reactor = this.getReactor();
         if (!reactor) return null;
-        const wbsId = this.config.workDrive?.documents?.wbs?.documentId;
+        
+        const wbsId = this.documentIds.wbs;
         if (!wbsId) return null;
         
         try {
@@ -736,7 +734,7 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
      * Remove an MCP endpoint
      * Note: This requires enhancing AgentClaudeBrain with a removeMcpServer method
      */
-    public removeMcpEndpoint(name: string): boolean {
+    public removeMcpEndpoint(_name: string): boolean {
         if (!this.brain || !(this.brain instanceof AgentClaudeBrain)) {
             this.logger.warn(`${this.config.name}: Cannot remove MCP endpoint - no Claude brain available`);
             return false;
@@ -748,59 +746,4 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
         return false;
     }
     
-    /**
-     * Strongly typed method for processing inbox document updates
-     * Delegates to AgentRoutine if available, otherwise stores the document
-     * Override in subclasses to handle specific inbox document processing
-     */
-    protected async updateInbox(inbox: AgentInboxDocument): Promise<void> {
-        this.documents.inbox = inbox;
-        
-        if (this.routine) {
-            // Delegate to AgentRoutine
-            return this.routine.updateInbox(inbox);
-        } else {
-            // If no routine yet, just store the document
-            this.logger.info(`${this.config.name}: Stored inbox document - AgentRoutine not initialized`);
-            
-            // Try to initialize routine now if we also have WBS
-            if (this.documents.wbs && !this.routine) {
-                this.routine = new AgentRoutine(
-                    this,
-                    this.documents.inbox,
-                    this.documents.wbs,
-                    this.logger,
-                );
-                this.logger.info(`${this.config.name}: AgentRoutine initialized after receiving inbox`);
-            }
-        }
-    }
-
-    /**
-     * Strongly typed method for processing WBS document updates  
-     * Delegates to AgentRoutine if available, otherwise stores the document
-     * Override in subclasses to handle specific WBS document processing
-     */
-    protected updateWbs(wbs: WorkBreakdownStructureDocument): void | Promise<void> {
-        this.documents.wbs = wbs;
-        
-        if (this.routine) {
-            // Delegate to AgentRoutine
-            this.routine.updateWbs(wbs);
-        } else {
-            // If no routine yet, just store the document
-            this.logger.info(`${this.config.name}: Stored WBS document - AgentRoutine not initialized`);
-            
-            // Try to initialize routine now if we also have inbox
-            if (this.documents.inbox && !this.routine) {
-                this.routine = new AgentRoutine(
-                    this,
-                    this.documents.inbox,
-                    this.documents.wbs,
-                    this.logger
-                );
-                this.logger.info(`${this.config.name}: AgentRoutine initialized after receiving WBS`);
-            }
-        }
-    }
 }

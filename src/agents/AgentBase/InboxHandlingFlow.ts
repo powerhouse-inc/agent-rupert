@@ -1,7 +1,5 @@
 import type { AgentInboxDocument } from 'powerhouse-agent/document-models/agent-inbox';
 import type { InboxHandlingFlowContext } from './InboxHandlingFlowContext.js';
-import type { BaseAgentConfig } from '../../types.js';
-import { Exception } from 'handlebars';
 import { WorkItemParams, WorkItemType } from './AgentRoutine.js';
 
 /**
@@ -14,7 +12,23 @@ export class InboxRoutineHandler {
     }
 
     public static hasUnreadMessages(inbox: AgentInboxDocument): boolean {
-        throw new Exception('Not yet implemented');
+        const state = inbox.state.global;
+        
+        // Check if there are any unread messages
+        if (state.threads && Array.isArray(state.threads)) {
+            for (const thread of state.threads) {
+                if (thread.messages && Array.isArray(thread.messages)) {
+                    for (const message of thread.messages) {
+                        // Check if message is unread and from stakeholder (Incoming flow)
+                        if (!message.read && message.flow === 'Incoming') {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        
+        return false;
     }
 
     /**

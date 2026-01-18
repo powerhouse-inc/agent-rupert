@@ -43,7 +43,7 @@ export class WorkItemValidationErrors extends Error {
 export class AgentRoutine {
 
     // Routine is ready to be started, running, or in the process of stopping gracefully
-    private status: 'ready' | 'running' | 'stopping' = 'ready';
+    private status: 'init' | 'ready' | 'running' | 'stopping' = 'init';
 
     // Minimum duration of a full iteration, including work and idle time
     private minimumIterationMs: number = 30000;
@@ -64,10 +64,14 @@ export class AgentRoutine {
     private nextUpdatePending: boolean = false;
     private processing: boolean = false;
 
-    // Document storage
-    protected documents: {
-        inbox: AgentInboxDocument;
-        wbs: WorkBreakdownStructureDocument;
+    private inbox: {
+        id: string;
+        document: AgentInboxDocument | null;
+    };
+        
+    private wbs: {
+        id: string;
+        document: WorkBreakdownStructureDocument | null;
     };
 
     // Queued work items
@@ -76,22 +80,34 @@ export class AgentRoutine {
     // Routine only starts when initial inbox and WBS are resolved
     public constructor(
         agent: AgentBase,
-        inbox: AgentInboxDocument,
-        wbs: WorkBreakdownStructureDocument,
+        inboxDocumentId: string,
+        wbsDocumentId: string,
         logger: ILogger
     ) {
         this.agent = agent;
         this.logger = logger;
-        this.documents = {
-            inbox,
-            wbs
-        };
         
-        // Set up event listeners if agent has a reactor
-        const reactor = this.agent.getReactor();
-        if (reactor) {
-            this.setupDocumentEventListeners();
+        this.inbox = {
+            id: inboxDocumentId,
+            document: null,
+        };
+
+        this.wbs = {
+            id: wbsDocumentId,
+            document: null,
         }
+    }
+
+    public async initialize(): Promise<void> {
+        return new Promise((resolve) => {
+            const reactor = this.agent.getReactor();
+            if (!reactor) {
+                throw new Error('No reactor available for AgentRoutine initialization');
+            }
+            
+            // Set up listeners and resolve when both documents are loaded
+            this.setupDocumentEventListeners(resolve);
+        });
     }
 
     // Start the routine loop
@@ -112,66 +128,12 @@ export class AgentRoutine {
     }
 
     /**
-     * Set up event listeners for document updates
-     * Listens for operations on configured inbox and WBS documents
-     */
-    private setupDocumentEventListeners(): void {
-        const reactor = this.agent.getReactor();
-        if (!reactor) return;
-        
-        // Get document IDs from the actual documents
-        const inboxId = this.documents.inbox.header.id;
-        const wbsId = this.documents.wbs.header.id;
-        const agentName = this.agent.getName();
-        
-        this.logger.info(`${agentName}: Setting up document event listeners in AgentRoutine`);
-        
-        // Listen for operations on documents
-        reactor.on('operationsAdded', async (documentId: string, operations: any[]) => {
-            // Check if this is our inbox document
-            if (inboxId && documentId === inboxId) {
-                this.logger.info(`${agentName}: Inbox document updated - ${operations.length} operations`);
-                const currentReactor = this.agent.getReactor();
-                if (currentReactor) {
-                    const doc = await currentReactor.getDocument(inboxId);
-                    // Documents fetched from reactor have correct type already
-                    if (doc) {
-                        this.updateInbox(doc as AgentInboxDocument);
-                    }
-                }
-            }
-            // Check if this is our WBS document
-            else if (wbsId && documentId === wbsId) {
-                this.logger.info(`${agentName}: WBS document updated - ${operations.length} operations`);
-                const currentReactor = this.agent.getReactor();
-                if (currentReactor) {
-                    const doc = await currentReactor.getDocument(wbsId);
-                    // Documents fetched from reactor have correct type already
-                    if (doc) {
-                        this.updateWbs(doc as WorkBreakdownStructureDocument);
-                    }
-                }
-            }
-        });
-        
-        // Listen for new documents added
-        reactor.on('documentAdded', (document: any) => {
-            // Check if it's a document type we care about
-            if (document.documentType === 'powerhouse/agent-inbox') {
-                this.logger.info(`${agentName}: New inbox document added: ${document.id}`);
-            } else if (document.documentType === 'powerhouse/work-breakdown-structure') {
-                this.logger.info(`${agentName}: New WBS document added: ${document.id}`);
-            }
-        });
-    }
-
-    /**
      * Strongly typed method for processing inbox document updates
      * Processes one unread message at a time to avoid conflicts
      */
     public async updateInbox(inbox: AgentInboxDocument): Promise<void> {
         this.logger.info(" UPDATE INBOX ");
-        this.documents.inbox = inbox;
+        this.inbox.document = inbox;
         this.unreadMessagesPending = InboxRoutineHandler.hasUnreadMessages(inbox);
         
         const agentName = this.agent.getName();
@@ -194,10 +156,16 @@ export class AgentRoutine {
             
             try {
                 this.processing = true;
+                
+                // Ensure we have inbox document
+                if (!this.inbox.document) {
+                    this.logger.error(`${agentName}: No inbox document available for processing`);
+                    break;
+                }
+                
                 // Get the drive URL and WBS ID for the message context
                 const driveUrl = this.agent.getReactorDriveUrl() || '';
-                const wbsId = this.documents.wbs.header.id;
-                const nextMessage = InboxRoutineHandler.getNextUnreadMessage(this.documents.inbox, driveUrl, wbsId);
+                const nextMessage = InboxRoutineHandler.getNextUnreadMessage(this.inbox.document, driveUrl, this.wbs.id);
 
                 if (nextMessage === null) {
                     this.logger.info(`${agentName}: All messages processed. No more unread messages.`);
@@ -235,7 +203,7 @@ export class AgentRoutine {
      * Strongly typed method for processing WBS document updates  
      */
     public updateWbs(wbs: WorkBreakdownStructureDocument): void {
-        this.documents.wbs = wbs;
+        this.wbs.document = wbs;
     }
 
     public queueWorkItem<TContext = any>(type: WorkItemType, params: WorkItemParams<TContext>) {
@@ -296,6 +264,68 @@ export class AgentRoutine {
         throw new Error("Not implement yet");
     }
 
+    
+    /**
+     * Set up event listeners for document updates
+     * Listens for operations on configured inbox and WBS documents
+     */
+    private setupDocumentEventListeners(onReady?: () => void): void {
+        const reactor = this.agent.getReactor();
+        if (!reactor) return;
+        
+        // Get document IDs
+        const inboxId = this.inbox.id;
+        const wbsId = this.wbs.id;
+        const agentName = this.agent.getName();
+        
+        this.logger.info(`${agentName}: Setting up document event listeners in AgentRoutine`);
+        
+        // Listen for operations on documents
+        reactor.on('operationsAdded', async (documentId: string, operations: any[]) => {
+            // Check if this is our inbox document
+            if (inboxId && documentId === inboxId) {
+                this.logger.info(`${agentName}: Inbox document updated - ${operations.length} operations`);
+                const currentReactor = this.agent.getReactor();
+                if (currentReactor) {
+                    const doc = await currentReactor.getDocument(inboxId);
+                    if (doc && doc.header.documentType === 'powerhouse/agent-inbox') {
+                        this.updateInbox(doc as AgentInboxDocument);
+                    }
+                }
+            }
+            // Check if this is our WBS document
+            else if (wbsId && documentId === wbsId) {
+                this.logger.info(`${agentName}: WBS document updated - ${operations.length} operations`);
+                const currentReactor = this.agent.getReactor();
+                if (currentReactor) {
+                    const doc = await currentReactor.getDocument(wbsId);
+                    if (doc && doc.header.documentType === 'powerhouse/work-breakdown-structure') {
+                        this.updateWbs(doc as WorkBreakdownStructureDocument);
+                    }
+                }
+            }
+
+            // Check if we've transitioned from init to ready
+            if (this.inbox.document && this.wbs.document && this.status === 'init') {
+                this.status = 'ready';
+                this.logger.info(`${agentName}: AgentRoutine is ready - both documents loaded`);
+                if (onReady) {
+                    onReady();
+                }
+            }
+        });
+        
+        // Listen for new documents added
+        reactor.on('documentAdded', (document: any) => {
+            // Check if it's a document type we care about
+            if (document.documentType === 'powerhouse/agent-inbox') {
+                this.logger.info(`${agentName}: New inbox document added: ${document.id}`);
+            } else if (document.documentType === 'powerhouse/work-breakdown-structure') {
+                this.logger.info(`${agentName}: New WBS document added: ${document.id}`);
+            }
+        });
+    }
+
     private validateWorkItemParams(type: WorkItemType, params: WorkItemParams): string[] {
         const errors: string[] = [];
 
@@ -314,16 +344,16 @@ export class AgentRoutine {
 
     private async run(): Promise<IterationResult | null> {
 
-        if (this.unreadMessagesPending) {
+        if (this.unreadMessagesPending && this.inbox.document) {
             this.unreadMessagesPending = false;
-            const workItem = InboxRoutineHandler.getNextWorkItem(this.documents.inbox);
+            const workItem = InboxRoutineHandler.getNextWorkItem(this.inbox.document);
             if (workItem !== null) {
                 this.queueWorkItem(workItem.type, workItem.params);
             }
         } 
         
-        if (!this.hasWorkPending()) {
-            const workItem = WbsRoutineHandler.getNextWorkItem(this.documents.wbs);
+        if (!this.hasWorkPending() && this.wbs.document) {
+            const workItem = WbsRoutineHandler.getNextWorkItem(this.wbs.document);
             if (workItem !== null) {
                 this.queueWorkItem(workItem.type, workItem.params);
             }
