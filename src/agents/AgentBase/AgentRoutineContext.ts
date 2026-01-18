@@ -21,9 +21,9 @@ export class AgentRoutineContext {
         completed: boolean;
     }[];
 
-    constructor(goalChain: Goal[], priorTasks: string[], driver: PromptDriver) {
+    constructor(goalChain: Goal[], priorTasks: string[], driver: PromptDriver, resolvedSkillName: string) {
         this.skill = {
-            name: goalChain.find(g => g.instructions?.workType === 'SKILL')?.instructions?.workId || 'default',
+            name: resolvedSkillName,
             preambleSent: false,
         };
 
@@ -68,7 +68,6 @@ export class AgentRoutineContext {
         // - thread.* from inbox
         // - stakeholder.* from inbox
         
-        console.log(`Need to collect ${requiredVars.length} variables:`, requiredVars);
         
         return variables;
     }

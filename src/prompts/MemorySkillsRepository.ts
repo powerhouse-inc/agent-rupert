@@ -80,4 +80,73 @@ export class MemorySkillsRepository extends SkillsRepositoryBase {
     // This method exists only for interface compatibility
     return Promise.resolve();
   }
+
+  /**
+   * Print the skill tree structure to console for debugging
+   * Shows all skills, scenarios, and tasks in a hierarchical format
+   */
+  public print(): void {
+    console.log('\n=== Memory Skills Repository ===');
+    console.log(`Total Skills: ${this.skills.size}`);
+    console.log(`Total Scenarios: ${this.scenarioTemplates.size}`);
+    console.log('');
+
+    // Print each skill
+    for (const [skillName, skillTemplate] of this.skills.entries()) {
+      console.log(`📦 Skill: ${skillName}`);
+      
+      // Print skill preamble if exists
+      if (skillTemplate.preambleText) {
+        console.log(`   ├─ Has preamble`);
+      }
+      
+      // Print skill expected outcome if exists
+      if (skillTemplate.expectedOutcomeText) {
+        console.log(`   ├─ Has expected outcome`);
+      }
+
+      // Print scenarios
+      console.log(`   └─ Scenarios (${skillTemplate.scenarios.length}):`);
+      
+      for (let i = 0; i < skillTemplate.scenarios.length; i++) {
+        const scenario = skillTemplate.scenarios[i];
+        const isLast = i === skillTemplate.scenarios.length - 1;
+        const prefix = isLast ? '      └─' : '      ├─';
+        
+        console.log(`${prefix} 📋 ${scenario.id}: ${scenario.title}`);
+        
+        // Print scenario preamble if exists
+        if (scenario.preamble) {
+          const subPrefix = isLast ? '         ' : '      │  ';
+          console.log(`${subPrefix}├─ Has preamble`);
+        }
+        
+        // Print tasks
+        const taskPrefix = isLast ? '         ' : '      │  ';
+        console.log(`${taskPrefix}└─ Tasks (${scenario.tasks.length}):`);
+        
+        for (let j = 0; j < scenario.tasks.length; j++) {
+          const task = scenario.tasks[j];
+          const isLastTask = j === scenario.tasks.length - 1;
+          const taskItemPrefix = isLast ? '            ' : '      │     ';
+          const taskSymbol = isLastTask ? '└─' : '├─';
+          
+          console.log(`${taskItemPrefix}${taskSymbol} ✅ ${task.id}: ${task.title}`);
+        }
+      }
+      
+      console.log('');
+    }
+
+    // Print additional scenarios not part of skills
+    if (this.additionalScenarios.length > 0) {
+      console.log('📂 Additional Standalone Scenarios:');
+      for (const scenario of this.additionalScenarios) {
+        console.log(`   └─ ${scenario.id}: ${scenario.title} (${scenario.tasks.length} tasks)`);
+      }
+      console.log('');
+    }
+
+    console.log('=== End of Repository ===\n');
+  }
 }

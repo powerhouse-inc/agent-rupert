@@ -78,4 +78,10 @@ export interface ISkillsRepository {
      * @returns Array of unique variable names required for the scenario
      */
     getScenarioRequiredVariables(skillName: string, scenarioId: string): string[];
+
+    /**
+     * Print the skill tree structure to console for debugging
+     * Shows all skills, scenarios, and tasks in a hierarchical format
+     */
+    print(): void;
 }

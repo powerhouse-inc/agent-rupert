@@ -379,6 +379,8 @@ export class PromptDriver {
     if (scenario) {
       // Use the existing private method to send the rendered scenario briefing
       await this.sendRenderedScenarioBriefing(scenario, undefined, this.maxTurns);
+    } else {
+      throw new Error(`Cannot send scenario briefing. Scenario '${scenarioKey}' not found.`);
     }
   }
 

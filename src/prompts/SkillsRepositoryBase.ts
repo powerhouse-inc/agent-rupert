@@ -255,4 +255,25 @@ export abstract class SkillsRepositoryBase implements ISkillsRepository {
       });
     }
   }
+
+  /**
+   * Print the skill tree structure to console for debugging
+   * Default implementation - can be overridden by subclasses
+   */
+  public print(): void {
+    console.log('\n=== Skills Repository ===');
+    console.log(`Total Skills: ${this.skills.size}`);
+    console.log(`Total Scenarios: ${this.scenarioTemplates.size}`);
+    
+    for (const [skillName, skillTemplate] of this.skills.entries()) {
+      console.log(`\nSkill: ${skillName}`);
+      console.log(`  Scenarios: ${skillTemplate.scenarios.length}`);
+      
+      for (const scenario of skillTemplate.scenarios) {
+        console.log(`    - ${scenario.id}: ${scenario.title} (${scenario.tasks.length} tasks)`);
+      }
+    }
+    
+    console.log('\n=== End of Repository ===\n');
+  }
 }

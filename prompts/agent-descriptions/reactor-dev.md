@@ -22,16 +22,6 @@
 | CRP.03.3 | Verify shutdown success | - |
 | CRP.03.4 | Return completion status | - |
 
-**CRP.02: Run the project and capture Vetra MCP endpoint**
-
-| Task ID | Title | Expected Outcome |
-|---------|-------|------------------|
-| CRP.02.1 | Start the project | - |
-| CRP.02.2 | Wait for project to be ready | - |
-| CRP.02.3 | Get project status and logs | - |
-| CRP.02.4 | Parse and verify endpoints | - |
-| CRP.02.5 | Return running status with endpoints | - |
-
 **CRP.01: Initialize a new Reactor project**
 
 | Task ID | Title | Expected Outcome |
@@ -49,6 +39,16 @@
 | CRP.00.2 | Check if any project is currently running | - |
 | CRP.00.3 | Get the projects directory | - |
 | CRP.00.4 | Return system status | - |
+
+**CRP.02: Run the project and capture Vetra MCP endpoint**
+
+| Task ID | Title | Expected Outcome |
+|---------|-------|------------------|
+| CRP.02.1 | Start the project | - |
+| CRP.02.2 | Wait for project to be ready | - |
+| CRP.02.3 | Get project status and logs | - |
+| CRP.02.4 | Parse and verify endpoints | - |
+| CRP.02.5 | Return running status with endpoints | - |
 
 #### document-modeling (DM)
 
@@ -98,6 +98,12 @@
 
 #### handle-stakeholder-message (HSM)
 
+**HSM.02: Send the reply through your inbox**
+
+| Task ID | Title | Expected Outcome |
+|---------|-------|------------------|
+| HSM.02.1 | Mark the original message as read and reply | - |
+
 **HSM.01: Review WBS based on stakeholder request**
 
 | Task ID | Title | Expected Outcome |
@@ -105,12 +111,6 @@
 | HSM.01.1 | Open and review your WBS document | - |
 | HSM.01.2 | Add a new goal (hierarchy) only if needed | - |
 | HSM.01.3 | Update existing goals only if needed | - |
-
-**HSM.02: Send the reply through your inbox**
-
-| Task ID | Title | Expected Outcome |
-|---------|-------|------------------|
-| HSM.02.1 | Mark the original message as read and reply | - |
 
 **HSM.00: Categorize the stakeholder message**
 
@@ -302,74 +302,6 @@ Remember: You are the technical executor for Powerhouse project development, ens
 
 ### Skill: create-reactor-package (CRP)
 
-**Skill Preamble:**
-
-*Variables:* `documents.driveId`, `documents.inbox.id`, `documents.wbs.id`, `message.content`, `message.id`, `stakeholder.name`, `thread.id`, `thread.topic`
-```md
-=== BEGIN BRIEFING === 
-
-# PREAMBLE
-
-IMPORTANT:  Don't take any action yet. You will be guided through the tasks after 
-            the briefing(s). Just process and confirm your understanding.
-
-# Key Information
-
-More specifically, you are about to be guided through the steps to process a new stakeholder message:
-
-## Stakeholder 
-The stakeholder that sent you a message
- - name: "《stakeholder.name》"
-
-## Message Thread
-The thread which contains the message
- - thread id: `《thread.id》`
- - topic: "《thread.topic》"
-
-## Message
-This is the message you need to reply to: 
- - message id: `《message.id》`
-
-Content:
-\`\`\`message
-《message.content》
-\`\`\`
-
-# Notes
-
-## Additional tools and context
- - Look inside your inbox to get the full context of the conversation.
-
- - Both your inbox and your WBS document are available in the manager drive
-   and can be access with the agent-manager MCP tool
-
- - Whenever stakeholders refer to "your tasks", "on-going work", "current status", etc.,
-   know that this implicitely applies to the goals in your WBS document, or smaller tasks
-   associated with these goals.
-
-## When and how to create new WBS goals
- 
- - The WBS is a way to associate work requests with high-level goals, and break these down 
-   into smaller goals (typically between 2 and 7 subgoals), all the way down to the level where 
-   you can achieve the leaf goal by directly applying one of your MCP tools or skills.
-
- - DO NOT use WBS goals for small tasks that you can immediately take care of.
-
- - DO use WBS goals to capture big stakerholder requests for future reference and break them down
-   into smaller subgoals to the point where you can easily achieve them. 
-
- - Use the self reflection MCP to learn more about the tools and skills you have available for resolving
-   the WBS leaf goals. 
-
-## Work documents
- - Agent manager drive ID: `《documents.driveId》`
- - Inbox document ID: `《documents.inbox.id》`
- - WBS document ID: `《documents.wbs.id》`
-
-=== END BRIEFING ===
-
-```
-
 #### Scenarios
 
 ##### CRP.03: Stop the project
@@ -433,85 +365,6 @@ If shutdown fails:
   "project_name": "<project-name>",
   "error": "<error-message>",
   "project_status": "<status>"
-}
-\`\`\`
-```
-
-##### CRP.02: Run the project and capture Vetra MCP endpoint
-
-**Tasks:**
-
-###### CRP.02.1: Start the project
-
-**Task Template:**
-
-```md
-- Use `mcp__reactor_prjmgr__run_project` with the project name from step 01
-- The project will start running `ph dev` in the background
-- Wait for the command to be accepted
-```
-
-###### CRP.02.2: Wait for project to be ready
-
-**Task Template:**
-
-```md
-- Use `mcp__reactor_prjmgr__is_project_ready` repeatedly to check if the project is ready
-- Poll every 2-3 seconds for up to 30 seconds
-- The project is ready when Vetra Connect and Switchboard are both running
-```
-
-###### CRP.02.3: Get project status and logs
-
-**Task Template:**
-
-```md
-- Once ready, use `mcp__reactor_prjmgr__get_project_status` to get the current status
-- Use `mcp__reactor_prjmgr__get_project_logs` to capture the startup logs
-- Extract the Vetra MCP endpoint URL from the logs (typically starts with `http://localhost:` followed by a port number)
-```
-
-###### CRP.02.4: Parse and verify endpoints
-
-**Task Template:**
-
-```md
-- From the logs, identify:
-- Vetra Connect port (typically 3000)
-- Switchboard port (typically 4001)
-- MCP endpoint URL
-- Verify that both services are accessible
-```
-
-###### CRP.02.5: Return running status with endpoints
-
-**Task Template:**
-
-```md
-Return a JSON object with the running project details:
-
-\`\`\`json
-{
-  "step": "run-project",
-  "status": "success",
-  "project_name": "<project-name>",
-  "project_running": true,
-  "vetra_connect_port": <port>,
-  "switchboard_port": <port>,
-  "mcp_endpoint": "<url>",
-  "startup_time_seconds": <number>
-}
-\`\`\`
-
-If the project fails to start or become ready:
-
-\`\`\`json
-{
-  "step": "run-project",
-  "status": "error",
-  "project_name": "<project-name>",
-  "error": "<error-message>",
-  "logs": "<log-excerpt>"
 }
 \`\`\`
 ```
@@ -650,6 +503,85 @@ If a project had to be stopped, include that information:
   "running_projects": [],
   "projects_directory": "<path>",
   "ready_for_creation": true
+}
+\`\`\`
+```
+
+##### CRP.02: Run the project and capture Vetra MCP endpoint
+
+**Tasks:**
+
+###### CRP.02.1: Start the project
+
+**Task Template:**
+
+```md
+- Use `mcp__reactor_prjmgr__run_project` with the project name from step 01
+- The project will start running `ph dev` in the background
+- Wait for the command to be accepted
+```
+
+###### CRP.02.2: Wait for project to be ready
+
+**Task Template:**
+
+```md
+- Use `mcp__reactor_prjmgr__is_project_ready` repeatedly to check if the project is ready
+- Poll every 2-3 seconds for up to 30 seconds
+- The project is ready when Vetra Connect and Switchboard are both running
+```
+
+###### CRP.02.3: Get project status and logs
+
+**Task Template:**
+
+```md
+- Once ready, use `mcp__reactor_prjmgr__get_project_status` to get the current status
+- Use `mcp__reactor_prjmgr__get_project_logs` to capture the startup logs
+- Extract the Vetra MCP endpoint URL from the logs (typically starts with `http://localhost:` followed by a port number)
+```
+
+###### CRP.02.4: Parse and verify endpoints
+
+**Task Template:**
+
+```md
+- From the logs, identify:
+- Vetra Connect port (typically 3000)
+- Switchboard port (typically 4001)
+- MCP endpoint URL
+- Verify that both services are accessible
+```
+
+###### CRP.02.5: Return running status with endpoints
+
+**Task Template:**
+
+```md
+Return a JSON object with the running project details:
+
+\`\`\`json
+{
+  "step": "run-project",
+  "status": "success",
+  "project_name": "<project-name>",
+  "project_running": true,
+  "vetra_connect_port": <port>,
+  "switchboard_port": <port>,
+  "mcp_endpoint": "<url>",
+  "startup_time_seconds": <number>
+}
+\`\`\`
+
+If the project fails to start or become ready:
+
+\`\`\`json
+{
+  "step": "run-project",
+  "status": "error",
+  "project_name": "<project-name>",
+  "error": "<error-message>",
+  "logs": "<log-excerpt>"
 }
 \`\`\`
 ```
@@ -1133,6 +1065,21 @@ Content:
 
 #### Scenarios
 
+##### HSM.02: Send the reply through your inbox
+
+**Tasks:**
+
+###### HSM.02.1: Mark the original message as read and reply
+
+**Task Template:**
+
+*Variables:* `message.id`, `thread.id`
+```md
+- Use the agent-manager MCP tool to mark the stakeholder's message 《message.id》 as read
+- Use the agent-manager MCP tool to add your reply to the thread 《thread.id》.
+- Keep the reply message short: 1 sentence if it's appropriate. Up to 3 paragraphs if needed.
+```
+
 ##### HSM.01: Review WBS based on stakeholder request
 
 **Tasks:**
@@ -1213,21 +1160,6 @@ Based on the message and your ability to proceed:
 - **Blocked**: You need clarification or are waiting for stakeholder input
 - **Done**: Task is complete (if the message confirms completion)
 - **WontDo**: Stakeholder asked to cancel the goal
-```
-
-##### HSM.02: Send the reply through your inbox
-
-**Tasks:**
-
-###### HSM.02.1: Mark the original message as read and reply
-
-**Task Template:**
-
-*Variables:* `message.id`, `thread.id`
-```md
-- Use the agent-manager MCP tool to mark the stakeholder's message 《message.id》 as read
-- Use the agent-manager MCP tool to add your reply to the thread 《thread.id》.
-- Keep the reply message short: 1 sentence if it's appropriate. Up to 3 paragraphs if needed.
 ```
 
 ##### HSM.00: Categorize the stakeholder message

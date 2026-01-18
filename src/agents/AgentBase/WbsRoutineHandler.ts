@@ -23,10 +23,12 @@ export class WbsRoutineHandler {
         skillsRepository: ISkillsRepository,
         brain: IAgentBrain
     ): Promise<{ type: WorkItemType, params: WorkItemParams } | null> {
-        // Find the next goal to work on (returns ancestor chain)
-        const goalChain = this.findNextGoal(wbs);
+        // Find the next goal to work on (returns ancestor chain with siblings)
+        const result = this.findNextGoal(wbs);
         
-        if (goalChain && goalChain.length > 0) {
+        if (result && result.goalChain.length > 0) {
+            const { goalChain, precedingSiblings, followingSiblings } = result;
+            
             // The actual goal is the last element in the chain
             const nextGoal = goalChain[goalChain.length - 1];
             
@@ -45,24 +47,27 @@ export class WbsRoutineHandler {
                     
 
                     if (skillWorkId && scenarioWorkId && taskWorkId) {
-                        // Create filtered PromptDriver for this goal chain
-                        const driverResult = this.createGoalChainPromptDriver(goalChain, skillsRepository, brain);
+                        // Create filtered PromptDriver for this goal chain with siblings
+                        const driverResult = this.createGoalChainPromptDriver(
+                            goalChain, 
+                            precedingSiblings,
+                            followingSiblings,
+                            skillsRepository, 
+                            brain
+                        );
                         
                         if (driverResult) {
                             // Get prior completed tasks (TODO: implement actual tracking from WBS)
                             const priorCompletedTasks: string[] = [];
                             
-                            // Create context for this goal chain
+                            // Create context for this goal chain with resolved skill name
                             const routineContext = new AgentRoutineContext(
                                 goalChain,
                                 priorCompletedTasks,
-                                driverResult.driver
+                                driverResult.driver,
+                                driverResult.skillName
                             );
                             
-                            // Debug: Log required variables with resolved skill name
-                            const vars = routineContext.getRequiredVariables();
-                            console.log(`Skill: ${driverResult.skillName} (from ${skillWorkId}), Scenario: ${scenarioWorkId}, Task: ${taskWorkId}`);
-                            console.log(`Required variables (${vars.length}):`, vars);
                             
                             // Return a task work item with the resolved skill name
                             return {
@@ -98,12 +103,17 @@ export class WbsRoutineHandler {
 
     /**
      * Find the next goal to work on by traversing the goal tree
-     * Returns the ancestor chain with the first eligible leaf node as the final element
+     * Returns the ancestor chain with the first eligible leaf node as the final element,
+     * plus its preceding and following sibling goals
      * 
      * @param wbs - The Work Breakdown Structure document
-     * @returns Array of goals from root ancestor to the eligible leaf, or null if none found
+     * @returns Object with goal chain and siblings, or null if none found
      */
-    public static findNextGoal(wbs: WorkBreakdownStructureDocument): Goal[] | null {
+    public static findNextGoal(wbs: WorkBreakdownStructureDocument): {
+        goalChain: Goal[],
+        precedingSiblings: Goal[],
+        followingSiblings: Goal[]
+    } | null {
         const goals = wbs.state.global.goals;
         if (!goals || goals.length === 0) {
             return null;
@@ -142,7 +152,28 @@ export class WbsRoutineHandler {
         // Traverse goals in order to find the first eligible leaf
         for (const goal of goals) {
             if (isLeafGoal(goal) && isEligibleForWork(goal)) {
-                return getAncestorChain(goal);
+                const goalChain = getAncestorChain(goal);
+                
+                // Find sibling goals (same parent, same workType)
+                const parentId = goal.parentId;
+                const workType = goal.instructions?.workType;
+                
+                const siblings = goals.filter(g => 
+                    g.parentId === parentId && 
+                    g.instructions?.workType === workType &&
+                    g.id !== goal.id
+                );
+                
+                // Sort siblings by their order in the goals array to maintain sequence
+                const goalIndex = goals.indexOf(goal);
+                const precedingSiblings = siblings.filter(s => goals.indexOf(s) < goalIndex);
+                const followingSiblings = siblings.filter(s => goals.indexOf(s) > goalIndex);
+                
+                return {
+                    goalChain,
+                    precedingSiblings,
+                    followingSiblings
+                };
             }
         }
 
@@ -159,13 +190,17 @@ export class WbsRoutineHandler {
      */
     public static getGoalChainSkillTemplates(
         goalChain: Goal[],
+        precedingSiblings: Goal[],
+        followingSiblings: Goal[],
         skillRepository: ISkillsRepository
     ): {
         skillName: string | null,
         skillTemplate: SkillTemplate | null,
         scenarioTemplate: ScenarioTemplate | null,
         precedingTaskTemplates: ScenarioTaskTemplate[],
-        taskTemplate: ScenarioTaskTemplate | null,
+        currentTaskTemplate: ScenarioTaskTemplate | null,
+        followingTaskTemplates: ScenarioTaskTemplate[],
+        wbsTaskIds: Set<string>,
     } | null {
         if (!goalChain || goalChain.length === 0) {
             return null;
@@ -174,8 +209,31 @@ export class WbsRoutineHandler {
         let skillName: string | null = null;
         let skillTemplate: SkillTemplate | null = null;
         let scenarioTemplate: ScenarioTemplate | null = null;
-        let taskTemplate: ScenarioTaskTemplate | null = null;
+        let currentTaskTemplate: ScenarioTaskTemplate | null = null;
         const precedingTaskTemplates: ScenarioTaskTemplate[] = [];
+        const followingTaskTemplates: ScenarioTaskTemplate[] = [];
+        
+        // Collect all task IDs from WBS goal chain and siblings
+        const wbsTaskIds = new Set<string>();
+        for (const goal of goalChain) {
+            if (goal.instructions?.workType === 'TASK' && goal.instructions.workId) {
+                wbsTaskIds.add(goal.instructions.workId);
+            }
+        }
+        
+        // Add task IDs from preceding siblings
+        for (const goal of precedingSiblings) {
+            if (goal.instructions?.workId) {
+                wbsTaskIds.add(goal.instructions.workId);
+            }
+        }
+        
+        // Add task IDs from following siblings
+        for (const goal of followingSiblings) {
+            if (goal.instructions?.workId) {
+                wbsTaskIds.add(goal.instructions.workId);
+            }
+        }
 
         // Traverse the goal chain to collect work templates
         for (const goal of goalChain) {
@@ -231,16 +289,8 @@ export class WbsRoutineHandler {
                     break;
 
                 case 'TASK':
-                    // Find task template within the scenario
-                    if (scenarioTemplate) {
-                        const taskIndex = scenarioTemplate.tasks.findIndex(t => t.id === workId);
-                        if (taskIndex !== -1) {
-                            // Collect all preceding task templates
-                            precedingTaskTemplates.push(...scenarioTemplate.tasks.slice(0, taskIndex));
-                            // Set the current task template
-                            taskTemplate = scenarioTemplate.tasks[taskIndex];
-                        }
-                    }
+                    // Process tasks after we have the scenario
+                    // We'll handle this in a second pass after we have all the templates
                     break;
             }
         }
@@ -250,12 +300,48 @@ export class WbsRoutineHandler {
             return null;
         }
 
+        // Now categorize tasks if we have a scenario
+        if (scenarioTemplate && wbsTaskIds.size > 0) {
+            // Find the first WBS task to determine current task
+            let currentTaskId: string | null = null;
+            for (const goal of goalChain) {
+                if (goal.instructions?.workType === 'TASK' && goal.instructions.workId) {
+                    currentTaskId = goal.instructions.workId;
+                    break;  // Take the first task as current
+                }
+            }
+            
+            if (currentTaskId) {
+                const currentIndex = scenarioTemplate.tasks.findIndex(t => t.id === currentTaskId);
+                if (currentIndex !== -1) {
+                    // Current task
+                    currentTaskTemplate = scenarioTemplate.tasks[currentIndex];
+                    
+                    // Preceding tasks (that are also in WBS)
+                    for (let i = 0; i < currentIndex; i++) {
+                        if (wbsTaskIds.has(scenarioTemplate.tasks[i].id)) {
+                            precedingTaskTemplates.push(scenarioTemplate.tasks[i]);
+                        }
+                    }
+                    
+                    // Following tasks (that are also in WBS)
+                    for (let i = currentIndex + 1; i < scenarioTemplate.tasks.length; i++) {
+                        if (wbsTaskIds.has(scenarioTemplate.tasks[i].id)) {
+                            followingTaskTemplates.push(scenarioTemplate.tasks[i]);
+                        }
+                    }
+                }
+            }
+        }
+
         return {
             skillName,
             skillTemplate,
             scenarioTemplate,
             precedingTaskTemplates,
-            taskTemplate
+            currentTaskTemplate,
+            followingTaskTemplates,
+            wbsTaskIds
         };
     }
 
@@ -269,11 +355,18 @@ export class WbsRoutineHandler {
      */
     public static createGoalChainPromptDriver(
         goalChain: Goal[],
+        precedingSiblings: Goal[],
+        followingSiblings: Goal[],
         skillRepository: ISkillsRepository,
         brain: IAgentBrain
     ): { driver: PromptDriver, skillName: string } | null {
-        // Get the templates from the goal chain
-        const templates = this.getGoalChainSkillTemplates(goalChain, skillRepository);
+        // Get the templates from the goal chain and siblings
+        const templates = this.getGoalChainSkillTemplates(
+            goalChain, 
+            precedingSiblings, 
+            followingSiblings, 
+            skillRepository
+        );
         if (!templates || !templates.skillTemplate || !templates.skillName) {
             return null;
         }
@@ -282,20 +375,18 @@ export class WbsRoutineHandler {
         let filteredSkillTemplate: SkillTemplate;
         
         if (templates.scenarioTemplate) {
-            // Filter the scenario to only include preceding tasks and the current task
-            const relevantTasks: ScenarioTaskTemplate[] = [
-                ...templates.precedingTaskTemplates
+            // Combine all tasks in the correct order: preceding, current, following
+            const allWbsTasks: ScenarioTaskTemplate[] = [
+                ...templates.precedingTaskTemplates,
+                ...(templates.currentTaskTemplate ? [templates.currentTaskTemplate] : []),
+                ...templates.followingTaskTemplates
             ];
             
-            // Add the current task if it exists
-            if (templates.taskTemplate) {
-                relevantTasks.push(templates.taskTemplate);
-            }
             
-            // Create a filtered scenario with only relevant tasks
+            // Create a filtered scenario with all WBS tasks
             const filteredScenario: ScenarioTemplate = {
                 ...templates.scenarioTemplate,
-                tasks: relevantTasks
+                tasks: allWbsTasks
             };
             
             // Create a skill with just the filtered scenario

@@ -424,8 +424,11 @@ export class AgentRoutine {
             }
             
             // Create filtered PromptDriver with only relevant templates
+            // Note: When called from here, we don't have siblings (empty arrays)
             const driverResult = WbsRoutineHandler.createGoalChainPromptDriver(
                 goalChain,
+                [],  // No preceding siblings when called directly
+                [],  // No following siblings when called directly
                 repository,
                 brain
             );
@@ -437,11 +440,12 @@ export class AgentRoutine {
             // Get prior completed tasks from WBS tracking
             const priorCompletedTasks = this.getPriorCompletedTasks(goalChain);
             
-            // Create new context
+            // Create new context with resolved skill name
             this.currentContext = new AgentRoutineContext(
                 goalChain,
                 priorCompletedTasks,
-                driverResult.driver
+                driverResult.driver,
+                driverResult.skillName
             );
             
             // Setup the context (collect variables, send preambles & completed tasks overview)
@@ -499,7 +503,6 @@ export class AgentRoutine {
             return { workExecuted: false };
         }
         
-        console.log("Executing next work item", workItem);
 
         // Mark as in-progress
         workItem.status = 'in-progress';
@@ -562,7 +565,6 @@ export class AgentRoutine {
             // Remove from queue even if failed (could optionally retry)
             this.queue = this.queue.filter(item => item !== workItem);
             
-            console.log("Executed work", workItem);
             return {
                 workExecuted: true,
                 workItem,
@@ -672,7 +674,6 @@ export class AgentRoutine {
             throw new Error(`Task ${taskId} not found in scenario ${scenarioId}`);
         }
         
-        console.log("Sending task to PromptDriver", task);
         return promptDriver.executeTask(
             task,
             options
