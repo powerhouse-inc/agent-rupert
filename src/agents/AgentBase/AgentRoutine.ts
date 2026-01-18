@@ -415,9 +415,12 @@ export class AgentRoutine {
         } 
         
         if (!this.hasWorkPending() && this.wbs.document) {
-            const workItem = WbsRoutineHandler.getNextWorkItem(this.wbs.document);
-            if (workItem !== null) {
-                this.queueWorkItem(workItem.type, workItem.params);
+            const reactor = this.agent.getReactor();
+            if (reactor) {
+                const workItem = await WbsRoutineHandler.getNextWorkItem(this.wbs.document, reactor);
+                if (workItem !== null) {
+                    this.queueWorkItem(workItem.type, workItem.params);
+                }
             }
         }
 
