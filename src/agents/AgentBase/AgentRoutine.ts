@@ -112,19 +112,67 @@ export class AgentRoutine {
 
     // Start the routine loop
     public async start(): Promise<void> {
-
-        // Iterate until stopped {
-        //  Start iteration timer
-        //  Call this.loop()
-        //  Wait for MIN(minimumIdleTimeMs, minimumIterationMs - iterationTimer.ms())
-        // }
-
-        throw new Error("Not implemented yet");
+        if (this.status === 'running') {
+            this.logger.warn(`${this.agent.getName()}: AgentRoutine already running`);
+            return;
+        }
+        
+        if (this.status !== 'ready') {
+            throw new Error(`Cannot start AgentRoutine - status is '${this.status}', expected 'ready'`);
+        }
+        
+        this.status = 'running';
+        this.logger.info(`${this.agent.getName()}: Starting AgentRoutine loop`);
+        
+        // Run the main loop
+        while (this.status === 'running') {
+            const iterationStart = Date.now();
+            
+            try {
+                // Execute one iteration of work
+                await this.run();
+            } catch (error) {
+                this.logger.error(`${this.agent.getName()}: Error in routine iteration`, error);
+            }
+            
+            // Calculate how long to wait
+            const iterationDuration = Date.now() - iterationStart;
+            const remainingTime = Math.max(0, this.minimumIterationMs - iterationDuration);
+            const idleTime = Math.max(this.minimumIdleTimeMs, remainingTime);
+            
+            // Wait before next iteration (unless we're stopping)
+            if (this.status === 'running' && idleTime > 0) {
+                this.logger.debug(`${this.agent.getName()}: Waiting ${idleTime}ms before next iteration`);
+                await new Promise(resolve => setTimeout(resolve, idleTime));
+            }
+        }
+        
+        this.logger.info(`${this.agent.getName()}: AgentRoutine loop stopped`);
+        
+        // Reset status to ready if we were stopping
+        if (this.status === 'stopping') {
+            this.status = 'ready';
+        }
     }
 
     // Stop the routine loop gracefully after finishing the current work, or immediately
     public async stop(gracefully = true): Promise<void> {
-        throw new Error("Not implemented yet");
+        if (this.status !== 'running') {
+            this.logger.warn(`${this.agent.getName()}: AgentRoutine not running, cannot stop`);
+            return;
+        }
+        
+        this.logger.info(`${this.agent.getName()}: Stopping AgentRoutine ${gracefully ? 'gracefully' : 'immediately'}`);
+        this.status = 'stopping';
+        
+        if (!gracefully) {
+            // TODO: Cancel any in-progress work items
+            this.status = 'ready';
+        } else {
+            // Wait for current work to complete
+            // The main loop will exit when status is not 'running'
+            // Status will be set back to 'ready' after loop exits
+        }
     }
 
     /**

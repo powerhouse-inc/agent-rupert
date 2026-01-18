@@ -14,11 +14,11 @@ Refactoring agent work execution from reactive event-driven (AgentBase) to proac
 - [x] Update AgentBase to delegate document operations to AgentRoutine
 - [x] Remove `nextUpdatePending` and `processing` flags from AgentBase (now in AgentRoutine)
 
-### Step 2: Implement Core Loop
-- [ ] Implement `start()` method with iteration timer
-- [ ] Implement `stop()` method with graceful shutdown
-- [ ] Add proper idle time management between iterations
-- [ ] Add status management (ready/running/stopping)
+### Step 2: Implement Core Loop ✅
+- [x] Implement `start()` method with iteration timer
+- [x] Implement `stop()` method with graceful shutdown
+- [x] Add proper idle time management between iterations
+- [x] Add status management (ready/running/stopping)
 
 ### Step 3: Complete Work Execution
 - [ ] Implement `executeNextWorkItem()` method
@@ -62,4 +62,5 @@ Refactoring agent work execution from reactive event-driven (AgentBase) to proac
 - Foundation for more advanced scheduling algorithms
 
 ## Current Status
-Starting Step 1 - Moving document management from AgentBase to AgentRoutine
+Step 2 Complete - Core loop implemented with start/stop methods and iteration timing.
+Ready to proceed with Step 3 - Complete Work Execution.
