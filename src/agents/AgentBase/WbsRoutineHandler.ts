@@ -1,5 +1,6 @@
 import { WorkBreakdownStructureDocument, Goal, actions } from "powerhouse-agent/document-models/work-breakdown-structure";
 import { WorkItemParams, WorkItemType } from "./AgentRoutine.js";
+import { AgentRoutineContext } from "./AgentRoutineContext.js";
 import type { IDocumentDriveServer } from "document-drive";
 import type { ISkillsRepository } from "../../prompts/ISkillsRepository.js";
 import type { SkillTemplate, ScenarioTemplate, ScenarioTaskTemplate } from "../../prompts/types.js";
@@ -35,16 +36,50 @@ export class WbsRoutineHandler {
                     await this.markInProgress(nextGoal, wbs.header.id, reactor);
                     console.log(`Marked goal ${nextGoal.id} as IN_PROGRESS: ${nextGoal.description}`);
 
-                    // Create PromptDriver for this goal chain (for future use)
-                    const promptDriver = this.createGoalChainPromptDriver(goalChain, skillsRepository, brain);
+                    // Extract skill, scenario and task info from goal chain
+                    const skillWorkId = goalChain.find(g => g.instructions?.workType === "SKILL")?.instructions?.workId;
+                    const scenarioWorkId = goalChain.find(g => g.instructions?.workType === "SCENARIO")?.instructions?.workId;
+                    const taskGoal = goalChain.find(g => g.instructions?.workType === "TASK");
+                    const taskWorkId = taskGoal?.instructions?.workId;
 
-                    const skill = goalChain.find(g => g.instructions?.workType == "SKILL")?.instructions?.workId;
-                    const scenario = goalChain.find(g => g.instructions?.workType == "SCENARIO")?.instructions?.workId;
+                    
 
-                    console.log(`Skill: ${skill}, Scenario: ${scenario}`);
-                    if (skill && scenario && promptDriver) {
-                        const vars = promptDriver.getRepository().getScenarioRequiredVariables(skill, scenario);
-                        console.log(`Required variables (${vars.length}):`, vars);
+                    if (skillWorkId && scenarioWorkId && taskWorkId) {
+                        // Create filtered PromptDriver for this goal chain
+                        const driverResult = this.createGoalChainPromptDriver(goalChain, skillsRepository, brain);
+                        
+                        if (driverResult) {
+                            // Get prior completed tasks (TODO: implement actual tracking from WBS)
+                            const priorCompletedTasks: string[] = [];
+                            
+                            // Create context for this goal chain
+                            const routineContext = new AgentRoutineContext(
+                                goalChain,
+                                priorCompletedTasks,
+                                driverResult.driver
+                            );
+                            
+                            // Debug: Log required variables with resolved skill name
+                            const vars = routineContext.getRequiredVariables();
+                            console.log(`Skill: ${driverResult.skillName} (from ${skillWorkId}), Scenario: ${scenarioWorkId}, Task: ${taskWorkId}`);
+                            console.log(`Required variables (${vars.length}):`, vars);
+                            
+                            // Return a task work item with the resolved skill name
+                            return {
+                                type: 'task',
+                                params: {
+                                    skillName: driverResult.skillName,  // Use the resolved skill name
+                                    scenarioId: scenarioWorkId,
+                                    taskId: taskWorkId,
+                                    context: {}, // TODO: Context will collect actual variables
+                                    routineContext: routineContext,
+                                    options: {
+                                        maxTurns: 50,
+                                        captureSession: false
+                                    }
+                                }
+                            };
+                        }
                     }
                     
                 } catch (error) {
@@ -54,8 +89,7 @@ export class WbsRoutineHandler {
             }
         }
         
-        // For now, still return an idle work item
-        // In the future, this would create appropriate work items based on the goal's instructions
+        // Return idle work item if no WBS goal to work on
         return {
             type: 'idle',
             params: {}
@@ -127,6 +161,7 @@ export class WbsRoutineHandler {
         goalChain: Goal[],
         skillRepository: ISkillsRepository
     ): {
+        skillName: string | null,
         skillTemplate: SkillTemplate | null,
         scenarioTemplate: ScenarioTemplate | null,
         precedingTaskTemplates: ScenarioTaskTemplate[],
@@ -136,6 +171,7 @@ export class WbsRoutineHandler {
             return null;
         }
 
+        let skillName: string | null = null;
         let skillTemplate: SkillTemplate | null = null;
         let scenarioTemplate: ScenarioTemplate | null = null;
         let taskTemplate: ScenarioTaskTemplate | null = null;
@@ -155,20 +191,24 @@ export class WbsRoutineHandler {
                     // Try to find skill by workId (could be prefix like "CRP" or full name)
                     let skill = skillRepository.getSkillTemplate(workId);
                     
-                    // If not found by direct ID, try to find by prefix
-                    if (!skill) {
-                        // Get all skills and find one that matches the prefix
+                    // If found directly, use the workId as the skill name
+                    if (skill) {
+                        skillName = workId;
+                        skillTemplate = skill;
+                    } else {
+                        // If not found by direct ID, try to find by prefix
                         const allSkills = skillRepository.getSkills();
-                        for (const skillName of allSkills) {
-                            const skillData = skillRepository.getSkillTemplate(skillName);
+                        for (const resolvedSkillName of allSkills) {
+                            const skillData = skillRepository.getSkillTemplate(resolvedSkillName);
                             if (skillData) {
                                 // Check if any scenario ID starts with the workId prefix
                                 const hasMatchingPrefix = skillData.scenarios.some(s => 
                                     s.id && s.id.startsWith(workId + '.')
                                 );
                                 // Also check if the skill name itself matches
-                                if (hasMatchingPrefix || skillName === workId) {
+                                if (hasMatchingPrefix || resolvedSkillName === workId) {
                                     skill = skillData;
+                                    skillName = resolvedSkillName; // Store the actual resolved skill name
                                     break;
                                 }
                             }
@@ -211,6 +251,7 @@ export class WbsRoutineHandler {
         }
 
         return {
+            skillName,
             skillTemplate,
             scenarioTemplate,
             precedingTaskTemplates,
@@ -230,10 +271,10 @@ export class WbsRoutineHandler {
         goalChain: Goal[],
         skillRepository: ISkillsRepository,
         brain: IAgentBrain
-    ): PromptDriver | null {
+    ): { driver: PromptDriver, skillName: string } | null {
         // Get the templates from the goal chain
         const templates = this.getGoalChainSkillTemplates(goalChain, skillRepository);
-        if (!templates || !templates.skillTemplate) {
+        if (!templates || !templates.skillTemplate || !templates.skillName) {
             return null;
         }
 
@@ -273,8 +314,11 @@ export class WbsRoutineHandler {
             [] // No additional scenarios needed
         );
 
-        // Create and return the PromptDriver
-        return new PromptDriver(brain, memoryRepository);
+        // Create and return the PromptDriver with the resolved skill name
+        return {
+            driver: new PromptDriver(brain, memoryRepository),
+            skillName: templates.skillName
+        };
     }
 
     /**

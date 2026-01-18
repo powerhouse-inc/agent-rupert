@@ -424,13 +424,13 @@ export class AgentRoutine {
             }
             
             // Create filtered PromptDriver with only relevant templates
-            const promptDriver = WbsRoutineHandler.createGoalChainPromptDriver(
+            const driverResult = WbsRoutineHandler.createGoalChainPromptDriver(
                 goalChain,
                 repository,
                 brain
             );
             
-            if (!promptDriver) {
+            if (!driverResult) {
                 throw new Error('Failed to create PromptDriver for goal chain');
             }
             
@@ -441,11 +441,11 @@ export class AgentRoutine {
             this.currentContext = new AgentRoutineContext(
                 goalChain,
                 priorCompletedTasks,
-                promptDriver
+                driverResult.driver
             );
             
             // Setup the context (collect variables, send preambles & completed tasks overview)
-            await this.currentContext.setup(brain);
+            await this.currentContext.setup();
         }
         
         return this.currentContext;
@@ -499,6 +499,8 @@ export class AgentRoutine {
             return { workExecuted: false };
         }
         
+        console.log("Executing next work item", workItem);
+
         // Mark as in-progress
         workItem.status = 'in-progress';
         const startTime = Date.now();
@@ -546,6 +548,8 @@ export class AgentRoutine {
             };
             
         } catch (error) {
+            console.error(error);
+
             // Mark as failed
             workItem.status = 'failed';
             const duration = Date.now() - startTime;
@@ -558,6 +562,7 @@ export class AgentRoutine {
             // Remove from queue even if failed (could optionally retry)
             this.queue = this.queue.filter(item => item !== workItem);
             
+            console.log("Executed work", workItem);
             return {
                 workExecuted: true,
                 workItem,
@@ -579,16 +584,10 @@ export class AgentRoutine {
             // Check if we need to switch contexts
             if (!this.currentContext || !this.currentContext.matchesContext(routineContext)) {
                 this.currentContext = routineContext;
+                await this.currentContext.setup();
             }
-            
-            // Ensure context is set up (will skip if already done)
-            const brain = this.agent.getBrain();
-            if (!brain) {
-                throw new Error('Brain not available for context setup');
-            }
-            await this.currentContext.setup(brain);
-            
             return this.currentContext.getPromptDriver();
+
         } else {
             // Use default driver
             const driver = this.agent.getPromptDriver();
@@ -673,6 +672,7 @@ export class AgentRoutine {
             throw new Error(`Task ${taskId} not found in scenario ${scenarioId}`);
         }
         
+        console.log("Sending task to PromptDriver", task);
         return promptDriver.executeTask(
             task,
             options

@@ -1,6 +1,5 @@
 import { Goal } from "powerhouse-agent/document-models/work-breakdown-structure";
 import { PromptDriver } from "../../prompts/PromptDriver.js";
-import type { IAgentBrain } from "../IAgentBrain.js";
 
 export class AgentRoutineContext {
     private driver: PromptDriver;
@@ -77,73 +76,32 @@ export class AgentRoutineContext {
     /**
      * Setup context by sending preambles and completed tasks overview
      */
-    public async setup(brain: IAgentBrain): Promise<void> {
+    public async setup(): Promise<void> {
         // Collect variables first
         const variables = await this.collectVariables();
         
         // Send skill preamble if not sent
         if (!this.skill.preambleSent) {
-            await this.sendSkillPreamble(brain, variables);
+            await this.driver.sendSkillPreamble(this.skill.name, variables);
             this.skill.preambleSent = true;
         }
         
         // Send scenario preamble if not sent
         if (!this.scenario.preambleSent) {
-            await this.sendScenarioPreamble(brain, variables);
+            await this.driver.sendScenarioBriefing(this.skill.name, this.scenario.id, variables);
             this.scenario.preambleSent = true;
         }
         
         // Send overview of completed tasks
         const completedTasks = this.tasks.filter(t => t.completed);
         if (completedTasks.length > 0) {
-            await this.sendCompletedTasksOverview(brain, completedTasks, variables);
-            
+            // Wait with the implementation of this
+            //await this.sendCompletedTasksOverview(, completedTasks, variables);
             // Mark all completed tasks as having preamble sent
             completedTasks.forEach(t => t.preambleSent = true);
         }
     }
 
-    /**
-     * Send skill preamble
-     */
-    private async sendSkillPreamble(brain: IAgentBrain, variables: Record<string, any>): Promise<void> {
-        const preamble = this.driver.getRepository().getSkillPreamble(this.skill.name, variables);
-        if (preamble) {
-            console.log(`Sending skill preamble for ${this.skill.name}`);
-            // TODO: Actually send to brain when brain interface supports it
-            // await brain.sendMessage(preamble);
-        }
-    }
-
-    /**
-     * Send scenario preamble
-     */
-    private async sendScenarioPreamble(brain: IAgentBrain, variables: Record<string, any>): Promise<void> {
-        const scenarioKey = this.driver.getRepository().generateScenarioKey(this.skill.name, this.scenario.id);
-        const scenario = this.driver.getRepository().getScenarioByKey(scenarioKey, variables);
-        if (scenario?.preamble) {
-            console.log(`Sending scenario preamble for ${this.scenario.id}`);
-            // TODO: Actually send to brain when brain interface supports it
-            // await brain.sendMessage(scenario.preamble);
-        }
-    }
-
-    /**
-     * Send overview of what's already been done
-     */
-    private async sendCompletedTasksOverview(
-        brain: IAgentBrain, 
-        completedTasks: Array<{id: string, completed: boolean, preambleSent: boolean}>,
-        variables: Record<string, any>
-    ): Promise<void> {
-        const message = `The following tasks have already been completed:\n${
-            completedTasks.map(t => `- ${t.id}`).join('\n')
-        }\n\nContinuing with the remaining tasks...`;
-        
-        console.log('Sending completed tasks overview:', message);
-        // TODO: Actually send to brain when brain interface supports it
-        // await brain.sendMessage(message);
-    }
 
     /**
      * Get the prompt driver for execution

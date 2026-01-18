@@ -249,7 +249,7 @@ export class PromptDriver {
     try {
       console.log(`PromptDriver::executeScenarioFlow - Sending scenario briefing "${scenario.id} - ${scenario.title}"`);
       // Always send the briefing (regardless of session state)
-      await this.sendScenarioBriefing(scenario, flow, maxTurns);
+      await this.sendRenderedScenarioBriefing(scenario, flow, maxTurns);
 
       // Execute tasks using the flow
       let task = flow.nextTask();
@@ -372,12 +372,22 @@ export class PromptDriver {
     return result.response;
   }
 
+  public async sendScenarioBriefing<TContext = any>(skill: string, scenarioId: string, context: TContext = {} as TContext): Promise<void> {
+    const scenarioKey = this.repository.generateScenarioKey(skill, scenarioId);
+    const scenario = this.repository.getScenarioByKey(scenarioKey, context);
+    
+    if (scenario) {
+      // Use the existing private method to send the rendered scenario briefing
+      await this.sendRenderedScenarioBriefing(scenario, undefined, this.maxTurns);
+    }
+  }
+
   /**
    * Send briefing message (always sent, regardless of session state)
    */
-  private async sendScenarioBriefing(
+  private async sendRenderedScenarioBriefing(
     scenario: RenderedScenario,
-    flow: IScenarioFlow,
+    flow?: IScenarioFlow,
     maxTurns: number = 5,
   ): Promise<void> {
     // Start building the briefing message
@@ -393,13 +403,13 @@ export class PromptDriver {
     briefingMessage += `\n\nYou will now receive tasks one by one. Complete each task thoroughly before moving to the next and don't jump ahead.`;
     briefingMessage += `\n\n=== END BRIEFING ===`;
     
-    await this.sendMessage(briefingMessage, maxTurns);
+    await this.sendMessage(briefingMessage, maxTurns || 5);
   }
   
   /**
    * Build the base briefing message
    */
-  private getBriefingIntroMessage(scenario: RenderedScenario, flow: IScenarioFlow): string {
+  private getBriefingIntroMessage(scenario: RenderedScenario, flow?: IScenarioFlow): string {
     return `=== BEGIN BRIEFING ===
 
 Listen to your briefing and acknowledge before proceeding.
@@ -414,7 +424,7 @@ You are about to execute a structured sequence of tasks taken from the following
 ${scenario.tasks.map(t => ' - ' + t.id + ' ' + t.title).join("\n")}
 </tasks>
 
-Tasks will be following a ${flow.name()}. ${flow.description()}
+Tasks will be following a ${flow?.name() || 'controlled flow'}. ${flow?.description() || 'Be ready to execute tasks in arbitrary order.'}
 
 Keep this overview in mind to proceed with one task at a time when you're instructed to do so.`;
   }

@@ -32,15 +32,6 @@
 | CRP.02.4 | Parse and verify endpoints | - |
 | CRP.02.5 | Return running status with endpoints | - |
 
-**CRP.00: Verify system is ready for new project**
-
-| Task ID | Title | Expected Outcome |
-|---------|-------|------------------|
-| CRP.00.1 | List existing projects | - |
-| CRP.00.2 | Check if any project is currently running | - |
-| CRP.00.3 | Get the projects directory | - |
-| CRP.00.4 | Return system status | - |
-
 **CRP.01: Initialize a new Reactor project**
 
 | Task ID | Title | Expected Outcome |
@@ -49,6 +40,15 @@
 | CRP.01.2 | Initialize the project | - |
 | CRP.01.3 | Verify initialization success | - |
 | CRP.01.4 | Return initialization result | - |
+
+**CRP.00: Verify system is ready for new project**
+
+| Task ID | Title | Expected Outcome |
+|---------|-------|------------------|
+| CRP.00.1 | List existing projects | - |
+| CRP.00.2 | Check if any project is currently running | - |
+| CRP.00.3 | Get the projects directory | - |
+| CRP.00.4 | Return system status | - |
 
 #### document-modeling (DM)
 
@@ -98,12 +98,6 @@
 
 #### handle-stakeholder-message (HSM)
 
-**HSM.02: Send the reply through your inbox**
-
-| Task ID | Title | Expected Outcome |
-|---------|-------|------------------|
-| HSM.02.1 | Mark the original message as read and reply | - |
-
 **HSM.01: Review WBS based on stakeholder request**
 
 | Task ID | Title | Expected Outcome |
@@ -111,6 +105,12 @@
 | HSM.01.1 | Open and review your WBS document | - |
 | HSM.01.2 | Add a new goal (hierarchy) only if needed | - |
 | HSM.01.3 | Update existing goals only if needed | - |
+
+**HSM.02: Send the reply through your inbox**
+
+| Task ID | Title | Expected Outcome |
+|---------|-------|------------------|
+| HSM.02.1 | Mark the original message as read and reply | - |
 
 **HSM.00: Categorize the stakeholder message**
 
@@ -516,6 +516,68 @@ If the project fails to start or become ready:
 \`\`\`
 ```
 
+##### CRP.01: Initialize a new Reactor project
+
+**Tasks:**
+
+###### CRP.01.1: Generate unique project name
+
+**Task Template:**
+
+```md
+- Create a project name with format: `test-reactor-<timestamp>`
+- Use current Unix timestamp in milliseconds for uniqueness
+- Example: `test-reactor-<timestamp-ms>`
+- The name must match pattern: `/^[a-zA-Z0-9-_]+$/`
+```
+
+###### CRP.01.2: Initialize the project
+
+**Task Template:**
+
+```md
+- Use `mcp__reactor_prjmgr__init_project` with the generated project name
+- Wait for the initialization to complete
+- Capture the project path returned by the tool
+```
+
+###### CRP.01.3: Verify initialization success
+
+**Task Template:**
+
+```md
+- Use `mcp__reactor_prjmgr__list_projects` to confirm the new project appears in the list
+- Use `mcp__reactor_prjmgr__get_project_status` to verify the project status is "stopped" or "initialized"
+```
+
+###### CRP.01.4: Return initialization result
+
+**Task Template:**
+
+```md
+Return a JSON object with the project details:
+
+\`\`\`json
+{
+  "step": "initialize",
+  "status": "success",
+  "project_name": "<project-name>",
+  "project_path": "<full-path>",
+  "project_status": "<status>"
+}
+\`\`\`
+
+If initialization fails:
+
+\`\`\`json
+{
+  "step": "initialize",
+  "status": "error",
+  "error": "<error-message>"
+}
+\`\`\`
+```
+
 ##### CRP.00: Verify system is ready for new project
 
 **Scenario Preamble:**
@@ -588,68 +650,6 @@ If a project had to be stopped, include that information:
   "running_projects": [],
   "projects_directory": "<path>",
   "ready_for_creation": true
-}
-\`\`\`
-```
-
-##### CRP.01: Initialize a new Reactor project
-
-**Tasks:**
-
-###### CRP.01.1: Generate unique project name
-
-**Task Template:**
-
-```md
-- Create a project name with format: `test-reactor-<timestamp>`
-- Use current Unix timestamp in milliseconds for uniqueness
-- Example: `test-reactor-<timestamp-ms>`
-- The name must match pattern: `/^[a-zA-Z0-9-_]+$/`
-```
-
-###### CRP.01.2: Initialize the project
-
-**Task Template:**
-
-```md
-- Use `mcp__reactor_prjmgr__init_project` with the generated project name
-- Wait for the initialization to complete
-- Capture the project path returned by the tool
-```
-
-###### CRP.01.3: Verify initialization success
-
-**Task Template:**
-
-```md
-- Use `mcp__reactor_prjmgr__list_projects` to confirm the new project appears in the list
-- Use `mcp__reactor_prjmgr__get_project_status` to verify the project status is "stopped" or "initialized"
-```
-
-###### CRP.01.4: Return initialization result
-
-**Task Template:**
-
-```md
-Return a JSON object with the project details:
-
-\`\`\`json
-{
-  "step": "initialize",
-  "status": "success",
-  "project_name": "<project-name>",
-  "project_path": "<full-path>",
-  "project_status": "<status>"
-}
-\`\`\`
-
-If initialization fails:
-
-\`\`\`json
-{
-  "step": "initialize",
-  "status": "error",
-  "error": "<error-message>"
 }
 \`\`\`
 ```
@@ -1133,21 +1133,6 @@ Content:
 
 #### Scenarios
 
-##### HSM.02: Send the reply through your inbox
-
-**Tasks:**
-
-###### HSM.02.1: Mark the original message as read and reply
-
-**Task Template:**
-
-*Variables:* `message.id`, `thread.id`
-```md
-- Use the agent-manager MCP tool to mark the stakeholder's message 《message.id》 as read
-- Use the agent-manager MCP tool to add your reply to the thread 《thread.id》.
-- Keep the reply message short: 1 sentence if it's appropriate. Up to 3 paragraphs if needed.
-```
-
 ##### HSM.01: Review WBS based on stakeholder request
 
 **Tasks:**
@@ -1228,6 +1213,21 @@ Based on the message and your ability to proceed:
 - **Blocked**: You need clarification or are waiting for stakeholder input
 - **Done**: Task is complete (if the message confirms completion)
 - **WontDo**: Stakeholder asked to cancel the goal
+```
+
+##### HSM.02: Send the reply through your inbox
+
+**Tasks:**
+
+###### HSM.02.1: Mark the original message as read and reply
+
+**Task Template:**
+
+*Variables:* `message.id`, `thread.id`
+```md
+- Use the agent-manager MCP tool to mark the stakeholder's message 《message.id》 as read
+- Use the agent-manager MCP tool to add your reply to the thread 《thread.id》.
+- Keep the reply message short: 1 sentence if it's appropriate. Up to 3 paragraphs if needed.
 ```
 
 ##### HSM.00: Categorize the stakeholder message
