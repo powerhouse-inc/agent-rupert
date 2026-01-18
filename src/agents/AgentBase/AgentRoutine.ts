@@ -6,8 +6,6 @@ import { WorkBreakdownStructureDocument } from "powerhouse-agent/document-models
 import { InboxRoutineHandler } from "./InboxHandlingFlow.js";
 import { WbsRoutineHandler } from "./WbsHandler.js";
 import { AgentBase, ILogger } from "./AgentBase.js";
-import type { IDocumentDriveServer } from 'document-drive';
-import type { BaseAgentConfig } from '../../types.js';
 import type { InboxHandlingFlowContext } from './InboxHandlingFlowContext.js';
 
 export type WorkItemType = 'skill' | 'scenario' | 'task' | 'idle';
@@ -56,9 +54,7 @@ export class AgentRoutine {
     // Agent executing this routine
     private agent: AgentBase;
     
-    // References to agent resources
-    private reactor?: IDocumentDriveServer;
-    private config: BaseAgentConfig;
+    // Logger reference
     private logger: ILogger;
 
     // Flag indicating if new inbox messages are waiting
@@ -79,24 +75,21 @@ export class AgentRoutine {
 
     // Routine only starts when initial inbox and WBS are resolved
     public constructor(
-        agent: AgentBase, 
-        reactor: IDocumentDriveServer | undefined,
-        config: BaseAgentConfig,
-        logger: ILogger,
-        inbox: AgentInboxDocument, 
-        wbs: WorkBreakdownStructureDocument
+        agent: AgentBase,
+        inbox: AgentInboxDocument,
+        wbs: WorkBreakdownStructureDocument,
+        logger: ILogger
     ) {
         this.agent = agent;
-        this.reactor = reactor;
-        this.config = config;
         this.logger = logger;
         this.documents = {
             inbox,
             wbs
         };
         
-        // Set up event listeners if we have a reactor
-        if (this.reactor) {
+        // Set up event listeners if agent has a reactor
+        const reactor = this.agent.getReactor();
+        if (reactor) {
             this.setupDocumentEventListeners();
         }
     }
@@ -123,30 +116,38 @@ export class AgentRoutine {
      * Listens for operations on configured inbox and WBS documents
      */
     private setupDocumentEventListeners(): void {
-        if (!this.reactor) return;
+        const reactor = this.agent.getReactor();
+        if (!reactor) return;
         
-        const { inbox, wbs } = this.config.workDrive.documents;
+        // Get document IDs from the actual documents
+        const inboxId = this.documents.inbox.header.id;
+        const wbsId = this.documents.wbs.header.id;
+        const agentName = this.agent.getName();
         
-        this.logger.info(`${this.config.name}: Setting up document event listeners in AgentRoutine`);
+        this.logger.info(`${agentName}: Setting up document event listeners in AgentRoutine`);
         
         // Listen for operations on documents
-        this.reactor.on('operationsAdded', async (documentId: string, operations: any[]) => {
+        reactor.on('operationsAdded', async (documentId: string, operations: any[]) => {
             // Check if this is our inbox document
-            if (inbox?.documentId && documentId === inbox.documentId) {
-                this.logger.info(`${this.config.name}: Inbox document updated - ${operations.length} operations`);
-                if (this.reactor) {
-                    const doc = await this.reactor.getDocument(inbox.documentId);
-                    if (inbox.documentType == 'powerhouse/agent-inbox') {
+            if (inboxId && documentId === inboxId) {
+                this.logger.info(`${agentName}: Inbox document updated - ${operations.length} operations`);
+                const currentReactor = this.agent.getReactor();
+                if (currentReactor) {
+                    const doc = await currentReactor.getDocument(inboxId);
+                    // Documents fetched from reactor have correct type already
+                    if (doc) {
                         this.updateInbox(doc as AgentInboxDocument);
                     }
                 }
             }
             // Check if this is our WBS document
-            else if (wbs?.documentId && documentId === wbs.documentId) {
-                this.logger.info(`${this.config.name}: WBS document updated - ${operations.length} operations`);
-                if (this.reactor) {
-                    const doc = await this.reactor.getDocument(wbs.documentId);
-                    if (wbs.documentType == 'powerhouse/work-breakdown-structure') {
+            else if (wbsId && documentId === wbsId) {
+                this.logger.info(`${agentName}: WBS document updated - ${operations.length} operations`);
+                const currentReactor = this.agent.getReactor();
+                if (currentReactor) {
+                    const doc = await currentReactor.getDocument(wbsId);
+                    // Documents fetched from reactor have correct type already
+                    if (doc) {
                         this.updateWbs(doc as WorkBreakdownStructureDocument);
                     }
                 }
@@ -154,14 +155,12 @@ export class AgentRoutine {
         });
         
         // Listen for new documents added
-        this.reactor.on('documentAdded', (document: any) => {
+        reactor.on('documentAdded', (document: any) => {
             // Check if it's a document type we care about
-            if (inbox && document.documentType === inbox.documentType) {
-                this.logger.info(`${this.config.name}: New inbox document added: ${document.id}`);
-                // Could update config if this is our first inbox document
-            } else if (wbs && document.documentType === wbs.documentType) {
-                this.logger.info(`${this.config.name}: New WBS document added: ${document.id}`);
-                // Could update config if this is our first WBS document
+            if (document.documentType === 'powerhouse/agent-inbox') {
+                this.logger.info(`${agentName}: New inbox document added: ${document.id}`);
+            } else if (document.documentType === 'powerhouse/work-breakdown-structure') {
+                this.logger.info(`${agentName}: New WBS document added: ${document.id}`);
             }
         });
     }
@@ -175,16 +174,18 @@ export class AgentRoutine {
         this.documents.inbox = inbox;
         this.unreadMessagesPending = InboxRoutineHandler.hasUnreadMessages(inbox);
         
+        const agentName = this.agent.getName();
+        
         // Only process if we have a brain and promptDriver on the agent
         if (!this.agent.getBrain() || !this.agent.getPromptDriver()) {
-            this.logger.info(`${this.config.name}: Skipping inbox processing - no brain configured`);
+            this.logger.info(`${agentName}: Skipping inbox processing - no brain configured`);
             return;
         }
 
         // If already processing, ignore this update to prevent concurrent execution
         if (this.processing) {
             this.nextUpdatePending = true;
-            this.logger.info(`${this.config.name}: Already processing a message, skipping this inbox update`);
+            this.logger.info(`${agentName}: Already processing a message, skipping this inbox update`);
             return;
         }
 
@@ -193,13 +194,16 @@ export class AgentRoutine {
             
             try {
                 this.processing = true;
-                const nextMessage = InboxRoutineHandler.getNextUnreadMessage(this.documents.inbox, this.config.workDrive);
+                // Get the drive URL and WBS ID for the message context
+                const driveUrl = this.agent.getReactorDriveUrl() || '';
+                const wbsId = this.documents.wbs.header.id;
+                const nextMessage = InboxRoutineHandler.getNextUnreadMessage(this.documents.inbox, driveUrl, wbsId);
 
                 if (nextMessage === null) {
-                    this.logger.info(`${this.config.name}: All messages processed. No more unread messages.`);
+                    this.logger.info(`${agentName}: All messages processed. No more unread messages.`);
 
                 } else {
-                    this.logger.info(`${this.config.name}: Processing message from ${nextMessage.stakeholder.name}: ${nextMessage.message.content.substring(0, 100)}...`);
+                    this.logger.info(`${agentName}: Processing message from ${nextMessage.stakeholder.name}: ${nextMessage.message.content.substring(0, 100)}...`);
                     
                     const result = await this.agent.executeSkill<InboxHandlingFlowContext>(
                         'handle-stakeholder-message',
@@ -211,14 +215,14 @@ export class AgentRoutine {
                     );
                     
                     if (result.success) {
-                        this.logger.info(`${this.config.name}: Successfully processed message ${nextMessage.message.id}`);
+                        this.logger.info(`${agentName}: Successfully processed message ${nextMessage.message.id}`);
                     } else {
-                        this.logger.error(`${this.config.name}: Failed to process message ${nextMessage.message.id}`, result.error);
+                        this.logger.error(`${agentName}: Failed to process message ${nextMessage.message.id}`, result.error);
                     }                    
                 }
 
             } catch (error) {
-                this.logger.error(`${this.config.name}: Error processing next inbox update`, error);
+                this.logger.error(`${agentName}: Error processing next inbox update`, error);
 
             } finally {
                 this.processing = false;

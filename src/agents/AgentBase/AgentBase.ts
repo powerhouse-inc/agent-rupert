@@ -313,11 +313,9 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
         if (this.documents.inbox && this.documents.wbs) {
             this.routine = new AgentRoutine(
                 this,
-                this.reactor,
-                this.config,
-                this.logger,
                 this.documents.inbox,
-                this.documents.wbs
+                this.documents.wbs,
+                this.logger,
             );
             this.logger.info(`${this.config.name}: AgentRoutine initialized`);
         } else {
@@ -549,6 +547,18 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
         return this.reactor;
     }
     
+    //
+    public getReactorDriveUrl(): string | null {
+        return this.config.workDrive.driveUrl;
+    }
+
+    /**
+     * Get the agent configuration
+     */
+    protected getConfig(): BaseAgentConfig {
+        return this.config;
+    }
+    
     /**
      * Get the skills available to this agent instance
      */
@@ -757,11 +767,9 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
             if (this.documents.wbs && !this.routine) {
                 this.routine = new AgentRoutine(
                     this,
-                    this.reactor,
-                    this.config,
-                    this.logger,
                     this.documents.inbox,
-                    this.documents.wbs
+                    this.documents.wbs,
+                    this.logger,
                 );
                 this.logger.info(`${this.config.name}: AgentRoutine initialized after receiving inbox`);
             }
@@ -787,11 +795,9 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
             if (this.documents.inbox && !this.routine) {
                 this.routine = new AgentRoutine(
                     this,
-                    this.reactor,
-                    this.config,
-                    this.logger,
                     this.documents.inbox,
-                    this.documents.wbs
+                    this.documents.wbs,
+                    this.logger
                 );
                 this.logger.info(`${this.config.name}: AgentRoutine initialized after receiving WBS`);
             }

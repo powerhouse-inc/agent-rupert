@@ -23,7 +23,8 @@ export class InboxRoutineHandler {
      */
     public static getNextUnreadMessage(
         inbox: AgentInboxDocument,
-        workDriveConfig: BaseAgentConfig['workDrive']
+        driveUrl: string,
+        wbsId: string,
     ): InboxHandlingFlowContext | null {
         const state = inbox.state.global;
         
@@ -42,12 +43,12 @@ export class InboxRoutineHandler {
                             // Return context for this message
                             return {
                                 documents: {
-                                    driveId: workDriveConfig.driveUrl || '',
+                                    driveId: driveUrl || '',
                                     inbox: {
-                                        id: workDriveConfig.documents?.inbox?.documentId || ''
+                                        id: inbox.header.id || ''
                                     },
                                     wbs: {
-                                        id: workDriveConfig.documents?.wbs?.documentId || ''
+                                        id: wbsId || ''
                                     }
                                 },
                                 stakeholder: {
