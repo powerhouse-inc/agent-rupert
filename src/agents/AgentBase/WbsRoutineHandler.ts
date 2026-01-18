@@ -2,7 +2,7 @@ import { WorkBreakdownStructureDocument, Goal, actions } from "powerhouse-agent/
 import { WorkItemParams, WorkItemType } from "./AgentRoutine.js";
 import type { IDocumentDriveServer } from "document-drive";
 import type { SkillsRepository } from "../../prompts/SkillsRepository.js";
-import type { SkillInfo, ScenarioInfo, TaskInfo } from "../../prompts/types.js";
+import type { SkillTemplate, ScenarioTemplate, ScenarioTaskTemplate } from "../../prompts/types.js";
 
 export class WbsRoutineHandler {
     
@@ -52,10 +52,10 @@ export class WbsRoutineHandler {
                         const contextInfo = this.collectContextInfo(wbs, goalChain, skillsRepository);
                         if (contextInfo) {
                             console.log('\n=== Task Context Information ===');
-                            console.log('Skill:', contextInfo.skillInfo?.name || 'None');
-                            console.log('Scenario:', contextInfo.scenarioInfo?.title || 'None');
-                            console.log('Current Task:', contextInfo.taskInfo?.title || 'None');
-                            console.log('Preceding Tasks:', contextInfo.precedingTasksInfo.map(t => t.title).join(', ') || 'None');
+                            console.log('Skill:', contextInfo.skillTemplate?.name || 'None');
+                            console.log('Scenario:', contextInfo.scenarioTemplate?.title || 'None');
+                            console.log('Current Task:', contextInfo.taskTemplate?.title || 'None');
+                            console.log('Preceding Tasks:', contextInfo.precedingTaskTemplates.map(t => t.title).join(', ') || 'None');
                             console.log('================================\n');
                         } else {
                             console.log('No context information available for this goal chain');
@@ -131,33 +131,33 @@ export class WbsRoutineHandler {
 
     /**
      * Collect context information from the goal chain
-     * Traverses the chain to extract skill, scenario, and task information
+     * Traverses the chain to extract skill, scenario, and task templates
      * 
      * @param wbs - The Work Breakdown Structure document
      * @param goalChain - Array of goals from root to leaf
-     * @param skillRepository - Repository to look up skill information
-     * @returns Object containing skill, scenario, and task context or null
+     * @param skillRepository - Repository to look up skill templates
+     * @returns Object containing skill, scenario, and task templates or null
      */
     public static collectContextInfo(
         wbs: WorkBreakdownStructureDocument,
         goalChain: Goal[],
         skillRepository: SkillsRepository
     ): {
-        skillInfo: SkillInfo | null,
-        scenarioInfo: ScenarioInfo | null,
-        precedingTasksInfo: TaskInfo[],
-        taskInfo: TaskInfo | null
+        skillTemplate: SkillTemplate | null,
+        scenarioTemplate: ScenarioTemplate | null,
+        precedingTaskTemplates: ScenarioTaskTemplate[],
+        taskTemplate: ScenarioTaskTemplate | null
     } | null {
         if (!goalChain || goalChain.length === 0) {
             return null;
         }
 
-        let skillInfo: SkillInfo | null = null;
-        let scenarioInfo: ScenarioInfo | null = null;
-        let taskInfo: TaskInfo | null = null;
-        const precedingTasksInfo: TaskInfo[] = [];
+        let skillTemplate: SkillTemplate | null = null;
+        let scenarioTemplate: ScenarioTemplate | null = null;
+        let taskTemplate: ScenarioTaskTemplate | null = null;
+        const precedingTaskTemplates: ScenarioTaskTemplate[] = [];
 
-        // Traverse the goal chain to collect work information
+        // Traverse the goal chain to collect work templates
         for (const goal of goalChain) {
             if (!goal.instructions || !goal.instructions.workType || !goal.instructions.workId) {
                 continue;
@@ -167,22 +167,26 @@ export class WbsRoutineHandler {
 
             switch (workType) {
                 case 'SKILL':
-                    // Get skill information from repository
+                    // Get skill template from repository
+                    // First try to get the internal skill templates map
+                    const skillsMap = (skillRepository as any).skills as Map<string, SkillTemplate>;
+                    
                     // Try to find skill by workId (could be prefix like "CRP" or full name)
-                    let skill = skillRepository.getSkillInformation(workId);
+                    let skill = skillsMap.get(workId);
                     
                     // If not found by direct ID, try to find by prefix
                     if (!skill) {
                         // Get all skills and find one that matches the prefix
                         const allSkills = skillRepository.getSkills();
                         for (const skillName of allSkills) {
-                            const skillData = skillRepository.getSkillInformation(skillName);
+                            const skillData = skillsMap.get(skillName);
                             if (skillData) {
                                 // Check if any scenario ID starts with the workId prefix
                                 const hasMatchingPrefix = skillData.scenarios.some(s => 
                                     s.id && s.id.startsWith(workId + '.')
                                 );
-                                if (hasMatchingPrefix || skillData.id === workId) {
+                                // Also check if the skill name itself matches
+                                if (hasMatchingPrefix || skillName === workId) {
                                     skill = skillData;
                                     break;
                                 }
@@ -191,45 +195,45 @@ export class WbsRoutineHandler {
                     }
                     
                     if (skill) {
-                        skillInfo = skill;
+                        skillTemplate = skill;
                     }
                     break;
 
                 case 'SCENARIO':
-                    // Find scenario within the skill
-                    if (skillInfo) {
-                        const scenario = skillInfo.scenarios.find(s => s.id === workId);
+                    // Find scenario template within the skill
+                    if (skillTemplate) {
+                        const scenario = skillTemplate.scenarios.find(s => s.id === workId);
                         if (scenario) {
-                            scenarioInfo = scenario;
+                            scenarioTemplate = scenario;
                         }
                     }
                     break;
 
                 case 'TASK':
-                    // Find task within the scenario
-                    if (scenarioInfo) {
-                        const taskIndex = scenarioInfo.tasks.findIndex(t => t.id === workId);
+                    // Find task template within the scenario
+                    if (scenarioTemplate) {
+                        const taskIndex = scenarioTemplate.tasks.findIndex(t => t.id === workId);
                         if (taskIndex !== -1) {
-                            // Collect all preceding tasks
-                            precedingTasksInfo.push(...scenarioInfo.tasks.slice(0, taskIndex));
-                            // Set the current task
-                            taskInfo = scenarioInfo.tasks[taskIndex];
+                            // Collect all preceding task templates
+                            precedingTaskTemplates.push(...scenarioTemplate.tasks.slice(0, taskIndex));
+                            // Set the current task template
+                            taskTemplate = scenarioTemplate.tasks[taskIndex];
                         }
                     }
                     break;
             }
         }
 
-        // Return null if we don't have at least skill info
-        if (!skillInfo) {
+        // Return null if we don't have at least skill template
+        if (!skillTemplate) {
             return null;
         }
 
         return {
-            skillInfo,
-            scenarioInfo,
-            precedingTasksInfo,
-            taskInfo
+            skillTemplate,
+            scenarioTemplate,
+            precedingTaskTemplates,
+            taskTemplate
         };
     }
 
