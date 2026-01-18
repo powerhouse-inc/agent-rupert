@@ -29,6 +29,10 @@ export type AgentRoutineWorkItem<TContext = any> = {
     status: 'queued' | 'in-progress' | 'succeeded' | 'failed' | 'terminated',
     params: WorkItemParams<TContext>,
     result: TaskResponse | ScenarioExecutionResult | SkillExecutionResult | null,
+    promise?: {
+        resolve: (value: any) => void;
+        reject: (reason?: any) => void;
+    }
 }
 
 export class WorkItemValidationErrors extends Error {
@@ -280,7 +284,23 @@ export class AgentRoutine {
         },
         flow?: ISkillFlow,
     ): Promise<SkillExecutionResult> {
-        throw new Error("Not yet implemented");
+        return new Promise((resolve, reject) => {
+            const workItem: AgentRoutineWorkItem<TContext> = {
+                type: 'skill',
+                status: 'queued',
+                params: {
+                    skillName,
+                    context,
+                    options,
+                    skillFlow: flow
+                },
+                result: null,
+                promise: { resolve, reject }
+            };
+            
+            this.queue.push(workItem);
+            this.logger.info(`${this.agent.getName()}: Queued skill '${skillName}'`);
+        });
     }
 
     // Add a scenario to the work queue
@@ -294,7 +314,24 @@ export class AgentRoutine {
         },
         flow?: IScenarioFlow
     ): Promise<ScenarioExecutionResult> {
-        throw new Error("Not yet implemented");
+        return new Promise((resolve, reject) => {
+            const workItem: AgentRoutineWorkItem<TContext> = {
+                type: 'scenario',
+                status: 'queued',
+                params: {
+                    skillName,
+                    scenarioId,
+                    context,
+                    options,
+                    scenarioFlow: flow
+                },
+                result: null,
+                promise: { resolve, reject }
+            };
+            
+            this.queue.push(workItem);
+            this.logger.info(`${this.agent.getName()}: Queued scenario '${skillName}/${scenarioId}'`);
+        });
     }
 
     // Add a task to the work queue
@@ -309,7 +346,24 @@ export class AgentRoutine {
             captureSession?: boolean;
         }
     ): Promise<TaskResponse> {
-        throw new Error("Not implement yet");
+        return new Promise((resolve, reject) => {
+            const workItem: AgentRoutineWorkItem<TContext> = {
+                type: 'task',
+                status: 'queued',
+                params: {
+                    skillName,
+                    scenarioId,
+                    taskId,
+                    context,
+                    options
+                },
+                result: null,
+                promise: { resolve, reject }
+            };
+            
+            this.queue.push(workItem);
+            this.logger.info(`${this.agent.getName()}: Queued task '${skillName}/${scenarioId}/${taskId}'`);
+        });
     }
 
     
@@ -377,14 +431,37 @@ export class AgentRoutine {
     private validateWorkItemParams(type: WorkItemType, params: WorkItemParams): string[] {
         const errors: string[] = [];
 
+        // Common validation
+        if (!params.skillName && type !== 'idle') {
+            errors.push('skillName is required for non-idle work items');
+        }
+
         switch(type) {
             case "skill":
+                // Skill validation - just needs skillName which is checked above
+                break;
 
             case "scenario":
+                if (!params.scenarioId) {
+                    errors.push('scenarioId is required for scenario work items');
+                }
+                break;
 
             case "task":
+                if (!params.scenarioId) {
+                    errors.push('scenarioId is required for task work items');
+                }
+                if (!params.taskId) {
+                    errors.push('taskId is required for task work items');
+                }
+                break;
 
             case "idle":
+                // No validation needed for idle
+                break;
+                
+            default:
+                errors.push(`Unknown work item type: ${type}`);
         }
 
         return errors;
@@ -411,11 +488,116 @@ export class AgentRoutine {
     }
 
     private async executeNextWorkItem(): Promise<IterationResult> {
-        throw new Error("Not yet implemented");
+        // Get next work item from queue
+        const workItem = this.queue.find(item => item.status === 'queued');
+        if (!workItem) {
+            return { workExecuted: false };
+        }
+        
+        // Mark as in-progress
+        workItem.status = 'in-progress';
+        const startTime = Date.now();
+        
+        try {
+            // Execute based on work item type
+            switch (workItem.type) {
+                case 'skill':
+                    workItem.result = await this.executeSkillItem(workItem);
+                    break;
+                    
+                case 'scenario':
+                    workItem.result = await this.executeScenarioItem(workItem);
+                    break;
+                    
+                case 'task':
+                    workItem.result = await this.executeTaskItem(workItem);
+                    break;
+                    
+                case 'idle':
+                    // No-op for idle work items
+                    workItem.result = null;
+                    break;
+                    
+                default:
+                    throw new Error(`Unknown work item type: ${workItem.type}`);
+            }
+            
+            // Mark as succeeded
+            workItem.status = 'succeeded';
+            const duration = Date.now() - startTime;
+            
+            // Resolve promise if present
+            if (workItem.promise) {
+                workItem.promise.resolve(workItem.result);
+            }
+            
+            // Remove from queue if completed
+            this.queue = this.queue.filter(item => item !== workItem);
+            
+            return {
+                workExecuted: true,
+                workItem,
+                duration
+            };
+            
+        } catch (error) {
+            // Mark as failed
+            workItem.status = 'failed';
+            const duration = Date.now() - startTime;
+            
+            // Reject promise if present
+            if (workItem.promise) {
+                workItem.promise.reject(error);
+            }
+            
+            // Remove from queue even if failed (could optionally retry)
+            this.queue = this.queue.filter(item => item !== workItem);
+            
+            return {
+                workExecuted: true,
+                workItem,
+                duration,
+                error: error instanceof Error ? error : new Error(String(error))
+            };
+        }
+    }
+    
+    private async executeSkillItem(workItem: AgentRoutineWorkItem): Promise<SkillExecutionResult> {
+        const { skillName, context, options, skillFlow } = workItem.params;
+        
+        if (skillFlow) {
+            return this.agent.executeSkillWithFlow(skillName, skillFlow, context, options);
+        } else {
+            return this.agent.executeSkill(skillName, context, options);
+        }
+    }
+    
+    private async executeScenarioItem(workItem: AgentRoutineWorkItem): Promise<ScenarioExecutionResult> {
+        const { skillName, scenarioId, context, options, scenarioFlow } = workItem.params;
+        
+        if (!scenarioId) {
+            throw new Error('Scenario ID is required for scenario work items');
+        }
+        
+        if (scenarioFlow) {
+            return this.agent.executeScenarioWithFlow(skillName, scenarioId, scenarioFlow, context, options);
+        } else {
+            return this.agent.executeScenario(skillName, scenarioId, context, options);
+        }
+    }
+    
+    private async executeTaskItem(workItem: AgentRoutineWorkItem): Promise<TaskResponse> {
+        const { skillName, scenarioId, taskId, context, options } = workItem.params;
+        
+        if (!scenarioId || !taskId) {
+            throw new Error('Scenario ID and Task ID are required for task work items');
+        }
+        
+        return this.agent.executeTask(skillName, scenarioId, taskId, context, options);
     }
 
     private hasWorkPending(): boolean {
-        return false;
+        return this.queue.length > 0;
     }
 
     // TODO: add logger
@@ -423,5 +605,8 @@ export class AgentRoutine {
 }
 
 interface IterationResult {
-
+    workExecuted: boolean;
+    workItem?: AgentRoutineWorkItem;
+    duration?: number;
+    error?: Error;
 }
