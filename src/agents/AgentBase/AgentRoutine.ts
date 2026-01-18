@@ -417,9 +417,15 @@ export class AgentRoutine {
         if (!this.hasWorkPending() && this.wbs.document) {
             const reactor = this.agent.getReactor();
             if (reactor) {
-                const workItem = await WbsRoutineHandler.getNextWorkItem(this.wbs.document, reactor);
-                if (workItem !== null) {
-                    this.queueWorkItem(workItem.type, workItem.params);
+                // Get skills repository if available
+                const promptDriver = this.agent.getPromptDriver();
+                const skillsRepository = promptDriver?.getRepository();
+
+                if (skillsRepository) {
+                    const workItem = await WbsRoutineHandler.getNextWorkItem(this.wbs.document, reactor, skillsRepository);
+                    if (workItem !== null) {
+                        this.queueWorkItem(workItem.type, workItem.params);
+                    }
                 }
             }
         }

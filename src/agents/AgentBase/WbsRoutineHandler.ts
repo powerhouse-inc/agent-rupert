@@ -1,6 +1,8 @@
 import { WorkBreakdownStructureDocument, Goal, actions } from "powerhouse-agent/document-models/work-breakdown-structure";
 import { WorkItemParams, WorkItemType } from "./AgentRoutine.js";
 import type { IDocumentDriveServer } from "document-drive";
+import type { SkillsRepository } from "../../prompts/SkillsRepository.js";
+import type { SkillInfo, ScenarioInfo, TaskInfo } from "../../prompts/types.js";
 
 export class WbsRoutineHandler {
     
@@ -11,7 +13,8 @@ export class WbsRoutineHandler {
      */
     public static async getNextWorkItem(
         wbs: WorkBreakdownStructureDocument,
-        reactor: IDocumentDriveServer
+        reactor: IDocumentDriveServer,
+        skillsRepository: SkillsRepository
     ): Promise<{ type: WorkItemType, params: WorkItemParams } | null> {
         // Find the next goal to work on (returns ancestor chain)
         const goalChain = this.findNextGoal(wbs);
@@ -29,6 +32,35 @@ export class WbsRoutineHandler {
                     // Log the full ancestor chain for context
                     const chainDescription = goalChain.map(g => g.description).join(' > ');
                     console.log(`Goal chain: ${chainDescription}`);
+                    
+                    // Collect and log context information if repository is available
+                    if (skillsRepository) {
+                        // Debug: Log goal instructions
+                        console.log('\n=== Goal Instructions Debug ===');
+                        goalChain.forEach((goal, index) => {
+                            console.log(`Goal ${index}: ${goal.description}`);
+                            if (goal.instructions) {
+                                console.log(`  - workType: ${goal.instructions.workType || 'undefined'}`);
+                                console.log(`  - workId: ${goal.instructions.workId || 'undefined'}`);
+                                console.log(`  - comments: ${goal.instructions.comments || 'undefined'}`);
+                            } else {
+                                console.log('  - No instructions');
+                            }
+                        });
+                        console.log('================================\n');
+                        
+                        const contextInfo = this.collectContextInfo(wbs, goalChain, skillsRepository);
+                        if (contextInfo) {
+                            console.log('\n=== Task Context Information ===');
+                            console.log('Skill:', contextInfo.skillInfo?.name || 'None');
+                            console.log('Scenario:', contextInfo.scenarioInfo?.title || 'None');
+                            console.log('Current Task:', contextInfo.taskInfo?.title || 'None');
+                            console.log('Preceding Tasks:', contextInfo.precedingTasksInfo.map(t => t.title).join(', ') || 'None');
+                            console.log('================================\n');
+                        } else {
+                            console.log('No context information available for this goal chain');
+                        }
+                    }
                 } catch (error) {
                     console.error(`Failed to mark goal ${nextGoal.id} as IN_PROGRESS:`, error);
                     // Continue even if marking fails - we still want to return a work item
@@ -95,6 +127,110 @@ export class WbsRoutineHandler {
         }
 
         return null;
+    }
+
+    /**
+     * Collect context information from the goal chain
+     * Traverses the chain to extract skill, scenario, and task information
+     * 
+     * @param wbs - The Work Breakdown Structure document
+     * @param goalChain - Array of goals from root to leaf
+     * @param skillRepository - Repository to look up skill information
+     * @returns Object containing skill, scenario, and task context or null
+     */
+    public static collectContextInfo(
+        wbs: WorkBreakdownStructureDocument,
+        goalChain: Goal[],
+        skillRepository: SkillsRepository
+    ): {
+        skillInfo: SkillInfo | null,
+        scenarioInfo: ScenarioInfo | null,
+        precedingTasksInfo: TaskInfo[],
+        taskInfo: TaskInfo | null
+    } | null {
+        if (!goalChain || goalChain.length === 0) {
+            return null;
+        }
+
+        let skillInfo: SkillInfo | null = null;
+        let scenarioInfo: ScenarioInfo | null = null;
+        let taskInfo: TaskInfo | null = null;
+        const precedingTasksInfo: TaskInfo[] = [];
+
+        // Traverse the goal chain to collect work information
+        for (const goal of goalChain) {
+            if (!goal.instructions || !goal.instructions.workType || !goal.instructions.workId) {
+                continue;
+            }
+
+            const { workType, workId } = goal.instructions;
+
+            switch (workType) {
+                case 'SKILL':
+                    // Get skill information from repository
+                    // Try to find skill by workId (could be prefix like "CRP" or full name)
+                    let skill = skillRepository.getSkillInformation(workId);
+                    
+                    // If not found by direct ID, try to find by prefix
+                    if (!skill) {
+                        // Get all skills and find one that matches the prefix
+                        const allSkills = skillRepository.getSkills();
+                        for (const skillName of allSkills) {
+                            const skillData = skillRepository.getSkillInformation(skillName);
+                            if (skillData) {
+                                // Check if any scenario ID starts with the workId prefix
+                                const hasMatchingPrefix = skillData.scenarios.some(s => 
+                                    s.id && s.id.startsWith(workId + '.')
+                                );
+                                if (hasMatchingPrefix || skillData.id === workId) {
+                                    skill = skillData;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    
+                    if (skill) {
+                        skillInfo = skill;
+                    }
+                    break;
+
+                case 'SCENARIO':
+                    // Find scenario within the skill
+                    if (skillInfo) {
+                        const scenario = skillInfo.scenarios.find(s => s.id === workId);
+                        if (scenario) {
+                            scenarioInfo = scenario;
+                        }
+                    }
+                    break;
+
+                case 'TASK':
+                    // Find task within the scenario
+                    if (scenarioInfo) {
+                        const taskIndex = scenarioInfo.tasks.findIndex(t => t.id === workId);
+                        if (taskIndex !== -1) {
+                            // Collect all preceding tasks
+                            precedingTasksInfo.push(...scenarioInfo.tasks.slice(0, taskIndex));
+                            // Set the current task
+                            taskInfo = scenarioInfo.tasks[taskIndex];
+                        }
+                    }
+                    break;
+            }
+        }
+
+        // Return null if we don't have at least skill info
+        if (!skillInfo) {
+            return null;
+        }
+
+        return {
+            skillInfo,
+            scenarioInfo,
+            precedingTasksInfo,
+            taskInfo
+        };
     }
 
     /**
