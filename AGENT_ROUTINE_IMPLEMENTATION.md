@@ -7,12 +7,12 @@ Refactoring agent work execution from reactive event-driven (AgentBase) to proac
 
 ### Step 1: Move Document Management from AgentBase to AgentRoutine ✅
 - [x] Add AgentBase reference to AgentRoutine constructor
-- [ ] Move `setupDocumentEventListeners()` from AgentBase to AgentRoutine
-- [ ] Move `updateInbox()` logic from AgentBase to AgentRoutine
-- [ ] Move `updateWbs()` logic from AgentBase to AgentRoutine
-- [ ] Move `documents` property from AgentBase to AgentRoutine
-- [ ] Update AgentBase to delegate document operations to AgentRoutine
-- [ ] Remove `nextUpdatePending` and `processing` flags from AgentBase
+- [x] Move `setupDocumentEventListeners()` from AgentBase to AgentRoutine
+- [x] Move `updateInbox()` logic from AgentBase to AgentRoutine
+- [x] Move `updateWbs()` logic from AgentBase to AgentRoutine
+- [x] Move `documents` property to both (AgentBase keeps reference, AgentRoutine manages)
+- [x] Update AgentBase to delegate document operations to AgentRoutine
+- [x] Remove `nextUpdatePending` and `processing` flags from AgentBase (now in AgentRoutine)
 
 ### Step 2: Implement Core Loop
 - [ ] Implement `start()` method with iteration timer
