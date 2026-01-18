@@ -1,11 +1,22 @@
 import type { AgentInboxDocument } from 'powerhouse-agent/document-models/agent-inbox';
 import type { InboxHandlingFlowContext } from './InboxHandlingFlowContext.js';
 import type { BaseAgentConfig } from '../../types.js';
+import { Exception } from 'handlebars';
+import { WorkItemParams, WorkItemType } from './AgentRoutine.js';
 
 /**
  * Utility class for extracting unread messages from an inbox document
  */
-export class InboxHandlingFlow {
+export class InboxRoutineHandler {
+
+    public static getNextWorkItem(inbox: AgentInboxDocument): { type: WorkItemType, params: WorkItemParams } | null {
+        throw new Error("Not yet implemented");
+    }
+
+    public static hasUnreadMessages(inbox: AgentInboxDocument): boolean {
+        throw new Exception('Not yet implemented');
+    }
+
     /**
      * Static helper to get the context for the next unread message
      * Returns null if no unread messages are found
