@@ -6,7 +6,6 @@ import { WorkBreakdownStructureDocument } from "powerhouse-agent/document-models
 import { InboxRoutineHandler } from "./InboxHandlingFlow.js";
 import { WbsRoutineHandler } from "./WbsHandler.js";
 import { AgentBase, ILogger } from "./AgentBase.js";
-import type { InboxHandlingFlowContext } from './InboxHandlingFlowContext.js';
 
 export type WorkItemType = 'skill' | 'scenario' | 'task' | 'idle';
 
@@ -51,10 +50,10 @@ export class AgentRoutine {
     private status: 'init' | 'ready' | 'running' | 'stopping' = 'init';
 
     // Minimum duration of a full iteration, including work and idle time
-    private minimumIterationMs: number = 30000;
+    private minimumIterationMs: number = 2000;
 
     // Minimum idle time after iteration work is finished
-    private minimumIdleTimeMs: number = 5000;
+    private minimumIdleTimeMs: number = 500;
 
     // Agent executing this routine
     private agent: AgentBase;
@@ -182,16 +181,16 @@ export class AgentRoutine {
      */
     public updateInbox(inbox: AgentInboxDocument): void {
         const agentName = this.agent.getName();
-        this.logger.info(`${agentName}: Inbox document updated`);
-        
         this.inbox.document = inbox;
-        
-        // Check if there are unread messages
-        const hasUnread = InboxRoutineHandler.hasUnreadMessages(inbox);
-        if (hasUnread && !this.unreadMessagesPending) {
-            this.unreadMessagesPending = true;
-            this.logger.info(`${agentName}: New unread messages detected, will process in next iteration`);
-        }
+        this.unreadMessagesPending = this.unreadMessagesPending || InboxRoutineHandler.hasUnreadMessages(inbox);
+
+        this.logger.info(
+            `${agentName}: Inbox document updated.` + (
+                this.unreadMessagesPending ? 
+                ' Unread messages are pending.' : 
+                ' All unread messages are processed.'
+            )
+        );
     }
 
     /**

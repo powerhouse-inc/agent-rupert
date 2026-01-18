@@ -318,7 +318,9 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
             );
             
             await this.routine.initialize();
-            this.logger.info(`${this.config.name}: AgentRoutine initialized and ready`);
+            this.logger.info(`${this.config.name}: AgentRoutine initialized`);
+            this.routine.start();
+
         } catch (error) {
             this.logger.error(`${this.config.name}: Failed to initialize AgentRoutine`, error);
             this.routine = undefined;
