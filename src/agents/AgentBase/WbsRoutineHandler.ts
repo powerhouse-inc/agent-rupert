@@ -1,7 +1,7 @@
 import { WorkBreakdownStructureDocument, Goal, actions } from "powerhouse-agent/document-models/work-breakdown-structure";
 import { WorkItemParams, WorkItemType } from "./AgentRoutine.js";
 import type { IDocumentDriveServer } from "document-drive";
-import type { SkillsRepository } from "../../prompts/SkillsRepository.js";
+import type { ISkillsRepository } from "../../prompts/ISkillsRepository.js";
 import type { SkillTemplate, ScenarioTemplate, ScenarioTaskTemplate } from "../../prompts/types.js";
 
 export class WbsRoutineHandler {
@@ -14,7 +14,7 @@ export class WbsRoutineHandler {
     public static async getNextWorkItem(
         wbs: WorkBreakdownStructureDocument,
         reactor: IDocumentDriveServer,
-        skillsRepository: SkillsRepository
+        skillsRepository: ISkillsRepository
     ): Promise<{ type: WorkItemType, params: WorkItemParams } | null> {
         // Find the next goal to work on (returns ancestor chain)
         const goalChain = this.findNextGoal(wbs);
@@ -141,7 +141,7 @@ export class WbsRoutineHandler {
     public static collectContextInfo(
         wbs: WorkBreakdownStructureDocument,
         goalChain: Goal[],
-        skillRepository: SkillsRepository
+        skillRepository: ISkillsRepository
     ): {
         skillTemplate: SkillTemplate | null,
         scenarioTemplate: ScenarioTemplate | null,
@@ -168,18 +168,15 @@ export class WbsRoutineHandler {
             switch (workType) {
                 case 'SKILL':
                     // Get skill template from repository
-                    // First try to get the internal skill templates map
-                    const skillsMap = (skillRepository as any).skills as Map<string, SkillTemplate>;
-                    
                     // Try to find skill by workId (could be prefix like "CRP" or full name)
-                    let skill = skillsMap.get(workId);
+                    let skill = skillRepository.getSkillTemplate(workId);
                     
                     // If not found by direct ID, try to find by prefix
                     if (!skill) {
                         // Get all skills and find one that matches the prefix
                         const allSkills = skillRepository.getSkills();
                         for (const skillName of allSkills) {
-                            const skillData = skillsMap.get(skillName);
+                            const skillData = skillRepository.getSkillTemplate(skillName);
                             if (skillData) {
                                 // Check if any scenario ID starts with the workId prefix
                                 const hasMatchingPrefix = skillData.scenarios.some(s => 

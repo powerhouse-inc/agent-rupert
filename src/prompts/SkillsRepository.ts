@@ -11,8 +11,9 @@ import {
   RenderedScenarioTask,
   SkillInfo,
 } from './types.js';
+import type { ISkillsRepository } from './ISkillsRepository.js';
 
-export class SkillsRepository {
+export class SkillsRepository implements ISkillsRepository {
   private basePath: string;
   private skills: Map<string, SkillTemplate> = new Map();
   private scenarioTemplates: Map<string, ScenarioTemplate> = new Map();
@@ -402,6 +403,14 @@ export class SkillsRepository {
    */
   getScenarioMetadata(scenarioKey: string): ScenarioMetadata | undefined {
     return this.scenarioMetaData.get(scenarioKey);
+  }
+
+  /**
+   * Get skill template by name
+   * Returns the raw template with functions
+   */
+  getSkillTemplate(skill: string): SkillTemplate | undefined {
+    return this.skills.get(skill);
   }
 
   /**

@@ -1,5 +1,6 @@
 import { IAgentBrain } from '../agents/IAgentBrain.js';
 import { SkillsRepository } from './SkillsRepository.js';
+import type { ISkillsRepository } from './ISkillsRepository.js';
 import { RenderedScenario, RenderedScenarioTask } from './types.js';
 import type { IScenarioFlow } from './flows/IScenarioFlow.js';
 import type { ISkillFlow, ScenarioResult } from './flows/ISkillFlow.js';
@@ -31,14 +32,14 @@ export interface TaskResponse {
 }
 
 export class PromptDriver {
-  private repository: SkillsRepository;
+  private repository: ISkillsRepository;
   private agent: IAgentBrain;
   private sessionId: string | null = null;
   private maxTurns: number = 5;  // Default maxTurns for message sending
 
   constructor(
     agent: IAgentBrain,
-    repositoryOrPath: SkillsRepository | string = './build/prompts'
+    repositoryOrPath: ISkillsRepository | string = './build/prompts'
   ) {
     this.agent = agent;
     if (typeof repositoryOrPath === 'string') {
@@ -501,7 +502,7 @@ Keep this overview in mind to proceed with one task at a time when you're instru
   /**
    * Get the repository instance for direct access if needed
    */
-  getRepository(): SkillsRepository {
+  getRepository(): ISkillsRepository {
     return this.repository;
   }
 }
