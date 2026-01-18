@@ -84,25 +84,27 @@ export abstract class SkillsRepositoryBase implements ISkillsRepository {
         skillTemplate.expectedOutcome ? skillTemplate.expectedOutcome() : undefined,
         skillTemplate.expectedOutcomeVars
       ),
-      scenarios: skillTemplate.scenarios.map(scenario => ({
-        id: scenario.id,
-        title: scenario.title,
-        hasPreamble: !!scenario.preamble,  // Check if scenario preamble function exists
-        preambleTemplate: buildTemplateWithVars(scenario.preambleText, scenario.preambleVars),
-        expectedOutcome: buildTemplateWithVars(
-          scenario.expectedOutcome ? scenario.expectedOutcome() : undefined,
-          scenario.expectedOutcomeVars
-        ),
-        tasks: scenario.tasks.map(task => ({
-          id: task.id,
-          title: task.title,
-          template: buildTemplateWithVars(task.contentText, task.contentVars) || '',
+      scenarios: skillTemplate.scenarios
+        .map(scenario => ({
+          id: scenario.id,
+          title: scenario.title,
+          hasPreamble: !!scenario.preamble,  // Check if scenario preamble function exists
+          preambleTemplate: buildTemplateWithVars(scenario.preambleText, scenario.preambleVars),
           expectedOutcome: buildTemplateWithVars(
-            task.expectedOutcome ? task.expectedOutcome() : undefined,
-            task.expectedOutcomeVars
-          )
+            scenario.expectedOutcome ? scenario.expectedOutcome() : undefined,
+            scenario.expectedOutcomeVars
+          ),
+          tasks: scenario.tasks.map(task => ({
+            id: task.id,
+            title: task.title,
+            template: buildTemplateWithVars(task.contentText, task.contentVars) || '',
+            expectedOutcome: buildTemplateWithVars(
+              task.expectedOutcome ? task.expectedOutcome() : undefined,
+              task.expectedOutcomeVars
+            )
+          }))
         }))
-      }))
+        .sort((a, b) => a.id.localeCompare(b.id))
     };
   }
 
@@ -126,7 +128,9 @@ export abstract class SkillsRepositoryBase implements ISkillsRepository {
     context?: TContext
   ): RenderedScenario[] {
     const scenarios = this.skills.get(skill)?.scenarios || [];
-    return scenarios.map(scenario => this.renderScenarioWithContext(scenario, context));
+    return scenarios
+      .map(scenario => this.renderScenarioWithContext(scenario, context))
+      .sort((a, b) => a.id.localeCompare(b.id));
   }
 
   /**
@@ -145,7 +149,8 @@ export abstract class SkillsRepositoryBase implements ISkillsRepository {
    * Get all scenario metadata
    */
   getAllMetadata(): ScenarioMetadata[] {
-    return Array.from(this.scenarioMetaData.values());
+    return Array.from(this.scenarioMetaData.values())
+      .sort((a, b) => a.id.localeCompare(b.id));
   }
 
   /**
@@ -155,10 +160,10 @@ export abstract class SkillsRepositoryBase implements ISkillsRepository {
     scenario: ScenarioTemplate,
     context?: TContext
   ): RenderedScenario {
-    const renderedTasks: RenderedScenarioTask[] = scenario.tasks.map((task: any) => ({
+    const renderedTasks: RenderedScenarioTask[] = scenario.tasks.map((task) => ({
       id: task.id,
       title: task.title,
-      content: task.template ? task.template(context) : '',
+      content: task.content ? task.content(context) : '',
       expectedOutcome: task.expectedOutcome ? task.expectedOutcome(context) : undefined
     }));
 

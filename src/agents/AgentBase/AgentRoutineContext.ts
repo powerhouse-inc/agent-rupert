@@ -3,7 +3,6 @@ import { PromptDriver } from "../../prompts/PromptDriver.js";
 
 export class AgentRoutineContext {
     private driver: PromptDriver;
-    private sessionId: string | null = null;
 
     private skill: {
         name: string;
@@ -62,23 +61,22 @@ export class AgentRoutineContext {
         const requiredVars = this.getRequiredVariables();
         const variables: Record<string, any> = {};
         
-        // TODO: Implement variable collection
-        // - documents.* from reactor/drive
-        // - message.* from inbox  
-        // - thread.* from inbox
-        // - stakeholder.* from inbox
-        
-        
+        // TODO
+
         return variables;
     }
 
     /**
      * Setup context by sending preambles and completed tasks overview
      */
-    public async setup(): Promise<void> {
+    public async setup(sessionId: string | null = null): Promise<void> {
         // Collect variables first
         const variables = await this.collectVariables();
         
+        if (sessionId) {
+            this.driver.continueSession(sessionId);
+        }
+
         // Send skill preamble if not sent
         if (!this.skill.preambleSent) {
             await this.driver.sendSkillPreamble(this.skill.name, variables);
@@ -100,7 +98,6 @@ export class AgentRoutineContext {
             completedTasks.forEach(t => t.preambleSent = true);
         }
     }
-
 
     /**
      * Get the prompt driver for execution
@@ -126,10 +123,16 @@ export class AgentRoutineContext {
     /**
      * Check if this context matches another context
      */
-    public matchesContext(other: AgentRoutineContext): boolean {
-        // Compare if they represent the same skill and scenario
-        return this.getSkill().name === other.getSkill().name && 
-               this.getScenario().id === other.getScenario().id;
+    public needsContextChange(other: AgentRoutineContext): 'none' | 'scenario' | 'full' {
+        if (this.getSkill().name === other.getSkill().name) {
+            if (this.getScenario().id === other.getScenario().id) {
+                return 'none';
+            } else {
+                return 'scenario';
+            }
+        }
+
+        return 'full';
     }
     
     /**

@@ -470,6 +470,14 @@ Keep this overview in mind to proceed with one task at a time when you're instru
     // The agent brain maintains its own session lifecycle
     // We just clear our reference to the session
   }
+
+  continueSession(sessionId: string) {
+    if (this.sessionId) {
+      this.endSession();
+    }
+
+    this.sessionId = sessionId;
+  }
   
   /**
    * Get the current session ID

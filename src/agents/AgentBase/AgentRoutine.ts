@@ -7,6 +7,7 @@ import { InboxRoutineHandler } from "./InboxRoutineHandler.js";
 import { WbsRoutineHandler } from "./WbsRoutineHandler.js";
 import { AgentBase, ILogger } from "./AgentBase.js";
 import { AgentRoutineContext } from "./AgentRoutineContext.js";
+import { SequentialSkillFlow } from "../../prompts/flows/SequentialSkillFlow.js";
 
 export type WorkItemType = 'skill' | 'scenario' | 'task' | 'idle';
 
@@ -151,7 +152,7 @@ export class AgentRoutine {
             
             // Wait before next iteration (unless we're stopping)
             if (this.status === 'running' && idleTime > 0) {
-                this.logger.debug(`${this.agent.getName()}: Waiting ${idleTime}ms before next iteration`);
+                //this.logger.debug(`${this.agent.getName()}: Waiting ${idleTime}ms before next iteration`);
                 await new Promise(resolve => setTimeout(resolve, idleTime));
             }
         }
@@ -420,72 +421,14 @@ export class AgentRoutine {
         return errors;
     }
 
-    /**
-     * Ensure we have the appropriate context for executing WBS goal-driven work
-     * Creates a new context if needed or reuses existing if it matches the goal chain
-     * @deprecated This method is not currently used
-     */
-    private async ensureContext(goalChain: Goal[]): Promise<AgentRoutineContext> {
-        // Check if we need a new context
-        if (!this.currentContext || !this.currentContext.matchesGoalChain(goalChain)) {
-            // Get required components
-            const brain = this.agent.getBrain();
-            const repository = this.agent.getPromptDriver()?.getRepository();
-            
-            if (!brain || !repository) {
-                throw new Error('Brain or repository not available for context creation');
-            }
-            
-            // Create filtered PromptDriver with only relevant templates
-            // Note: When called from here, we don't have siblings (empty arrays)
-            const driverResult = WbsRoutineHandler.createGoalChainPromptDriver(
-                goalChain,
-                [],  // No preceding siblings when called directly
-                [],  // No following siblings when called directly
-                repository,
-                brain
-            );
-            
-            if (!driverResult) {
-                throw new Error('Failed to create PromptDriver for goal chain');
-            }
-            
-            // Get prior completed tasks from WBS tracking
-            const priorCompletedTasks = this.getPriorCompletedTasks(goalChain);
-            
-            // Create new context with resolved skill name
-            this.currentContext = new AgentRoutineContext(
-                goalChain,
-                priorCompletedTasks,
-                driverResult.driver,
-                driverResult.skillName
-            );
-            
-            // Setup the context (collect variables, send preambles & completed tasks overview)
-            await this.currentContext.setup();
-        }
-        
-        return this.currentContext;
-    }
-
-    /**
-     * Get list of prior completed task IDs for a goal chain
-     * TODO: Implement actual tracking from WBS document
-     */
-    private getPriorCompletedTasks(goalChain: Goal[]): string[] {
-        // For now, return empty array
-        // In future, track completed tasks in WBS document
-        return [];
-    }
-
     private async run(): Promise<IterationResult | null> {
-
-        if (this.unreadMessagesPending && this.inbox.document) {
+        if (this.unreadMessagesPending && this.inbox.document ) {
             this.unreadMessagesPending = false;
             const driveUrl = this.agent.getReactorDriveUrl() || '';
             const workItem = InboxRoutineHandler.getNextWorkItem(this.inbox.document, driveUrl, this.wbs.id);
             if (workItem !== null) {
                 // InboxRoutineHandler doesn't provide callbacks, so pass undefined
+                console.log("Queueing inbox task", workItem);
                 this.queueWorkItem(workItem.type, workItem.params);
             }
         } 
@@ -501,6 +444,9 @@ export class AgentRoutine {
                 if (skillsRepository && brain) {
                     const workItem = await WbsRoutineHandler.getNextWorkItem(this.wbs.document, reactor, skillsRepository, brain);
                     if (workItem !== null) {
+                        if (workItem.type !== 'idle') {
+                            console.log("Queueing wbs task", workItem);
+                        }
                         this.queueWorkItem(workItem.type, workItem.params, workItem.callbacks);
                     }
                 }
@@ -607,11 +553,33 @@ export class AgentRoutine {
         const { routineContext } = workItem.params;
         
         if (routineContext) {
-            // Check if we need to switch contexts
-            if (!this.currentContext || !this.currentContext.matchesContext(routineContext)) {
+            let switchNeeded: 'none' | 'scenario' | 'full' = 'full';
+            if (this.currentContext) {
+                switchNeeded = this.currentContext.needsContextChange(routineContext);    
+                switch(switchNeeded) {
+                    case "full":
+                        console.log("Switching out full context without session ID transfer");
+                        this.currentContext = routineContext;
+                        await this.currentContext.setup();
+                        break;
+
+                    case "scenario":
+                        console.log("Switching out context with session ID transfer");
+                        const sessionId = this.currentContext.getPromptDriver().getSessionId();
+                        this.currentContext = routineContext;
+                        await this.currentContext.setup(sessionId);
+                        break;
+
+                    case "none":
+                        console.log("Preserving existing context");
+                        break;
+                }
+
+            } else {
                 this.currentContext = routineContext;
                 await this.currentContext.setup();
             }
+            
             return this.currentContext.getPromptDriver();
 
         } else {
@@ -625,18 +593,8 @@ export class AgentRoutine {
     }
 
     private async executeSkillItem(workItem: AgentRoutineWorkItem): Promise<SkillExecutionResult> {
-        const { skillName, context, options, skillFlow } = workItem.params;
-        
-        // Get the appropriate PromptDriver
-        const promptDriver = await this.getPromptDriverForWorkItem(workItem);
-        
-        if (!skillFlow) {
-            throw new Error('Skill flow is required for skill work items');
-        }
-        
-        return promptDriver.executeSkillFlow(
-            skillName || 'default',
-            skillFlow,
+        const { skillName, context, options } = workItem.params;
+        return this.agent.executeSkill(skillName || 'default',
             context,
             options
         );
