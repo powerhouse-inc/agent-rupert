@@ -174,6 +174,7 @@ export abstract class SkillsRepositoryBase implements ISkillsRepository {
   /**
    * Collect all variables required for a scenario
    * Includes parent skill variables, scenario variables, and all child task variables
+   * Returns a deduplicated array of variable names
    */
   getScenarioRequiredVariables(skillName: string, scenarioId: string): string[] {
     const variables = new Set<string>();
@@ -184,56 +185,36 @@ export abstract class SkillsRepositoryBase implements ISkillsRepository {
       return [];
     }
     
-    // Helper function to extract variables from a TemplateVars object
-    const extractVariables = (varsObj: TemplateVars | undefined): void => {
-      if (!varsObj) return;
-      
-      // Add all variables from the vars array
-      if (Array.isArray(varsObj.vars)) {
-        varsObj.vars.forEach((v: string) => variables.add(v));
-      }
+    // Helper function to merge variables from a TemplateVars object
+    const mergeVariables = (varsObj: TemplateVars | undefined): void => {
+      if (!varsObj?.vars) return;
+      // Merge the vars array into our Set (automatically deduplicates)
+      varsObj.vars.forEach(v => variables.add(v));
     };
     
-    // Add skill preamble variables
-    if (skill.preambleVars) {
-      extractVariables(skill.preambleVars);
-    }
-    
-    // Add skill expected outcome variables
-    if (skill.expectedOutcomeVars) {
-      extractVariables(skill.expectedOutcomeVars);
-    }
+    // Collect skill-level variables
+    mergeVariables(skill.preambleVars);
+    mergeVariables(skill.expectedOutcomeVars);
     
     // Find the specific scenario
     const scenario = skill.scenarios.find(s => s.id === scenarioId);
     if (!scenario) {
+      // Return skill-level variables even if scenario not found
       return Array.from(variables);
     }
     
-    // Add scenario preamble variables
-    if (scenario.preambleVars) {
-      extractVariables(scenario.preambleVars);
-    }
+    // Collect scenario-level variables
+    mergeVariables(scenario.preambleVars);
+    mergeVariables(scenario.expectedOutcomeVars);
     
-    // Add scenario expected outcome variables
-    if (scenario.expectedOutcomeVars) {
-      extractVariables(scenario.expectedOutcomeVars);
-    }
-    
-    // Add all task variables
+    // Collect all task-level variables
     for (const task of scenario.tasks) {
-      // Task content variables
-      if (task.contentVars) {
-        extractVariables(task.contentVars);
-      }
-      
-      // Task expected outcome variables
-      if (task.expectedOutcomeVars) {
-        extractVariables(task.expectedOutcomeVars);
-      }
+      mergeVariables(task.contentVars);
+      mergeVariables(task.expectedOutcomeVars);
     }
     
-    return Array.from(variables);
+    // Return deduplicated, sorted array for consistency
+    return Array.from(variables).sort();
   }
 
   /**

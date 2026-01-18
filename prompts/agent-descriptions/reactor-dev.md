@@ -13,6 +13,15 @@
 
 #### create-reactor-package (CRP)
 
+**CRP.03: Stop the project**
+
+| Task ID | Title | Expected Outcome |
+|---------|-------|------------------|
+| CRP.03.1 | Verify project is running | - |
+| CRP.03.2 | Shutdown the project | - |
+| CRP.03.3 | Verify shutdown success | - |
+| CRP.03.4 | Return completion status | - |
+
 **CRP.02: Run the project and capture Vetra MCP endpoint**
 
 | Task ID | Title | Expected Outcome |
@@ -22,15 +31,6 @@
 | CRP.02.3 | Get project status and logs | - |
 | CRP.02.4 | Parse and verify endpoints | - |
 | CRP.02.5 | Return running status with endpoints | - |
-
-**CRP.03: Stop the project**
-
-| Task ID | Title | Expected Outcome |
-|---------|-------|------------------|
-| CRP.03.1 | Verify project is running | - |
-| CRP.03.2 | Shutdown the project | - |
-| CRP.03.3 | Verify shutdown success | - |
-| CRP.03.4 | Return completion status | - |
 
 **CRP.01: Initialize a new Reactor project**
 
@@ -304,6 +304,71 @@ Remember: You are the technical executor for Powerhouse project development, ens
 
 #### Scenarios
 
+##### CRP.03: Stop the project
+
+**Tasks:**
+
+###### CRP.03.1: Verify project is running
+
+**Task Template:**
+
+```md
+- Use `mcp__reactor_prjmgr__get_project_status` with the project name
+- Confirm the project is currently in "running" state
+- If not running, skip to the final status step
+```
+
+###### CRP.03.2: Shutdown the project
+
+**Task Template:**
+
+```md
+- Use `mcp__reactor_prjmgr__shutdown_project` with the project name
+- This will stop both Vetra Connect and Switchboard services
+- Wait for the shutdown command to complete
+```
+
+###### CRP.03.3: Verify shutdown success
+
+**Task Template:**
+
+```md
+- Use `mcp__reactor_prjmgr__get_project_status` to confirm the project is now "stopped"
+- Use `mcp__reactor_prjmgr__is_project_ready` to confirm it returns false
+- Optionally get final logs with `mcp__reactor_prjmgr__get_project_logs`
+```
+
+###### CRP.03.4: Return completion status
+
+**Task Template:**
+
+```md
+Return a JSON object confirming the entire skill execution:
+
+\`\`\`json
+{
+  "step": "stop-project",
+  "status": "success",
+  "project_name": "<project-name>",
+  "project_status": "stopped",
+  "shutdown_clean": true,
+  "skill_complete": true
+}
+\`\`\`
+
+If shutdown fails:
+
+\`\`\`json
+{
+  "step": "stop-project",
+  "status": "error",
+  "project_name": "<project-name>",
+  "error": "<error-message>",
+  "project_status": "<status>"
+}
+\`\`\`
+```
+
 ##### CRP.02: Run the project and capture Vetra MCP endpoint
 
 **Tasks:**
@@ -379,71 +444,6 @@ If the project fails to start or become ready:
   "project_name": "<project-name>",
   "error": "<error-message>",
   "logs": "<log-excerpt>"
-}
-\`\`\`
-```
-
-##### CRP.03: Stop the project
-
-**Tasks:**
-
-###### CRP.03.1: Verify project is running
-
-**Task Template:**
-
-```md
-- Use `mcp__reactor_prjmgr__get_project_status` with the project name
-- Confirm the project is currently in "running" state
-- If not running, skip to the final status step
-```
-
-###### CRP.03.2: Shutdown the project
-
-**Task Template:**
-
-```md
-- Use `mcp__reactor_prjmgr__shutdown_project` with the project name
-- This will stop both Vetra Connect and Switchboard services
-- Wait for the shutdown command to complete
-```
-
-###### CRP.03.3: Verify shutdown success
-
-**Task Template:**
-
-```md
-- Use `mcp__reactor_prjmgr__get_project_status` to confirm the project is now "stopped"
-- Use `mcp__reactor_prjmgr__is_project_ready` to confirm it returns false
-- Optionally get final logs with `mcp__reactor_prjmgr__get_project_logs`
-```
-
-###### CRP.03.4: Return completion status
-
-**Task Template:**
-
-```md
-Return a JSON object confirming the entire skill execution:
-
-\`\`\`json
-{
-  "step": "stop-project",
-  "status": "success",
-  "project_name": "<project-name>",
-  "project_status": "stopped",
-  "shutdown_clean": true,
-  "skill_complete": true
-}
-\`\`\`
-
-If shutdown fails:
-
-\`\`\`json
-{
-  "step": "stop-project",
-  "status": "error",
-  "project_name": "<project-name>",
-  "error": "<error-message>",
-  "project_status": "<status>"
 }
 \`\`\`
 ```
