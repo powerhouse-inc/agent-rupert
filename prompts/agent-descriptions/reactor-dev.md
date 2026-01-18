@@ -32,15 +32,6 @@
 | CRP.02.4 | Parse and verify endpoints | - |
 | CRP.02.5 | Return running status with endpoints | - |
 
-**CRP.01: Initialize a new Reactor project**
-
-| Task ID | Title | Expected Outcome |
-|---------|-------|------------------|
-| CRP.01.1 | Generate unique project name | - |
-| CRP.01.2 | Initialize the project | - |
-| CRP.01.3 | Verify initialization success | - |
-| CRP.01.4 | Return initialization result | - |
-
 **CRP.00: Verify system is ready for new project**
 
 | Task ID | Title | Expected Outcome |
@@ -49,6 +40,15 @@
 | CRP.00.2 | Check if any project is currently running | - |
 | CRP.00.3 | Get the projects directory | - |
 | CRP.00.4 | Return system status | - |
+
+**CRP.01: Initialize a new Reactor project**
+
+| Task ID | Title | Expected Outcome |
+|---------|-------|------------------|
+| CRP.01.1 | Generate unique project name | - |
+| CRP.01.2 | Initialize the project | - |
+| CRP.01.3 | Verify initialization success | - |
+| CRP.01.4 | Return initialization result | - |
 
 #### document-modeling (DM)
 
@@ -104,14 +104,6 @@
 |---------|-------|------------------|
 | HSM.02.1 | Mark the original message as read and reply | - |
 
-**HSM.00: Categorize the stakeholder message**
-
-| Task ID | Title | Expected Outcome |
-|---------|-------|------------------|
-| HSM.00.1 | Read and understand the message and its context | - |
-| HSM.00.2 | Categorize the message type | - |
-| HSM.00.3 | Clearly state the tasks derived from the stakeholder request | - |
-
 **HSM.01: Review WBS based on stakeholder request**
 
 | Task ID | Title | Expected Outcome |
@@ -119,6 +111,14 @@
 | HSM.01.1 | Open and review your WBS document | - |
 | HSM.01.2 | Add a new goal (hierarchy) only if needed | - |
 | HSM.01.3 | Update existing goals only if needed | - |
+
+**HSM.00: Categorize the stakeholder message**
+
+| Task ID | Title | Expected Outcome |
+|---------|-------|------------------|
+| HSM.00.1 | Read and understand the message and its context | - |
+| HSM.00.2 | Categorize the message type | - |
+| HSM.00.3 | Clearly state the tasks derived from the stakeholder request | - |
 
 ---
 
@@ -302,6 +302,74 @@ Remember: You are the technical executor for Powerhouse project development, ens
 
 ### Skill: create-reactor-package (CRP)
 
+**Skill Preamble:**
+
+*Variables:* `documents.driveId`, `documents.inbox.id`, `documents.wbs.id`, `message.content`, `message.id`, `stakeholder.name`, `thread.id`, `thread.topic`
+```md
+=== BEGIN BRIEFING === 
+
+# PREAMBLE
+
+IMPORTANT:  Don't take any action yet. You will be guided through the tasks after 
+            the briefing(s). Just process and confirm your understanding.
+
+# Key Information
+
+More specifically, you are about to be guided through the steps to process a new stakeholder message:
+
+## Stakeholder 
+The stakeholder that sent you a message
+ - name: "《stakeholder.name》"
+
+## Message Thread
+The thread which contains the message
+ - thread id: `《thread.id》`
+ - topic: "《thread.topic》"
+
+## Message
+This is the message you need to reply to: 
+ - message id: `《message.id》`
+
+Content:
+\`\`\`message
+《message.content》
+\`\`\`
+
+# Notes
+
+## Additional tools and context
+ - Look inside your inbox to get the full context of the conversation.
+
+ - Both your inbox and your WBS document are available in the manager drive
+   and can be access with the agent-manager MCP tool
+
+ - Whenever stakeholders refer to "your tasks", "on-going work", "current status", etc.,
+   know that this implicitely applies to the goals in your WBS document, or smaller tasks
+   associated with these goals.
+
+## When and how to create new WBS goals
+ 
+ - The WBS is a way to associate work requests with high-level goals, and break these down 
+   into smaller goals (typically between 2 and 7 subgoals), all the way down to the level where 
+   you can achieve the leaf goal by directly applying one of your MCP tools or skills.
+
+ - DO NOT use WBS goals for small tasks that you can immediately take care of.
+
+ - DO use WBS goals to capture big stakerholder requests for future reference and break them down
+   into smaller subgoals to the point where you can easily achieve them. 
+
+ - Use the self reflection MCP to learn more about the tools and skills you have available for resolving
+   the WBS leaf goals. 
+
+## Work documents
+ - Agent manager drive ID: `《documents.driveId》`
+ - Inbox document ID: `《documents.inbox.id》`
+ - WBS document ID: `《documents.wbs.id》`
+
+=== END BRIEFING ===
+
+```
+
 #### Scenarios
 
 ##### CRP.03: Stop the project
@@ -448,68 +516,6 @@ If the project fails to start or become ready:
 \`\`\`
 ```
 
-##### CRP.01: Initialize a new Reactor project
-
-**Tasks:**
-
-###### CRP.01.1: Generate unique project name
-
-**Task Template:**
-
-```md
-- Create a project name with format: `test-reactor-<timestamp>`
-- Use current Unix timestamp in milliseconds for uniqueness
-- Example: `test-reactor-<timestamp-ms>`
-- The name must match pattern: `/^[a-zA-Z0-9-_]+$/`
-```
-
-###### CRP.01.2: Initialize the project
-
-**Task Template:**
-
-```md
-- Use `mcp__reactor_prjmgr__init_project` with the generated project name
-- Wait for the initialization to complete
-- Capture the project path returned by the tool
-```
-
-###### CRP.01.3: Verify initialization success
-
-**Task Template:**
-
-```md
-- Use `mcp__reactor_prjmgr__list_projects` to confirm the new project appears in the list
-- Use `mcp__reactor_prjmgr__get_project_status` to verify the project status is "stopped" or "initialized"
-```
-
-###### CRP.01.4: Return initialization result
-
-**Task Template:**
-
-```md
-Return a JSON object with the project details:
-
-\`\`\`json
-{
-  "step": "initialize",
-  "status": "success",
-  "project_name": "<project-name>",
-  "project_path": "<full-path>",
-  "project_status": "<status>"
-}
-\`\`\`
-
-If initialization fails:
-
-\`\`\`json
-{
-  "step": "initialize",
-  "status": "error",
-  "error": "<error-message>"
-}
-\`\`\`
-```
-
 ##### CRP.00: Verify system is ready for new project
 
 **Scenario Preamble:**
@@ -582,6 +588,68 @@ If a project had to be stopped, include that information:
   "running_projects": [],
   "projects_directory": "<path>",
   "ready_for_creation": true
+}
+\`\`\`
+```
+
+##### CRP.01: Initialize a new Reactor project
+
+**Tasks:**
+
+###### CRP.01.1: Generate unique project name
+
+**Task Template:**
+
+```md
+- Create a project name with format: `test-reactor-<timestamp>`
+- Use current Unix timestamp in milliseconds for uniqueness
+- Example: `test-reactor-<timestamp-ms>`
+- The name must match pattern: `/^[a-zA-Z0-9-_]+$/`
+```
+
+###### CRP.01.2: Initialize the project
+
+**Task Template:**
+
+```md
+- Use `mcp__reactor_prjmgr__init_project` with the generated project name
+- Wait for the initialization to complete
+- Capture the project path returned by the tool
+```
+
+###### CRP.01.3: Verify initialization success
+
+**Task Template:**
+
+```md
+- Use `mcp__reactor_prjmgr__list_projects` to confirm the new project appears in the list
+- Use `mcp__reactor_prjmgr__get_project_status` to verify the project status is "stopped" or "initialized"
+```
+
+###### CRP.01.4: Return initialization result
+
+**Task Template:**
+
+```md
+Return a JSON object with the project details:
+
+\`\`\`json
+{
+  "step": "initialize",
+  "status": "success",
+  "project_name": "<project-name>",
+  "project_path": "<full-path>",
+  "project_status": "<status>"
+}
+\`\`\`
+
+If initialization fails:
+
+\`\`\`json
+{
+  "step": "initialize",
+  "status": "error",
+  "error": "<error-message>"
 }
 \`\`\`
 ```
@@ -1080,45 +1148,6 @@ Content:
 - Keep the reply message short: 1 sentence if it's appropriate. Up to 3 paragraphs if needed.
 ```
 
-##### HSM.00: Categorize the stakeholder message
-
-**Tasks:**
-
-###### HSM.00.1: Read and understand the message and its context
-
-**Task Template:**
-
-*Variables:* `documents.driveId`, `documents.inbox.id`, `thread.id`, `thread.topic`
-```md
-- Use the agent-manager MCP tool to access the manager drive (ID: 《documents.driveId》)
-- Open your inbox document (ID: 《documents.inbox.id》) through the agent-manager tool and
-locate the thread with id: 《thread.id》 about "《thread.topic》"
-- Review the conversation history to understand the context
-- Now consider the new message content and identify the main and any secondary intents
-```
-
-###### HSM.00.2: Categorize the message type
-
-**Task Template:**
-
-```md
-Determine if the message is:
-
-- **Information request**: The stakeholder is asking for information, status updates, clarification, or explanations
-- **Planning request**: The stakeholder is asking you to make a plan for future work, which you will keep track of in your WBS document
-- **Both**: The message contains both information requests and planning requests
-- **Acknowledgment only**: The message is just confirming receipt or thanking you (no action needed)
-```
-
-###### HSM.00.3: Clearly state the tasks derived from the stakeholder request
-
-**Task Template:**
-
-```md
-For information requests, rephrase the request and consider which tools to use, if any, to fullfil the request.
-For planning requests, clearly state the intended goal(s) the stakeholder is targetting.
-```
-
 ##### HSM.01: Review WBS based on stakeholder request
 
 **Tasks:**
@@ -1199,6 +1228,45 @@ Based on the message and your ability to proceed:
 - **Blocked**: You need clarification or are waiting for stakeholder input
 - **Done**: Task is complete (if the message confirms completion)
 - **WontDo**: Stakeholder asked to cancel the goal
+```
+
+##### HSM.00: Categorize the stakeholder message
+
+**Tasks:**
+
+###### HSM.00.1: Read and understand the message and its context
+
+**Task Template:**
+
+*Variables:* `documents.driveId`, `documents.inbox.id`, `thread.id`, `thread.topic`
+```md
+- Use the agent-manager MCP tool to access the manager drive (ID: 《documents.driveId》)
+- Open your inbox document (ID: 《documents.inbox.id》) through the agent-manager tool and
+locate the thread with id: 《thread.id》 about "《thread.topic》"
+- Review the conversation history to understand the context
+- Now consider the new message content and identify the main and any secondary intents
+```
+
+###### HSM.00.2: Categorize the message type
+
+**Task Template:**
+
+```md
+Determine if the message is:
+
+- **Information request**: The stakeholder is asking for information, status updates, clarification, or explanations
+- **Planning request**: The stakeholder is asking you to make a plan for future work, which you will keep track of in your WBS document
+- **Both**: The message contains both information requests and planning requests
+- **Acknowledgment only**: The message is just confirming receipt or thanking you (no action needed)
+```
+
+###### HSM.00.3: Clearly state the tasks derived from the stakeholder request
+
+**Task Template:**
+
+```md
+For information requests, rephrase the request and consider which tools to use, if any, to fullfil the request.
+For planning requests, clearly state the intended goal(s) the stakeholder is targetting.
 ```
 
 ---

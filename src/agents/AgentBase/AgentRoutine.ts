@@ -1,4 +1,4 @@
-import { ScenarioExecutionResult, SkillExecutionResult, TaskResponse } from "../../prompts/PromptDriver.js";
+import { PromptDriver, ScenarioExecutionResult, SkillExecutionResult, TaskResponse } from "../../prompts/PromptDriver.js";
 import { IScenarioFlow } from "../../prompts/flows/IScenarioFlow.js";
 import { ISkillFlow } from "../../prompts/flows/ISkillFlow.js";
 import { AgentInboxDocument } from "powerhouse-agent/document-models/agent-inbox";

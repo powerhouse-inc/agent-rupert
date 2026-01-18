@@ -7,6 +7,8 @@ import { MemorySkillsRepository } from "../../prompts/MemorySkillsRepository.js"
 import { PromptDriver } from "../../prompts/PromptDriver.js";
 import type { IAgentBrain } from "../IAgentBrain.js";
 
+
+
 export class WbsRoutineHandler {
     
     /**
@@ -39,10 +41,11 @@ export class WbsRoutineHandler {
                     const skill = goalChain.find(g => g.instructions?.workType == "SKILL")?.instructions?.workId;
                     const scenario = goalChain.find(g => g.instructions?.workType == "SCENARIO")?.instructions?.workId;
 
-                    console.log(skill, scenario, promptDriver?.getRepository().getScenarioRequiredVariables(
-                        skill || 'default', 
-                        scenario || 'unknown'
-                    ));
+                    console.log(`Skill: ${skill}, Scenario: ${scenario}`);
+                    if (skill && scenario && promptDriver) {
+                        const vars = promptDriver.getRepository().getScenarioRequiredVariables(skill, scenario);
+                        console.log(`Required variables (${vars.length}):`, vars);
+                    }
                     
                 } catch (error) {
                     console.error(`Failed to mark goal ${nextGoal.id} as IN_PROGRESS:`, error);
