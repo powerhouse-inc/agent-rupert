@@ -13,24 +13,6 @@
 
 #### create-reactor-package (CRP)
 
-**CRP.00: Verify system is ready for new project**
-
-| Task ID | Title | Expected Outcome |
-|---------|-------|------------------|
-| CRP.00.1 | List existing projects | - |
-| CRP.00.2 | Check if any project is currently running | - |
-| CRP.00.3 | Get the projects directory | - |
-| CRP.00.4 | Return system status | - |
-
-**CRP.01: Initialize a new Reactor project**
-
-| Task ID | Title | Expected Outcome |
-|---------|-------|------------------|
-| CRP.01.1 | Generate unique project name | - |
-| CRP.01.2 | Initialize the project | - |
-| CRP.01.3 | Verify initialization success | - |
-| CRP.01.4 | Return initialization result | - |
-
 **CRP.02: Run the project and capture Vetra MCP endpoint**
 
 | Task ID | Title | Expected Outcome |
@@ -50,7 +32,35 @@
 | CRP.03.3 | Verify shutdown success | - |
 | CRP.03.4 | Return completion status | - |
 
+**CRP.01: Initialize a new Reactor project**
+
+| Task ID | Title | Expected Outcome |
+|---------|-------|------------------|
+| CRP.01.1 | Generate unique project name | - |
+| CRP.01.2 | Initialize the project | - |
+| CRP.01.3 | Verify initialization success | - |
+| CRP.01.4 | Return initialization result | - |
+
+**CRP.00: Verify system is ready for new project**
+
+| Task ID | Title | Expected Outcome |
+|---------|-------|------------------|
+| CRP.00.1 | List existing projects | - |
+| CRP.00.2 | Check if any project is currently running | - |
+| CRP.00.3 | Get the projects directory | - |
+| CRP.00.4 | Return system status | - |
+
 #### document-modeling (DM)
+
+**DM.01: Write the document model description**
+
+| Task ID | Title | Expected Outcome |
+|---------|-------|------------------|
+| DM.01.1 | Start by listing the users who will use the new document model | - |
+| DM.01.2 | Come up with a good, concise description | - |
+| DM.01.3 | Come up with a document type identifier that fits the description | - |
+| DM.01.4 | Come up with a good document file extension | - |
+| DM.01.5 | Fill out the remaining package information in Vetra Studio drive | - |
 
 **DM.00: Check the prerequisites for creating a document model**
 
@@ -63,17 +73,17 @@
 | DM.00.5 | Create the document model specification document if needed | - |
 | DM.00.6 | Provide a stakeholder update | - |
 
-**DM.01: Write the document model description**
+#### document-editor-implementation (ED)
+
+**ED.01: Write the document model description**
 
 | Task ID | Title | Expected Outcome |
 |---------|-------|------------------|
-| DM.01.1 | Start by listing the users who will use the new document model | - |
-| DM.01.2 | Come up with a good, concise description | - |
-| DM.01.3 | Come up with a document type identifier that fits the description | - |
-| DM.01.4 | Come up with a good document file extension | - |
-| DM.01.5 | Fill out the remaining package information in Vetra Studio drive | - |
-
-#### document-editor-implementation (ED)
+| ED.01.1 | Start by listing the users who will use the new document model | - |
+| ED.01.2 | Come up with a good, concise description | - |
+| ED.01.3 | Come up with a document type identifier that fits the description | - |
+| ED.01.4 | Come up with a good document file extension | - |
+| ED.01.5 | Fill out the remaining package information in Vetra Studio drive | - |
 
 **ED.00: Check the prerequisites for creating a document model**
 
@@ -86,25 +96,13 @@
 | ED.00.5 | Create the document model specification document if needed | - |
 | ED.00.6 | Provide a stakeholder update | - |
 
-**ED.01: Write the document model description**
-
-| Task ID | Title | Expected Outcome |
-|---------|-------|------------------|
-| ED.01.1 | Start by listing the users who will use the new document model | - |
-| ED.01.2 | Come up with a good, concise description | - |
-| ED.01.3 | Come up with a document type identifier that fits the description | - |
-| ED.01.4 | Come up with a good document file extension | - |
-| ED.01.5 | Fill out the remaining package information in Vetra Studio drive | - |
-
 #### handle-stakeholder-message (HSM)
 
-**HSM.00: Categorize the stakeholder message**
+**HSM.02: Send the reply through your inbox**
 
 | Task ID | Title | Expected Outcome |
 |---------|-------|------------------|
-| HSM.00.1 | Read and understand the message and its context | - |
-| HSM.00.2 | Categorize the message type | - |
-| HSM.00.3 | Clearly state the tasks derived from the stakeholder request | - |
+| HSM.02.1 | Mark the original message as read and reply | - |
 
 **HSM.01: Review WBS based on stakeholder request**
 
@@ -114,11 +112,13 @@
 | HSM.01.2 | Add a new goal (hierarchy) only if needed | - |
 | HSM.01.3 | Update existing goals only if needed | - |
 
-**HSM.02: Send the reply through your inbox**
+**HSM.00: Categorize the stakeholder message**
 
 | Task ID | Title | Expected Outcome |
 |---------|-------|------------------|
-| HSM.02.1 | Mark the original message as read and reply | - |
+| HSM.00.1 | Read and understand the message and its context | - |
+| HSM.00.2 | Categorize the message type | - |
+| HSM.00.3 | Clearly state the tasks derived from the stakeholder request | - |
 
 ---
 
@@ -304,144 +304,6 @@ Remember: You are the technical executor for Powerhouse project development, ens
 
 #### Scenarios
 
-##### CRP.00: Verify system is ready for new project
-
-**Scenario Preamble:**
-
-```md
-Note on execution:
-
-- This skill demonstrates automated creation and management of Reactor packages
-- Ensure no other projects are running before creating a new one
-- All outputs should be in JSON format for easy parsing and validation
-```
-
-**Tasks:**
-
-###### CRP.00.1: List existing projects
-
-**Task Template:**
-
-```md
-- Use the `mcp__reactor_prjmgr__list_projects` tool to get all existing projects
-- Note how many projects already exist in the system
-- Store the list for reference
-```
-
-###### CRP.00.2: Check if any project is currently running
-
-**Task Template:**
-
-```md
-- For each existing project, use `mcp__reactor_prjmgr__get_project_status` to check its status
-- Verify that NO project is currently in "running" state
-- If a project is running, use `mcp__reactor_prjmgr__shutdown_project` to stop it first
-```
-
-###### CRP.00.3: Get the projects directory
-
-**Task Template:**
-
-```md
-- Use the `mcp__reactor_prjmgr__get_projects_dir` tool to get the base directory
-- This will be needed to verify project creation in later steps
-```
-
-###### CRP.00.4: Return system status
-
-**Task Template:**
-
-```md
-Return a JSON object confirming the system is ready:
-
-\`\`\`json
-{
-  "step": "verify-ready",
-  "status": "success",
-  "existing_projects_count": <number>,
-  "running_projects": [],
-  "projects_directory": "<path>",
-  "ready_for_creation": true
-}
-\`\`\`
-
-If a project had to be stopped, include that information:
-
-\`\`\`json
-{
-  "step": "verify-ready",
-  "status": "success",
-  "existing_projects_count": <number>,
-  "stopped_project": "<project-name>",
-  "running_projects": [],
-  "projects_directory": "<path>",
-  "ready_for_creation": true
-}
-\`\`\`
-```
-
-##### CRP.01: Initialize a new Reactor project
-
-**Tasks:**
-
-###### CRP.01.1: Generate unique project name
-
-**Task Template:**
-
-```md
-- Create a project name with format: `test-reactor-<timestamp>`
-- Use current Unix timestamp in milliseconds for uniqueness
-- Example: `test-reactor-<timestamp-ms>`
-- The name must match pattern: `/^[a-zA-Z0-9-_]+$/`
-```
-
-###### CRP.01.2: Initialize the project
-
-**Task Template:**
-
-```md
-- Use `mcp__reactor_prjmgr__init_project` with the generated project name
-- Wait for the initialization to complete
-- Capture the project path returned by the tool
-```
-
-###### CRP.01.3: Verify initialization success
-
-**Task Template:**
-
-```md
-- Use `mcp__reactor_prjmgr__list_projects` to confirm the new project appears in the list
-- Use `mcp__reactor_prjmgr__get_project_status` to verify the project status is "stopped" or "initialized"
-```
-
-###### CRP.01.4: Return initialization result
-
-**Task Template:**
-
-```md
-Return a JSON object with the project details:
-
-\`\`\`json
-{
-  "step": "initialize",
-  "status": "success",
-  "project_name": "<project-name>",
-  "project_path": "<full-path>",
-  "project_status": "<status>"
-}
-\`\`\`
-
-If initialization fails:
-
-\`\`\`json
-{
-  "step": "initialize",
-  "status": "error",
-  "error": "<error-message>"
-}
-\`\`\`
-```
-
 ##### CRP.02: Run the project and capture Vetra MCP endpoint
 
 **Tasks:**
@@ -586,6 +448,144 @@ If shutdown fails:
 \`\`\`
 ```
 
+##### CRP.01: Initialize a new Reactor project
+
+**Tasks:**
+
+###### CRP.01.1: Generate unique project name
+
+**Task Template:**
+
+```md
+- Create a project name with format: `test-reactor-<timestamp>`
+- Use current Unix timestamp in milliseconds for uniqueness
+- Example: `test-reactor-<timestamp-ms>`
+- The name must match pattern: `/^[a-zA-Z0-9-_]+$/`
+```
+
+###### CRP.01.2: Initialize the project
+
+**Task Template:**
+
+```md
+- Use `mcp__reactor_prjmgr__init_project` with the generated project name
+- Wait for the initialization to complete
+- Capture the project path returned by the tool
+```
+
+###### CRP.01.3: Verify initialization success
+
+**Task Template:**
+
+```md
+- Use `mcp__reactor_prjmgr__list_projects` to confirm the new project appears in the list
+- Use `mcp__reactor_prjmgr__get_project_status` to verify the project status is "stopped" or "initialized"
+```
+
+###### CRP.01.4: Return initialization result
+
+**Task Template:**
+
+```md
+Return a JSON object with the project details:
+
+\`\`\`json
+{
+  "step": "initialize",
+  "status": "success",
+  "project_name": "<project-name>",
+  "project_path": "<full-path>",
+  "project_status": "<status>"
+}
+\`\`\`
+
+If initialization fails:
+
+\`\`\`json
+{
+  "step": "initialize",
+  "status": "error",
+  "error": "<error-message>"
+}
+\`\`\`
+```
+
+##### CRP.00: Verify system is ready for new project
+
+**Scenario Preamble:**
+
+```md
+Note on execution:
+
+- This skill demonstrates automated creation and management of Reactor packages
+- Ensure no other projects are running before creating a new one
+- All outputs should be in JSON format for easy parsing and validation
+```
+
+**Tasks:**
+
+###### CRP.00.1: List existing projects
+
+**Task Template:**
+
+```md
+- Use the `mcp__reactor_prjmgr__list_projects` tool to get all existing projects
+- Note how many projects already exist in the system
+- Store the list for reference
+```
+
+###### CRP.00.2: Check if any project is currently running
+
+**Task Template:**
+
+```md
+- For each existing project, use `mcp__reactor_prjmgr__get_project_status` to check its status
+- Verify that NO project is currently in "running" state
+- If a project is running, use `mcp__reactor_prjmgr__shutdown_project` to stop it first
+```
+
+###### CRP.00.3: Get the projects directory
+
+**Task Template:**
+
+```md
+- Use the `mcp__reactor_prjmgr__get_projects_dir` tool to get the base directory
+- This will be needed to verify project creation in later steps
+```
+
+###### CRP.00.4: Return system status
+
+**Task Template:**
+
+```md
+Return a JSON object confirming the system is ready:
+
+\`\`\`json
+{
+  "step": "verify-ready",
+  "status": "success",
+  "existing_projects_count": <number>,
+  "running_projects": [],
+  "projects_directory": "<path>",
+  "ready_for_creation": true
+}
+\`\`\`
+
+If a project had to be stopped, include that information:
+
+\`\`\`json
+{
+  "step": "verify-ready",
+  "status": "success",
+  "existing_projects_count": <number>,
+  "stopped_project": "<project-name>",
+  "running_projects": [],
+  "projects_directory": "<path>",
+  "ready_for_creation": true
+}
+\`\`\`
+```
+
 ---
 
 ### Skill: document-modeling (DM)
@@ -598,6 +598,95 @@ in a document editor component in Connect, or through a Switchboard API endpoint
 ```
 
 #### Scenarios
+
+##### DM.01: Write the document model description
+
+**Tasks:**
+
+###### DM.01.1: Start by listing the users who will use the new document model
+
+**Task Template:**
+
+```md
+### Example
+
+\`\`\`
+- Pizza Plaza restaurant owner
+- Pizza Plaza customers
+- Pizza Plaza kitchen chefs
+\`\`\`
+```
+
+###### DM.01.2: Come up with a good, concise description
+
+**Task Template:**
+
+```md
+A good description includes its users, how they will use the document in a typical workflow, and it narrows
+its scope as much as possible by describing what will not be included.
+
+### Example
+
+\`\`\`
+The Pizza Plaza order document will be used by the restaurant owner, their customers and the kitchen chefs. 
+The restaurant owner will prepare the document by defining the menu categories, options and prices in it. 
+The customer will then use this menu to add the pizzas, sides and drinks they want to order to their basket. 
+They will see the itemized prices and the total. Once the order is placed, a kitchen chef will check off the
+items one by one as ready.
+
+The order document does not support customization options for the items and it does not track the entire lifecycle
+of payment, delivery, etc. It is meant to be a reliable reference for what the restaurant offers, what the customers 
+wants, and what the kitchen has prepared.
+\`\`\`
+
+### Restrictions
+
+- The description must not be longer than two or three paragraphs of text
+- The scope of a document model should be "small" in the sense that the state of the documents it describes
+should not contain more than a couple of kilobytes of JSON on average.
+- The document model should be "simple" in the sense that it should focus on a single purpose and its business
+logic should be precise and predictable: easy to implement and test.
+
+### Wrap-up
+
+- Add the description to the specification document in Vetra Studio drive.
+```
+
+###### DM.01.3: Come up with a document type identifier that fits the description
+
+**Task Template:**
+
+```md
+- The document type must be of the form `{organization}/{document-type-name}`
+- For example: `pizza-plaza/order`
+
+### Wrap-up
+
+- Set the document type in the specification document in Vetra Studio drive.
+```
+
+###### DM.01.4: Come up with a good document file extension
+
+**Task Template:**
+
+```md
+- Reduce the document type to an abbreviation of 2 to 4 characters with a dot in front
+- Avoid abbreviations with problematice connotations
+- For example: `pizza-plaza/order` => `.ppo`
+- For example: `software-engineering/xml` => `.sxml`, not `.sex`
+
+### Wrap-up
+
+- Set the document extension in the specification document in Vetra Studio drive
+```
+
+###### DM.01.5: Fill out the remaining package information in Vetra Studio drive
+
+**Task Template:**
+
+```md
+-
+```
 
 ##### DM.00: Check the prerequisites for creating a document model
 
@@ -712,11 +801,17 @@ based on your considerations to this point
 - Make sure to share the Connect, Switchboard and MCP endpoints with the stakeholder for them to follow along.
 ```
 
-##### DM.01: Write the document model description
+---
+
+### Skill: document-editor-implementation (ED)
+
+#### Scenarios
+
+##### ED.01: Write the document model description
 
 **Tasks:**
 
-###### DM.01.1: Start by listing the users who will use the new document model
+###### ED.01.1: Start by listing the users who will use the new document model
 
 **Task Template:**
 
@@ -730,7 +825,7 @@ based on your considerations to this point
 \`\`\`
 ```
 
-###### DM.01.2: Come up with a good, concise description
+###### ED.01.2: Come up with a good, concise description
 
 **Task Template:**
 
@@ -765,7 +860,7 @@ logic should be precise and predictable: easy to implement and test.
 - Add the description to the specification document in Vetra Studio drive.
 ```
 
-###### DM.01.3: Come up with a document type identifier that fits the description
+###### ED.01.3: Come up with a document type identifier that fits the description
 
 **Task Template:**
 
@@ -778,7 +873,7 @@ logic should be precise and predictable: easy to implement and test.
 - Set the document type in the specification document in Vetra Studio drive.
 ```
 
-###### DM.01.4: Come up with a good document file extension
+###### ED.01.4: Come up with a good document file extension
 
 **Task Template:**
 
@@ -793,19 +888,13 @@ logic should be precise and predictable: easy to implement and test.
 - Set the document extension in the specification document in Vetra Studio drive
 ```
 
-###### DM.01.5: Fill out the remaining package information in Vetra Studio drive
+###### ED.01.5: Fill out the remaining package information in Vetra Studio drive
 
 **Task Template:**
 
 ```md
 -
 ```
-
----
-
-### Skill: document-editor-implementation (ED)
-
-#### Scenarios
 
 ##### ED.00: Check the prerequisites for creating a document model
 
@@ -902,95 +991,6 @@ based on your considerations to this point
 - Make sure to share the Connect, Switchboard and MCP endpoints with the stakeholder for them to follow along.
 ```
 
-##### ED.01: Write the document model description
-
-**Tasks:**
-
-###### ED.01.1: Start by listing the users who will use the new document model
-
-**Task Template:**
-
-```md
-### Example
-
-\`\`\`
-- Pizza Plaza restaurant owner
-- Pizza Plaza customers
-- Pizza Plaza kitchen chefs
-\`\`\`
-```
-
-###### ED.01.2: Come up with a good, concise description
-
-**Task Template:**
-
-```md
-A good description includes its users, how they will use the document in a typical workflow, and it narrows
-its scope as much as possible by describing what will not be included.
-
-### Example
-
-\`\`\`
-The Pizza Plaza order document will be used by the restaurant owner, their customers and the kitchen chefs. 
-The restaurant owner will prepare the document by defining the menu categories, options and prices in it. 
-The customer will then use this menu to add the pizzas, sides and drinks they want to order to their basket. 
-They will see the itemized prices and the total. Once the order is placed, a kitchen chef will check off the
-items one by one as ready.
-
-The order document does not support customization options for the items and it does not track the entire lifecycle
-of payment, delivery, etc. It is meant to be a reliable reference for what the restaurant offers, what the customers 
-wants, and what the kitchen has prepared.
-\`\`\`
-
-### Restrictions
-
-- The description must not be longer than two or three paragraphs of text
-- The scope of a document model should be "small" in the sense that the state of the documents it describes
-should not contain more than a couple of kilobytes of JSON on average.
-- The document model should be "simple" in the sense that it should focus on a single purpose and its business
-logic should be precise and predictable: easy to implement and test.
-
-### Wrap-up
-
-- Add the description to the specification document in Vetra Studio drive.
-```
-
-###### ED.01.3: Come up with a document type identifier that fits the description
-
-**Task Template:**
-
-```md
-- The document type must be of the form `{organization}/{document-type-name}`
-- For example: `pizza-plaza/order`
-
-### Wrap-up
-
-- Set the document type in the specification document in Vetra Studio drive.
-```
-
-###### ED.01.4: Come up with a good document file extension
-
-**Task Template:**
-
-```md
-- Reduce the document type to an abbreviation of 2 to 4 characters with a dot in front
-- Avoid abbreviations with problematice connotations
-- For example: `pizza-plaza/order` => `.ppo`
-- For example: `software-engineering/xml` => `.sxml`, not `.sex`
-
-### Wrap-up
-
-- Set the document extension in the specification document in Vetra Studio drive
-```
-
-###### ED.01.5: Fill out the remaining package information in Vetra Studio drive
-
-**Task Template:**
-
-```md
--
-```
-
 ---
 
 ### Skill: handle-stakeholder-message (HSM)
@@ -1065,43 +1065,19 @@ Content:
 
 #### Scenarios
 
-##### HSM.00: Categorize the stakeholder message
+##### HSM.02: Send the reply through your inbox
 
 **Tasks:**
 
-###### HSM.00.1: Read and understand the message and its context
+###### HSM.02.1: Mark the original message as read and reply
 
 **Task Template:**
 
-*Variables:* `documents.driveId`, `documents.inbox.id`, `thread.id`, `thread.topic`
+*Variables:* `message.id`, `thread.id`
 ```md
-- Use the agent-manager MCP tool to access the manager drive (ID: 《documents.driveId》)
-- Open your inbox document (ID: 《documents.inbox.id》) through the agent-manager tool and
-locate the thread with id: 《thread.id》 about "《thread.topic》"
-- Review the conversation history to understand the context
-- Now consider the new message content and identify the main and any secondary intents
-```
-
-###### HSM.00.2: Categorize the message type
-
-**Task Template:**
-
-```md
-Determine if the message is:
-
-- **Information request**: The stakeholder is asking for information, status updates, clarification, or explanations
-- **Planning request**: The stakeholder is asking you to make a plan for future work, which you will keep track of in your WBS document
-- **Both**: The message contains both information requests and planning requests
-- **Acknowledgment only**: The message is just confirming receipt or thanking you (no action needed)
-```
-
-###### HSM.00.3: Clearly state the tasks derived from the stakeholder request
-
-**Task Template:**
-
-```md
-For information requests, rephrase the request and consider which tools to use, if any, to fullfil the request.
-For planning requests, clearly state the intended goal(s) the stakeholder is targetting.
+- Use the agent-manager MCP tool to mark the stakeholder's message 《message.id》 as read
+- Use the agent-manager MCP tool to add your reply to the thread 《thread.id》.
+- Keep the reply message short: 1 sentence if it's appropriate. Up to 3 paragraphs if needed.
 ```
 
 ##### HSM.01: Review WBS based on stakeholder request
@@ -1186,19 +1162,43 @@ Based on the message and your ability to proceed:
 - **WontDo**: Stakeholder asked to cancel the goal
 ```
 
-##### HSM.02: Send the reply through your inbox
+##### HSM.00: Categorize the stakeholder message
 
 **Tasks:**
 
-###### HSM.02.1: Mark the original message as read and reply
+###### HSM.00.1: Read and understand the message and its context
 
 **Task Template:**
 
-*Variables:* `message.id`, `thread.id`
+*Variables:* `documents.driveId`, `documents.inbox.id`, `thread.id`, `thread.topic`
 ```md
-- Use the agent-manager MCP tool to mark the stakeholder's message 《message.id》 as read
-- Use the agent-manager MCP tool to add your reply to the thread 《thread.id》.
-- Keep the reply message short: 1 sentence if it's appropriate. Up to 3 paragraphs if needed.
+- Use the agent-manager MCP tool to access the manager drive (ID: 《documents.driveId》)
+- Open your inbox document (ID: 《documents.inbox.id》) through the agent-manager tool and
+locate the thread with id: 《thread.id》 about "《thread.topic》"
+- Review the conversation history to understand the context
+- Now consider the new message content and identify the main and any secondary intents
+```
+
+###### HSM.00.2: Categorize the message type
+
+**Task Template:**
+
+```md
+Determine if the message is:
+
+- **Information request**: The stakeholder is asking for information, status updates, clarification, or explanations
+- **Planning request**: The stakeholder is asking you to make a plan for future work, which you will keep track of in your WBS document
+- **Both**: The message contains both information requests and planning requests
+- **Acknowledgment only**: The message is just confirming receipt or thanking you (no action needed)
+```
+
+###### HSM.00.3: Clearly state the tasks derived from the stakeholder request
+
+**Task Template:**
+
+```md
+For information requests, rephrase the request and consider which tools to use, if any, to fullfil the request.
+For planning requests, clearly state the intended goal(s) the stakeholder is targetting.
 ```
 
 ---

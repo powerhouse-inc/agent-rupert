@@ -147,7 +147,7 @@ export class WbsRoutineHandler {
         skillTemplate: SkillTemplate | null,
         scenarioTemplate: ScenarioTemplate | null,
         precedingTaskTemplates: ScenarioTaskTemplate[],
-        taskTemplate: ScenarioTaskTemplate | null
+        taskTemplate: ScenarioTaskTemplate | null,
     } | null {
         if (!goalChain || goalChain.length === 0) {
             return null;
@@ -254,14 +254,30 @@ export class WbsRoutineHandler {
             return null;
         }
 
-        // Create a filtered skill template with only the relevant scenario
+        // Create a filtered skill template with only the relevant scenario and tasks
         let filteredSkillTemplate: SkillTemplate;
         
         if (templates.scenarioTemplate) {
-            // Create a skill with just the one scenario
+            // Filter the scenario to only include preceding tasks and the current task
+            const relevantTasks: ScenarioTaskTemplate[] = [
+                ...templates.precedingTaskTemplates
+            ];
+            
+            // Add the current task if it exists
+            if (templates.taskTemplate) {
+                relevantTasks.push(templates.taskTemplate);
+            }
+            
+            // Create a filtered scenario with only relevant tasks
+            const filteredScenario: ScenarioTemplate = {
+                ...templates.scenarioTemplate,
+                tasks: relevantTasks
+            };
+            
+            // Create a skill with just the filtered scenario
             filteredSkillTemplate = {
                 ...templates.skillTemplate,
-                scenarios: [templates.scenarioTemplate]
+                scenarios: [filteredScenario]
             };
         } else {
             // Use the skill as-is if no specific scenario
