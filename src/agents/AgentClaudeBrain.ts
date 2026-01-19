@@ -260,6 +260,43 @@ Reply to this prompt with a very short sentence summary of what you did.
         }
     }
 
+    public setWorkDir(workPath: string) {
+        console.log("Updating workdir / file system paths... BEFORE", this.config.workingDirectory, this.config.fileSystemPaths)
+
+        // Ensure the path is absolute
+        const absolutePath = path.resolve(workPath);
+        
+        // Ensure the directory exists
+        if (!existsSync(absolutePath)) {
+            mkdirSync(absolutePath, { recursive: true });
+        }
+        
+        // Update the working directory for the SDK
+        this.config.workingDirectory = absolutePath;
+        
+        // Preserve existing read paths and add the new working directory
+        const existingReadPaths = this.config.fileSystemPaths?.allowedReadPaths || [];
+        
+        // Ensure all paths are absolute for consistency
+        const absoluteReadPaths = existingReadPaths.map(p => path.resolve(p));
+        
+        // Add the new working directory to read paths if not already present
+        if (!absoluteReadPaths.includes(absolutePath)) {
+            absoluteReadPaths.push(absolutePath);
+        }
+        
+        this.config.fileSystemPaths = {
+            allowedReadPaths: absoluteReadPaths,
+            allowedWritePaths: [ absolutePath ],
+        };
+
+        console.log("Updating workdir / file system paths... AFTER", this.config.workingDirectory, this.config.fileSystemPaths)
+        
+        if (this.logger) {
+            this.logger.info(`   AgentClaudeBrain: Working directory updated to: ${absolutePath}`);
+        }
+    }
+
     /**
      * Stream query results from Claude Agent SDK
      */
@@ -329,37 +366,47 @@ Reply to this prompt with a very short sentence summary of what you did.
                     matcher: "Read|Grep|Glob",
                     hooks: [
                         async (input: { tool_name: string; tool_input: Record<string, unknown> }): Promise<HookJSONOutput> => {
-                            const toolName = input.tool_name;
-                            const toolInput = input.tool_input;
+                            try {
+                                const toolName = input.tool_name;
+                                const toolInput = input.tool_input;
 
-                            if (!['Read', 'Grep', 'Glob'].includes(toolName)) {
+                                if (!['Read', 'Grep', 'Glob'].includes(toolName)) {
+                                    return { continue: true };
+                                }
+
+                                let filePath = '';
+                                if (toolName === 'Read') {
+                                    filePath = (toolInput.file_path as string) || '';
+                                } else if (toolName === 'Grep' || toolName === 'Glob') {
+                                    filePath = (toolInput.path as string) || '.';
+                                }
+
+                                // Check if path is in allowed read paths
+                                const isAllowed = allowedReadPaths.length === 0 || 
+                                    allowedReadPaths.some(allowed => {
+                                        const resolvedAllowed = path.resolve(allowed);
+                                        const resolvedPath = path.resolve(filePath);
+                                        if (resolvedPath.startsWith(resolvedAllowed)) {
+                                            console.log('Allowing read path', resolvedPath);
+                                            return true;
+                                        }
+                                    });
+
+                                if (!isAllowed) {
+                                    console.log('Blocking read path', filePath);
+                                    return {
+                                        decision: 'block',
+                                        stopReason: `Read access denied. Path "${filePath}" is not in allowed read paths: ${allowedReadPaths.join(', ')}`,
+                                        continue: false
+                                    };
+                                }
+
                                 return { continue: true };
+
+                            } catch(e) {
+                                console.error(e);
+                                throw e;
                             }
-
-                            let filePath = '';
-                            if (toolName === 'Read') {
-                                filePath = (toolInput.file_path as string) || '';
-                            } else if (toolName === 'Grep' || toolName === 'Glob') {
-                                filePath = (toolInput.path as string) || '.';
-                            }
-
-                            // Check if path is in allowed read paths
-                            const isAllowed = allowedReadPaths.length === 0 || 
-                                allowedReadPaths.some(allowed => {
-                                    const resolvedAllowed = path.resolve(allowed);
-                                    const resolvedPath = path.resolve(filePath);
-                                    return resolvedPath.startsWith(resolvedAllowed);
-                                });
-
-                            if (!isAllowed) {
-                                return {
-                                    decision: 'block',
-                                    stopReason: `Read access denied. Path "${filePath}" is not in allowed read paths: ${allowedReadPaths.join(', ')}`,
-                                    continue: false
-                                };
-                            }
-
-                            return { continue: true };
                         }
                     ]
                 },
@@ -367,37 +414,46 @@ Reply to this prompt with a very short sentence summary of what you did.
                     matcher: "Write|Edit|MultiEdit",
                     hooks: [
                         async (input: { tool_name: string; tool_input: Record<string, unknown> }): Promise<HookJSONOutput> => {
-                            const toolName = input.tool_name;
-                            const toolInput = input.tool_input;
+                            try { 
+                                const toolName = input.tool_name;
+                                const toolInput = input.tool_input;
 
-                            if (!['Write', 'Edit', 'MultiEdit'].includes(toolName)) {
+                                if (!['Write', 'Edit', 'MultiEdit'].includes(toolName)) {
+                                    return { continue: true };
+                                }
+
+                                let filePath = '';
+                                if (toolName === 'Write' || toolName === 'Edit') {
+                                    filePath = (toolInput.file_path as string) || '';
+                                } else if (toolName === 'MultiEdit') {
+                                    filePath = (toolInput.file_path as string) || '';
+                                }
+
+                                // Check if path is in allowed write paths
+                                const isAllowed = allowedWritePaths.length === 0 || 
+                                    allowedWritePaths.some(allowed => {
+                                        const resolvedAllowed = path.resolve(allowed);
+                                        const resolvedPath = path.resolve(filePath);
+                                        if (resolvedPath.startsWith(resolvedAllowed)) {
+                                            console.log('Allowing write path', resolvedPath);
+                                            return true;
+                                        }
+                                    });
+
+                                if (!isAllowed) {
+                                    console.log('Blocking write path', filePath);
+                                    return {
+                                        decision: 'block',
+                                        stopReason: `Write access denied. Path "${filePath}" is not in allowed write paths: ${allowedWritePaths.join(', ')}`,
+                                        continue: false
+                                    };
+                                }
+
                                 return { continue: true };
+                            } catch(e) {
+                                console.error(e);
+                                throw e;
                             }
-
-                            let filePath = '';
-                            if (toolName === 'Write' || toolName === 'Edit') {
-                                filePath = (toolInput.file_path as string) || '';
-                            } else if (toolName === 'MultiEdit') {
-                                filePath = (toolInput.file_path as string) || '';
-                            }
-
-                            // Check if path is in allowed write paths
-                            const isAllowed = allowedWritePaths.length === 0 || 
-                                allowedWritePaths.some(allowed => {
-                                    const resolvedAllowed = path.resolve(allowed);
-                                    const resolvedPath = path.resolve(filePath);
-                                    return resolvedPath.startsWith(resolvedAllowed);
-                                });
-
-                            if (!isAllowed) {
-                                return {
-                                    decision: 'block',
-                                    stopReason: `Write access denied. Path "${filePath}" is not in allowed write paths: ${allowedWritePaths.join(', ')}`,
-                                    continue: false
-                                };
-                            }
-
-                            return { continue: true };
                         }
                     ]
                 }

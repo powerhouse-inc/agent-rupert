@@ -179,4 +179,10 @@ export class ReactorPackageDevAgent extends AgentBase<IAgentBrain> {
     public getReactor() {
         return super.getReactor();
     }
+
+    public setWorkDir(path: string) {
+        if (this.brain instanceof AgentClaudeBrain) {
+            this.brain.setWorkDir(path);
+        }
+    }
 }

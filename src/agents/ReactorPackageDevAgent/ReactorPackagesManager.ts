@@ -77,6 +77,8 @@ export interface RunProjectResult {
     driveUrl?: string;
     /** The MCP server once vetra has fully started (e.g., http://localhost:4001/mcp) */
     mcpServer?: string;
+    /** The folder of the project */
+    projectPath?: string;
 }
 
 interface VetraRuntimeParams {
@@ -542,6 +544,7 @@ export class ReactorPackagesManager {
             return {
                 success: true,
                 projectName: project.name,
+                projectPath: project.path,
                 connectPort: actualConnectPort,
                 switchboardPort: actualSwitchboardPort,
                 driveUrl: vetraOutputParams.driveUrl || undefined,

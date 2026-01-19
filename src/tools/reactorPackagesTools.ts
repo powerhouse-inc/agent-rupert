@@ -125,6 +125,13 @@ export function createRunProjectTool(manager: ReactorPackagesManager, agent: Rea
                     console.log("MCP Server", result.mcpServer);
                     agent.addMcpEndpoint(`active-project-vetra`, result.mcpServer);
                 }
+
+                if (result.projectPath) {
+                    console.log("Setting agent work dir to project path", result.projectPath);
+                    agent.setWorkDir(result.projectPath);
+                } else {
+                    console.warn("No project path received after project start");
+                }
                 
                 return {
                     content: [{
