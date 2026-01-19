@@ -33,7 +33,7 @@ export class ReactorPackageDevAgent extends AgentBase<IAgentBrain> {
         return {
             type: BrainType.CLAUDE_SDK,  // Use new SDK for advanced capabilities
             apiKey,
-            workingDirectory: './agent-workspace/reactor-package',
+            workingDirectory: '../projects',
             allowedTools: [
                 'Read', 'Write', 'Edit', 'Bash', 'Grep', 'Glob',
                 'mcp__agent-manager-drive__*',  // Allow all MCP tools from agent-manager-drive
@@ -42,8 +42,8 @@ export class ReactorPackageDevAgent extends AgentBase<IAgentBrain> {
                 ...getSelfReflectionMcpToolNames()  // Include self-reflection tools
             ],
             fileSystemPaths: {
-                allowedReadPaths: [process.cwd()],
-                allowedWritePaths: ['./agent-workspace/reactor-package']
+                allowedReadPaths: [process.cwd(), '../projects'],
+                allowedWritePaths: ['../projects']
             },
             model: 'haiku',
             maxTurns: 50

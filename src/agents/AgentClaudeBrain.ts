@@ -272,7 +272,7 @@ Reply to this prompt with a very short sentence summary of what you did.
         }
         
         // Update the working directory for the SDK
-        this.config.workingDirectory = absolutePath;
+        //this.config.workingDirectory = absolutePath;
         
         // Preserve existing read paths and add the new working directory
         const existingReadPaths = this.config.fileSystemPaths?.allowedReadPaths || [];
@@ -322,7 +322,7 @@ Reply to this prompt with a very short sentence summary of what you did.
             mkdirSync(workingDir, { recursive: true });
         }
         
-        const q = query({
+        const quargs: {prompt: string, options: Options} = {
             prompt,
             options: {
                 settingSources: [],  // No filesystem config lookups
@@ -342,7 +342,11 @@ Reply to this prompt with a very short sentence summary of what you did.
                 },
                 permissionMode: this.config.bypassPermissions ? 'bypassPermissions' : 'default'
             }
-        });
+        };
+
+        //console.log("QUARGS (queryStream)", quargs.prompt.substring(0, 100) + "...", quargs.options);
+
+        const q = query(quargs);
 
         for await (const message of q) {
             yield message;
@@ -531,6 +535,8 @@ Reply to this prompt with a very short sentence summary of what you did.
             if (sessionId) {
                 queryOptions.resume = sessionId;
             }
+
+            //console.log("QUARGS (sendMessage)", message.substring(0, 100) + "...", queryOptions);
             
             // MCP servers being passed to query (debugging disabled)
             

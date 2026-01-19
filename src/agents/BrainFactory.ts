@@ -66,7 +66,7 @@ export class BrainFactory {
                 brain = new AgentClaudeBrain({
                     apiKey: config.apiKey,
                     agentManagerMcpUrl: config.agentManagerMcpUrl,
-                    workingDirectory: config.workingDirectory || './agent-workspace',
+                    workingDirectory: config.workingDirectory || '../projects',
                     allowedTools: config.allowedTools,
                     fileSystemPaths: config.fileSystemPaths,
                     model: config.model as any,
