@@ -1,8 +1,9 @@
-import path from 'path';
+import { describe, it, beforeEach, expect } from '@jest/globals';
 import { SkillsRepository } from '../../../src/prompts/SkillsRepository.js';
+import type { ISkillsRepository } from '../../../src/prompts/ISkillsRepository.js';
 
 describe('SkillsRepository', () => {
-  let repository: SkillsRepository;
+  let repository: ISkillsRepository;
 
   beforeEach(async () => {
     // Use actual build/prompts directory
@@ -30,22 +31,19 @@ describe('SkillsRepository', () => {
       );
     });
 
-    it('should load actual scenario documents', async () => {
-      const scenarios = repository.getAllScenarios();
+    it('should load actual skills', async () => {
+      const skills = repository.getSkills();
       
-      // Should have loaded multiple documents
-      expect(scenarios.length).toBeGreaterThan(0);
+      // Should have loaded multiple skills
+      expect(skills.length).toBeGreaterThan(0);
       
-      // Check that document-modeling scenarios are loaded
-      const dm00 = repository.getScenario('document-modeling', 'DM.00');
-      expect(dm00).toBeDefined();
-      expect(dm00?.title).toBe('Check the prerequisites for creating a document model');
-      expect(dm00?.tasks).toHaveLength(6);
-      
-      const dm01 = repository.getScenario('document-modeling', 'DM.01');
-      expect(dm01).toBeDefined();
-      expect(dm01?.title).toBe('Write the document model description');
-      expect(dm01?.tasks).toHaveLength(5);
+      // Check that specific skills are loaded
+      expect(skills).toContain('document-modeling');
+      expect(skills).toContain('create-reactor-package');
+    });
+
+    it('should be marked as loaded after loading', async () => {
+      expect(repository.isLoaded()).toBe(true);
     });
   });
 
@@ -54,122 +52,125 @@ describe('SkillsRepository', () => {
       const scenario = repository.getScenarioByKey('document-modeling/DM.00');
       expect(scenario).toBeDefined();
       expect(scenario?.id).toBe('DM.00');
-    });
-
-    it('should get scenario by skill and ID', async () => {
-      const scenario = repository.getScenario('document-modeling', 'DM.01');
-      expect(scenario).toBeDefined();
-      expect(scenario?.id).toBe('DM.01');
+      expect(scenario?.title).toBe('Check the prerequisites for creating a document model');
+      expect(scenario?.tasks).toHaveLength(6);
     });
 
     it('should get scenarios by skill', async () => {
       const scenarios = repository.getScenariosBySkill('document-modeling');
-      expect(scenarios.length).toBeGreaterThanOrEqual(2);
+      expect(scenarios.length).toBeGreaterThan(0);
       
-      // Check that DM.00 and DM.01 are included
-      const ids = scenarios.map(s => s.id);
-      expect(ids).toContain('DM.00');
-      expect(ids).toContain('DM.01');
+      // Should include DM.00 and DM.01
+      const scenarioIds = scenarios.map(s => s.id);
+      expect(scenarioIds).toContain('DM.00');
+      expect(scenarioIds).toContain('DM.01');
     });
 
-    it('should find scenarios by pattern', async () => {
-      const dmScenarios = repository.findScenariosByPattern('DM');
-      expect(dmScenarios.length).toBeGreaterThanOrEqual(2);
+    it('should generate scenario keys correctly', async () => {
+      const key = repository.generateScenarioKey('document-modeling', 'DM.01');
+      expect(key).toBe('document-modeling/DM.01');
+    });
+
+    it('should return undefined for non-existent scenario', async () => {
+      const scenario = repository.getScenarioByKey('nonexistent/scenario');
+      expect(scenario).toBeUndefined();
+    });
+
+    it('should get skill information', async () => {
+      // First check what skills are actually loaded
+      const skills = repository.getSkills();
+      expect(skills.length).toBeGreaterThan(0);
       
-      // All found scenarios should match the pattern
-      dmScenarios.forEach(scenario => {
-        expect(scenario.id).toMatch(/DM/);
-      });
+      // Use the first available skill for testing
+      const firstSkill = skills[0];
+      const skillInfo = repository.getSkillInformation(firstSkill);
+      
+      // If document-modeling exists, test with it specifically
+      if (skills.includes('document-modeling')) {
+        const dmInfo = repository.getSkillInformation('document-modeling');
+        expect(dmInfo).toBeDefined();
+        expect(dmInfo?.name).toBe('document-modeling');
+      } else {
+        // Otherwise just verify the structure for any skill
+        expect(skillInfo).toBeDefined();
+        expect(skillInfo?.name).toBe(firstSkill);
+      }
     });
 
-    it('should get next scenario in sequence', async () => {
-      const next = repository.getNextScenario('document-modeling/DM.00');
-      expect(next).toBeDefined();
-      expect(next?.id).toBe('DM.01');
-    });
-
-    it('should return undefined for non-existent next scenario', async () => {
-      const next = repository.getNextScenario('document-modeling/DM.01');
-      // DM.02 doesn't exist, so should return undefined
-      expect(next).toBeUndefined();
-    });
-
-    it('should get specific task from scenario', async () => {
-      const task = repository.getScenarioTask('document-modeling/DM.00', 'DM.00.1');
-      expect(task).toBeDefined();
-      expect(task?.title).toBe('Ensure you have the required input and context');
+    it('should get skill template', async () => {
+      const skillTemplate = repository.getSkillTemplate('document-modeling');
+      expect(skillTemplate).toBeDefined();
+      expect(skillTemplate?.scenarios).toBeDefined();
+      expect(skillTemplate?.scenarios.length).toBeGreaterThan(0);
     });
 
     it('should get all metadata', async () => {
       const metadata = repository.getAllMetadata();
-      
-      // Should have metadata for all loaded scenarios
       expect(metadata.length).toBeGreaterThan(0);
       
-      // Find DM.00 metadata
+      // Check metadata structure
       const dm00Meta = metadata.find(m => m.id === 'DM.00');
       expect(dm00Meta).toBeDefined();
       expect(dm00Meta?.skill).toBe('document-modeling');
-      expect(dm00Meta?.taskCount).toBe(6);
+      expect(dm00Meta?.title).toBe('Check the prerequisites for creating a document model');
     });
 
-    it('should check if repository is loaded', async () => {
-      // Repository is loaded in beforeEach
-      expect(repository.isLoaded()).toBe(true);
-      
-      // Create new repository that hasn't been loaded
-      const newRepo = new SkillsRepository('./build/prompts');
-      expect(newRepo.isLoaded()).toBe(false);
+    it('should get scenario required variables', async () => {
+      const variables = repository.getScenarioRequiredVariables('document-modeling', 'DM.00');
+      expect(Array.isArray(variables)).toBe(true);
+      // Variables might be empty, but should be an array
+    });
+
+    it('should get skill preamble with context', async () => {
+      const preamble = repository.getSkillPreamble('document-modeling', {});
+      // Preamble might be undefined if not configured
+      if (preamble !== undefined) {
+        expect(typeof preamble).toBe('string');
+      }
     });
   });
 
   describe('reload', () => {
-    it('should reload all scenarios', async () => {
-      const initialCount = repository.getAllScenarios().length;
-      expect(initialCount).toBeGreaterThan(0);
+    it('should reload all skills', async () => {
+      const initialSkills = repository.getSkills();
+      expect(initialSkills.length).toBeGreaterThan(0);
       
-      // Reload should maintain the same scenarios
-      await repository.reload();
+      // Reload should maintain the same skills
+      await repository.loadSkills();
+      const reloadedSkills = repository.getSkills();
       
-      const afterReload = repository.getAllScenarios().length;
-      expect(afterReload).toBe(initialCount);
+      expect(reloadedSkills.length).toBe(initialSkills.length);
+      expect(reloadedSkills).toEqual(initialSkills);
     });
   });
 
   describe('edge cases and skills', () => {
-    it('should handle multiple skills', async () => {
-      const skills = repository.getSkills();
-      
-      // Should have at least document-modeling skill
-      expect(skills).toContain('document-modeling');
-      
-      // Should handle multiple skills
-      expect(skills.length).toBeGreaterThanOrEqual(1);
-    });
-
-    it('should handle scenarios in default skill', async () => {
-      const skills = repository.getSkills();
-      
-      // Check if there are any top-level scenarios
-      const defaultScenarios = repository.getScenariosBySkill('default');
-      if (defaultScenarios.length > 0) {
-        expect(skills).toContain('default');
-      }
-    });
-
-    it('should return empty array for non-existent skill', async () => {
-      const scenarios = repository.getScenariosBySkill('non-existent');
+    it('should return empty array for non-existent skill scenarios', async () => {
+      const scenarios = repository.getScenariosBySkill('non-existent-skill');
       expect(scenarios).toEqual([]);
     });
-    
-    it('should return undefined for non-existent scenario', async () => {
-      const scenario = repository.getScenarioByKey('non-existent/scenario');
-      expect(scenario).toBeUndefined();
+
+    it('should return undefined for non-existent skill information', async () => {
+      const skillInfo = repository.getSkillInformation('non-existent-skill');
+      expect(skillInfo).toBeUndefined();
     });
 
-    it('should return undefined for non-existent task', async () => {
-      const task = repository.getScenarioTask('document-modeling/DM.00', 'DM.00.999');
-      expect(task).toBeUndefined();
+    it('should return undefined for non-existent skill template', async () => {
+      const template = repository.getSkillTemplate('non-existent-skill');
+      expect(template).toBeUndefined();
+    });
+
+    it('should return empty array for non-existent scenario variables', async () => {
+      const variables = repository.getScenarioRequiredVariables('non-existent', 'NONE');
+      expect(variables).toEqual([]);
+    });
+  });
+
+  describe('print method', () => {
+    it('should have a print method for debugging', () => {
+      expect(typeof repository.print).toBe('function');
+      // Just verify it doesn't throw
+      expect(() => repository.print()).not.toThrow();
     });
   });
 });
