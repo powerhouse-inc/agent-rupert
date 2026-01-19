@@ -344,6 +344,32 @@ export class WbsRoutineHandler {
             return null;
         }
 
+        // Helper function to compare workIds for sorting
+        const compareWorkIds = (a: string, b: string): number => {
+            // Split workIds into parts (e.g., "DM.01.1" -> ["DM", "01", "1"])
+            const partsA = a.split('.');
+            const partsB = b.split('.');
+            
+            for (let i = 0; i < Math.max(partsA.length, partsB.length); i++) {
+                const partA = partsA[i] || '';
+                const partB = partsB[i] || '';
+                
+                // Try to compare as numbers first
+                const numA = parseInt(partA, 10);
+                const numB = parseInt(partB, 10);
+                
+                if (!isNaN(numA) && !isNaN(numB)) {
+                    if (numA !== numB) return numA - numB;
+                } else {
+                    // Compare as strings
+                    const cmp = partA.localeCompare(partB);
+                    if (cmp !== 0) return cmp;
+                }
+            }
+            
+            return 0;
+        };
+
         // Helper function to check if a goal is a leaf node
         const isLeafGoal = (goal: Goal): boolean => {
             // A goal is a leaf if no other goals have it as their parentId
@@ -374,8 +400,15 @@ export class WbsRoutineHandler {
             return chain;
         };
 
-        // Traverse goals in order to find the first eligible leaf
-        for (const goal of goals) {
+        // Sort goals by workId to ensure proper execution order
+        const sortedGoals = [...goals].sort((a, b) => {
+            const workIdA = a.instructions?.workId || '';
+            const workIdB = b.instructions?.workId || '';
+            return compareWorkIds(workIdA, workIdB);
+        });
+
+        // Traverse sorted goals to find the first eligible leaf
+        for (const goal of sortedGoals) {
             //console.log("Considering goal: ", goal.description);
             if (isLeafGoal(goal) && isEligibleForWork(goal)) {
                 //console.log(" > Goal selected", goal);
@@ -391,10 +424,23 @@ export class WbsRoutineHandler {
                     g.id !== goal.id
                 );
                 
-                // Sort siblings by their order in the goals array to maintain sequence
-                const goalIndex = goals.indexOf(goal);
-                const precedingSiblings = siblings.filter(s => goals.indexOf(s) < goalIndex);
-                const followingSiblings = siblings.filter(s => goals.indexOf(s) > goalIndex);
+                // Sort siblings by workId
+                const sortedSiblings = siblings.sort((a, b) => {
+                    const workIdA = a.instructions?.workId || '';
+                    const workIdB = b.instructions?.workId || '';
+                    return compareWorkIds(workIdA, workIdB);
+                });
+                
+                // Find the goal's position in sorted order
+                const goalWorkId = goal.instructions?.workId || '';
+                const precedingSiblings = sortedSiblings.filter(s => {
+                    const siblingWorkId = s.instructions?.workId || '';
+                    return compareWorkIds(siblingWorkId, goalWorkId) < 0;
+                });
+                const followingSiblings = sortedSiblings.filter(s => {
+                    const siblingWorkId = s.instructions?.workId || '';
+                    return compareWorkIds(siblingWorkId, goalWorkId) > 0;
+                });
                 
                 return {
                     goalChain,
