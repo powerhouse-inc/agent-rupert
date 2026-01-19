@@ -485,7 +485,7 @@ If initialization fails:
 - Vetra Connect port (typically 3000)
 - Switchboard port (typically 4001)
 - MCP endpoint URL
-- Verify that both services are accessible
+- Verify that the MCP tool 'active-project-vetra' is now available to you
 ```
 
 ###### CRP.02.5: Return running status with endpoints
@@ -655,7 +655,7 @@ The required input and context are available and the agent is ready to perform t
 - Check which project is running, if any. If another project is running, shut it down first.
 - Start the project you need if it's not running yet.
 - Once the project is running, request the MCP endpoint from the ReactorPackageManager
-and verify it's working.
+and verify you can access it through the 'active-project-vetra' tool
 - Request the Vetra drive from the ReactorPackageManager and verify you see it through the MCP endpoint.
 - Verify that you see the accompanying preview drive too.
 ```
@@ -679,6 +679,7 @@ existing functionality.
 
 ```md
 - Read the `powerhouse/package` document in the Vetra drive and check if the information is complete.
+If the document does not exist yet, create a new one.
 - Consider the potentially expanded package scope with the new document model that will be added. Consider
 what an improved name, description, category, publisher + url and keywords could be.
 - Decide if it's worth to update the information. Don't be too strict as you should not update the package
@@ -698,7 +699,7 @@ The Reactor Package information is up-to-date and reflects the expanded scope.
 
 ```md
 - If the new document model specification document is not present in the Vetra drive yet,
-create a new one to work with
+create a new one to work with.
 ```
 
 ###### DM.00.6: Provide a stakeholder update

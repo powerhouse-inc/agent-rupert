@@ -1,6 +1,6 @@
 import type { AgentInboxDocument } from 'powerhouse-agent/document-models/agent-inbox';
 import type { InboxHandlingFlowContext } from './InboxHandlingFlowContext.js';
-import { WorkItemParams, WorkItemType } from './AgentRoutine.js';
+import { WorkItemParams, WorkItemType } from './WorkItemTypes.js';
 
 /**
  * Utility class for extracting unread messages from an inbox document

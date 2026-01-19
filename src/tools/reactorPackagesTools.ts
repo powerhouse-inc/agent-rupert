@@ -7,6 +7,8 @@ import { tool } from '@anthropic-ai/claude-agent-sdk';
 import { z } from 'zod';
 import type { ReactorPackagesManager, RunProjectOptions } from '../agents/ReactorPackageDevAgent/ReactorPackagesManager.js';
 import type { ILogger } from '../agents/AgentBase/AgentBase.js';
+import { AgentsManager } from '../agents/AgentsManager.js';
+import { ReactorPackageDevAgent } from '../agents/ReactorPackageDevAgent/ReactorPackageDevAgent.js';
 
 /**
  * Create the init_project tool
@@ -24,7 +26,7 @@ export function createInitProjectTool(manager: ReactorPackagesManager, logger?: 
             try {
                 logger?.info(`Initializing project: ${args.projectName}`);
                 const result = await manager.init(args.projectName);
-                
+
                 return {
                     content: [{
                         type: 'text' as const,
@@ -92,7 +94,7 @@ export function createListProjectsTool(manager: ReactorPackagesManager, logger?:
 /**
  * Create the run_project tool
  */
-export function createRunProjectTool(manager: ReactorPackagesManager, logger?: ILogger) {
+export function createRunProjectTool(manager: ReactorPackagesManager, agent: ReactorPackageDevAgent, logger?: ILogger) {
     return tool(
         'run_project',
         'Run a Powerhouse project with optional custom ports',
@@ -118,6 +120,11 @@ export function createRunProjectTool(manager: ReactorPackagesManager, logger?: I
                 } : undefined;
                 
                 const result = await manager.runProject(args.projectName, options);
+
+                if (result.mcpServer) {
+                    console.log("MCP Server", result.mcpServer);
+                    agent.addMcpEndpoint(`active-project-vetra`, result.mcpServer);
+                }
                 
                 return {
                     content: [{
@@ -152,7 +159,7 @@ export function createRunProjectTool(manager: ReactorPackagesManager, logger?: I
 /**
  * Create the shutdown_project tool
  */
-export function createShutdownProjectTool(manager: ReactorPackagesManager, logger?: ILogger) {
+export function createShutdownProjectTool(manager: ReactorPackagesManager, agent:ReactorPackageDevAgent, logger?: ILogger) {
     return tool(
         'shutdown_project',
         'Shutdown a running Powerhouse project',
@@ -164,6 +171,7 @@ export function createShutdownProjectTool(manager: ReactorPackagesManager, logge
             try {
                 logger?.info(`Shutting down project: ${args.projectName}`);
                 // Note: shutdownProject doesn't take arguments, it shuts down the currently running project
+                agent.removeMcpEndpoint('active-project-vetra');
                 const result = await manager.shutdownProject();
                 
                 return {

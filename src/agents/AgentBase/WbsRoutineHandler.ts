@@ -1,5 +1,5 @@
 import { WorkBreakdownStructureDocument, Goal, actions } from "powerhouse-agent/document-models/work-breakdown-structure";
-import { WorkItemParams, WorkItemType } from "./AgentRoutine.js";
+import { WorkItemParams, WorkItemType } from "./WorkItemTypes.js";
 import { AgentRoutineContext } from "./AgentRoutineContext.js";
 import type { IDocumentDriveServer } from "document-drive";
 import type { ISkillsRepository } from "../../prompts/ISkillsRepository.js";
@@ -35,76 +35,87 @@ export class WbsRoutineHandler {
         
         if (result && result.goalChain.length > 0) {
             const { goalChain, precedingSiblings, followingSiblings } = result;
-            
-            // The actual goal is the last element in the chain
             const nextGoal = goalChain[goalChain.length - 1];
             
-            if (nextGoal.status === "TODO") {
-                try {
-                    // Mark the goal as IN_PROGRESS
-                    await this.markInProgress(nextGoal, wbs.header.id, reactor);
+            if (nextGoal.status !== "IN_PROGRESS") {
+                console.log("Marking next goal in progress", nextGoal);
+                await this.markInProgress(nextGoal, wbs.header.id, reactor);
+            }
 
-                    // Extract skill, scenario and task info from goal chain
-                    const skillWorkId = goalChain.find(g => g.instructions?.workType === "SKILL")?.instructions?.workId;
-                    const scenarioWorkId = goalChain.find(g => g.instructions?.workType === "SCENARIO")?.instructions?.workId;
-                    const taskGoal = goalChain.find(g => g.instructions?.workType === "TASK");
-                    const taskWorkId = taskGoal?.instructions?.workId;
+            try {
+                // Extract skill, scenario and task info from goal chain
+                const skillWorkId = goalChain.find(g => g.instructions?.workType === "SKILL")?.instructions?.workId;
+                const scenarioWorkId = goalChain.find(g => g.instructions?.workType === "SCENARIO")?.instructions?.workId;
+                const taskGoal = goalChain.find(g => g.instructions?.workType === "TASK");
+                const taskWorkId = taskGoal?.instructions?.workId;
 
+                if (skillWorkId && scenarioWorkId && taskWorkId) {
+                    // Create filtered PromptDriver for this goal chain with siblings
+                    const driverResult = this.createGoalChainPromptDriver(
+                        goalChain, 
+                        precedingSiblings,
+                        followingSiblings,
+                        skillsRepository, 
+                        brain
+                    );
                     
-
-                    if (skillWorkId && scenarioWorkId && taskWorkId) {
-                        // Create filtered PromptDriver for this goal chain with siblings
-                        const driverResult = this.createGoalChainPromptDriver(
-                            goalChain, 
-                            precedingSiblings,
-                            followingSiblings,
-                            skillsRepository, 
-                            brain
+                    if (driverResult) {
+                        // Get prior completed tasks (TODO: implement actual tracking from WBS)
+                        const priorCompletedTasks: string[] = [];
+                        
+                        // Create context for this goal chain with resolved skill name
+                        const routineContext = new AgentRoutineContext(
+                            goalChain,
+                            priorCompletedTasks,
+                            driverResult.driver,
+                            driverResult.skillName
                         );
                         
-                        if (driverResult) {
-                            // Get prior completed tasks (TODO: implement actual tracking from WBS)
-                            const priorCompletedTasks: string[] = [];
-                            
-                            // Create context for this goal chain with resolved skill name
-                            const routineContext = new AgentRoutineContext(
-                                goalChain,
-                                priorCompletedTasks,
-                                driverResult.driver,
-                                driverResult.skillName
-                            );
-                            
-                            
-                            // Return a task work item with the resolved skill name
-                            return {
-                                type: 'task',
-                                params: {
-                                    skillName: driverResult.skillName,  // Use the resolved skill name
-                                    scenarioId: scenarioWorkId,
-                                    taskId: taskWorkId,
-                                    context: {}, // TODO: Context will collect actual variables
-                                    routineContext: routineContext,
-                                    options: {
-                                        maxTurns: 50,
-                                        captureSession: false
-                                    }
+                        // Return a task work item with the resolved skill name
+                        return {
+                            type: 'task',
+                            params: {
+                                skillName: driverResult.skillName,  // Use the resolved skill name
+                                scenarioId: scenarioWorkId,
+                                taskId: taskWorkId,
+                                context: {
+                                    goals: {
+                                        skill: goalChain.find(g => g.instructions?.workType == 'SKILL') || null,
+                                        scenario: goalChain.find(g => g.instructions?.workType == 'SCENARIO') || null,
+                                        task: goalChain.find(g => g.instructions?.workType == 'TASK') || null,
+                                        precedingTasks: precedingSiblings,
+                                        followingTasks: followingSiblings,
+                                    },
+                                    // TODO: collect template variables
                                 },
-                                callbacks: {
-                                    onSuccess: async () => {
-                                        await this.markCompleted(nextGoal, wbs.header.id, reactor);
-                                    },
-                                    onFailure: async () => {
-                                        await this.markBlocked(nextGoal, wbs.header.id, reactor);
-                                    },
+                                routineContext: routineContext,
+                                options: {
+                                    maxTurns: 50,
+                                    captureSession: false
                                 }
-                            };
-                        }
+                            },
+                            callbacks: {
+                                onSuccess: async () => {
+                                    await this.markCompleted(nextGoal, wbs.header.id, reactor);
+                                },
+                                onFailure: async () => {
+                                    await this.markBlocked(nextGoal, wbs.header.id, reactor);
+                                },
+                            }
+                        };
                     }
-                    
-                } catch (error) {
-                    console.error(`Failed to mark goal ${nextGoal.id} as IN_PROGRESS:`, error);
-                    // Continue even if marking fails - we still want to return a work item
+                } else {
+                    console.warn("Missing information", {
+                        skillWorkId,
+                        scenarioWorkId,
+                        taskWorkId,
+                        taskGoal
+                    });
                 }
+                
+            } catch (error) {
+                console.error(`Failed to mark goal ${nextGoal.id} as IN_PROGRESS:`, error);
+                // Continue even if marking fails - we still want to return a work item
             }
         }
         
@@ -165,7 +176,9 @@ export class WbsRoutineHandler {
 
         // Traverse goals in order to find the first eligible leaf
         for (const goal of goals) {
+            console.log("Considering goal: ", goal.description);
             if (isLeafGoal(goal) && isEligibleForWork(goal)) {
+                console.log(" > Goal selected", goal);
                 const goalChain = getAncestorChain(goal);
                 
                 // Find sibling goals (same parent, same workType)
@@ -188,6 +201,12 @@ export class WbsRoutineHandler {
                     precedingSiblings,
                     followingSiblings
                 };
+            } else {
+                if (isLeafGoal(goal)) {
+                    console.log(" - Not eligible");
+                } else {
+                    console.log(" - Not a leaf goal");
+                }
             }
         }
 
@@ -381,7 +400,9 @@ export class WbsRoutineHandler {
             followingSiblings, 
             skillRepository
         );
+
         if (!templates || !templates.skillTemplate || !templates.skillName) {
+            console.warn(`WbsRoutineHandler failed to get goal chain skill templates.`);
             return null;
         }
 
@@ -395,7 +416,6 @@ export class WbsRoutineHandler {
                 ...(templates.currentTaskTemplate ? [templates.currentTaskTemplate] : []),
                 ...templates.followingTaskTemplates
             ];
-            
             
             // Create a filtered scenario with all WBS tasks
             const filteredScenario: ScenarioTemplate = {

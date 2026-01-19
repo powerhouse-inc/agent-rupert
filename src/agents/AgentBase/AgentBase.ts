@@ -715,7 +715,7 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
     /**
      * Add a new SDK MCP endpoint
      */
-    public addMcpEndpoint(name: string, server: any): boolean {
+    public addMcpEndpoint(name: string, url: string): boolean {
         if (!this.brain || !(this.brain instanceof AgentClaudeBrain)) {
             this.logger.warn(`${this.config.name}: Cannot add MCP endpoint - no Claude brain available`);
             return false;
@@ -723,7 +723,7 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
         
         try {
             const brain = this.brain as AgentClaudeBrain;
-            brain.addSdkMcpServer(name, server);
+            brain.addMcpServer(name, { type: 'http', url });
             this.logger.info(`${this.config.name}: Added MCP endpoint '${name}'`);
             return true;
         } catch (error) {

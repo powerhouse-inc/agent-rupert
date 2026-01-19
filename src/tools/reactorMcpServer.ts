@@ -16,6 +16,7 @@ import {
     createIsProjectReadyTool,
     createGetProjectsDirTool
 } from './reactorPackagesTools.js';
+import { ReactorPackageDevAgent } from '../agents/ReactorPackageDevAgent/ReactorPackageDevAgent.js';
 
 /**
  * Create an MCP server for ReactorPackagesManager
@@ -27,6 +28,7 @@ import {
  */
 export function createReactorProjectsManagerMcpServer(
     manager: ReactorPackagesManager,
+    agent: ReactorPackageDevAgent,
     logger?: ILogger
 ) {
     logger?.info('Creating ReactorProjectsManager MCP server');
@@ -35,8 +37,8 @@ export function createReactorProjectsManagerMcpServer(
     const tools = [
         createInitProjectTool(manager, logger),
         createListProjectsTool(manager, logger),
-        createRunProjectTool(manager, logger),
-        createShutdownProjectTool(manager, logger),
+        createRunProjectTool(manager, agent, logger),
+        createShutdownProjectTool(manager, agent, logger),
         createGetProjectLogsTool(manager, logger),
         createGetProjectStatusTool(manager, logger),
         createIsProjectReadyTool(manager, logger),

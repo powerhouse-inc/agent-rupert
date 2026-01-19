@@ -221,7 +221,7 @@ export class PromptDriver {
    * @param options Optional execution options including sessionId and maxTurns
    * @returns ExecutionResult with all task responses
    */
-  async executeScenarioFlow<TScenarioContext = any>(
+  public async executeScenarioFlow<TScenarioContext = any>(
     scenarioKey: string,
     flow: IScenarioFlow,
     context: TScenarioContext = {} as TScenarioContext,
@@ -312,12 +312,13 @@ export class PromptDriver {
    * @param options Execution options
    * @returns The task response
    */
-  async executeTask(
+  public async executeTask(
     task: RenderedScenarioTask,
     options?: { 
-      maxTurns?: number; 
-      sessionId?: string; 
-      captureSession?: boolean 
+      maxTurns?: number;
+      sessionId?: string;
+      captureSession?: boolean;
+      preamble?: string;
     }
   ): Promise<TaskResponse> {
     // Use provided maxTurns or fallback to instance default
@@ -333,10 +334,14 @@ export class PromptDriver {
     
     try {
       // Build the task prompt
-      const taskPrompt = `## Task ${task.id}: ${task.title}\n\n${task.content}`;
+      const taskPrompt: string[] = [
+         `## Task ${task.id}: ${task.title}`,
+         options?.preamble || '',
+         task.content
+      ];
       
       // Send the task and optionally capture session
-      const result = await this.sendMessage(taskPrompt, maxTurns, captureSession);
+      const result = await this.sendMessage(taskPrompt.filter(t => t.length > 0).join("\n\n"), maxTurns, captureSession);
       
       return {
         taskId: task.id,
@@ -465,13 +470,13 @@ Keep this overview in mind to proceed with one task at a time when you're instru
   /**
    * End the current session
    */
-  async endSession(): Promise<void> {
+  public async endSession(): Promise<void> {
     this.sessionId = null;
     // The agent brain maintains its own session lifecycle
     // We just clear our reference to the session
   }
 
-  continueSession(sessionId: string) {
+  public continueSession(sessionId: string) {
     if (this.sessionId) {
       this.endSession();
     }
@@ -482,7 +487,7 @@ Keep this overview in mind to proceed with one task at a time when you're instru
   /**
    * Get the current session ID
    */
-  getSessionId(): string | null {
+  public getSessionId(): string | null {
     return this.sessionId;
   }
 
@@ -491,8 +496,10 @@ Keep this overview in mind to proceed with one task at a time when you're instru
    * @param scenarioKey The key or path to the scenario document
    * @param context Context object to pass to template functions
    * @returns A new SequentialFlow instance for the scenario
+   * 
+   * @deprecated
    */
-  createSequentialFlow<TContext = any>(
+  public createSequentialFlow<TContext = any>(
     scenarioKey: string,
     context: TContext = {} as TContext
   ): SequentialScenarioFlow {
@@ -504,25 +511,16 @@ Keep this overview in mind to proceed with one task at a time when you're instru
   }
 
   /**
-   * Get available scenarios
-   */
-  getAvailableScenarios(): string[] {
-    return this.repository.getAllMetadata().map(m => {
-      return m.skill === 'default' ? m.id : `${m.skill}/${m.id}`;
-    });
-  }
-
-  /**
    * Check if repository is loaded
    */
-  isReady(): boolean {
+  public isReady(): boolean {
     return this.repository.isLoaded();
   }
 
   /**
    * Get the repository instance for direct access if needed
    */
-  getRepository(): ISkillsRepository {
+  public getRepository(): ISkillsRepository {
     return this.repository;
   }
 }

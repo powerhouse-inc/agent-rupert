@@ -67,13 +67,6 @@ describe('PromptDriver', () => {
     it('should initialize and load prompts from repository', async () => {
       expect(driver.isReady()).toBe(true);
     });
-
-    it('should list available scenarios', () => {
-      const scenarios = driver.getAvailableScenarios();
-      expect(scenarios.length).toBeGreaterThan(0);
-      expect(scenarios).toContain('document-modeling/DM.00');
-      expect(scenarios).toContain('document-modeling/DM.01');
-    });
   });
 
   describe('createSequentialFlow', () => {

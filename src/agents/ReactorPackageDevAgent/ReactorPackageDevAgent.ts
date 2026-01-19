@@ -9,7 +9,6 @@ import type { AgentBrainPromptContext } from "../../types/prompt-context.js";
 import { createReactorProjectsManagerMcpServer, getReactorMcpToolNames } from "../../tools/reactorMcpServer.js";
 import { getSelfReflectionMcpToolNames } from "../../tools/selfReflectionMcpServer.js";
 import { AgentClaudeBrain } from "../AgentClaudeBrain.js";
-import type { AgentInboxDocument } from "powerhouse-agent/document-models/agent-inbox";
 
 /**
  *  The ReactorPackageAgent uses ReactorPackagesManager with a number of associated tools
@@ -125,7 +124,7 @@ export class ReactorPackageDevAgent extends AgentBase<IAgentBrain> {
         // Create and register MCP server if we have a Claude brain
         if (this.brain && this.brain instanceof AgentClaudeBrain) {
             this.logger.info(`${this.config.name}: Creating ReactorProjectsManager MCP server`);
-            const reactorServer = createReactorProjectsManagerMcpServer(this.packagesManager, this.logger);
+            const reactorServer = createReactorProjectsManagerMcpServer(this.packagesManager, this, this.logger);
             (this.brain as AgentClaudeBrain).addSdkMcpServer('reactor_prjmgr', reactorServer);
             this.logger.info(`${this.config.name}: ReactorProjectsManager MCP server registered`);
         }

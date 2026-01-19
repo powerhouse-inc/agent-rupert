@@ -1,55 +1,16 @@
 import { PromptDriver, ScenarioExecutionResult, SkillExecutionResult, TaskResponse } from "../../prompts/PromptDriver.js";
-import { IScenarioFlow } from "../../prompts/flows/IScenarioFlow.js";
-import { ISkillFlow } from "../../prompts/flows/ISkillFlow.js";
 import { AgentInboxDocument } from "powerhouse-agent/document-models/agent-inbox";
-import { WorkBreakdownStructureDocument, Goal } from "powerhouse-agent/document-models/work-breakdown-structure";
+import { WorkBreakdownStructureDocument } from "powerhouse-agent/document-models/work-breakdown-structure";
 import { InboxRoutineHandler } from "./InboxRoutineHandler.js";
 import { WbsRoutineHandler } from "./WbsRoutineHandler.js";
 import { AgentBase, ILogger } from "./AgentBase.js";
 import { AgentRoutineContext } from "./AgentRoutineContext.js";
-import { SequentialSkillFlow } from "../../prompts/flows/SequentialSkillFlow.js";
-
-export type WorkItemType = 'skill' | 'scenario' | 'task' | 'idle';
-
-export type WorkItemParams<TContext = any> = {
-    skillName?: string,
-    scenarioId?: string,
-    taskId?: string,
-    context?: TContext,
-    options?: {
-        maxTurns?: number;
-        sessionId?: string;
-        captureSession?: boolean;
-        sendSkillPreamble?: boolean;
-    },
-    skillFlow?: ISkillFlow,
-    scenarioFlow?: IScenarioFlow,
-    routineContext?: AgentRoutineContext,
-};
-
-export type AgentRoutineWorkItem<TContext = any> = {
-    type: WorkItemType,
-    status: 'queued' | 'in-progress' | 'succeeded' | 'failed' | 'terminated',
-    params: WorkItemParams<TContext>,
-    result: TaskResponse | ScenarioExecutionResult | SkillExecutionResult | null,
-    promise?: {
-        resolve: (value: any) => void;
-        reject: (reason?: any) => void;
-    },
-    callbacks?: {
-        onSuccess?: () => void | Promise<void>;
-        onFailure?: () => void | Promise<void>;
-    }
-}
-
-export class WorkItemValidationErrors extends Error {
-    public validationErrors: string[];
-
-    constructor(errors: string[]) {
-        super("Invalid agent work item");
-        this.validationErrors = errors;
-    }
-}
+import { 
+    WorkItemType, 
+    WorkItemParams, 
+    AgentRoutineWorkItem, 
+    WorkItemValidationErrors 
+} from "./WorkItemTypes.js";
 
 export class AgentRoutine {
 
@@ -136,6 +97,7 @@ export class AgentRoutine {
         
         // Run the main loop
         while (this.status === 'running') {
+            this.logger.info(".");
             const iterationStart = Date.now();
             
             try {
@@ -210,123 +172,6 @@ export class AgentRoutine {
         this.wbs.document = wbs;
     }
 
-    public queueWorkItem<TContext = any>(
-        type: WorkItemType, 
-        params: WorkItemParams<TContext>,
-        callbacks?: {
-            onSuccess?: () => void | Promise<void>;
-            onFailure?: () => void | Promise<void>;
-        }
-    ) {
-        const validationErrors = this.validateWorkItemParams(type, params);
-
-        if (validationErrors.length > 0) {
-            throw new WorkItemValidationErrors(validationErrors);
-        }
-
-        this.queue.push({
-            type,
-            status: "queued",
-            params: params,
-            result: null,
-            callbacks
-        });
-    }
-
-    // Add a skill to the work queue
-    public queueSkill<TContext = any>(
-        skillName: string,
-        context?: TContext,
-        options?: {
-            maxTurns?: number;
-            sessionId?: string;
-            sendSkillPreamble?: boolean;
-        },
-        flow?: ISkillFlow,
-    ): Promise<SkillExecutionResult> {
-        return new Promise((resolve, reject) => {
-            const workItem: AgentRoutineWorkItem<TContext> = {
-                type: 'skill',
-                status: 'queued',
-                params: {
-                    skillName,
-                    context,
-                    options,
-                    skillFlow: flow
-                },
-                result: null,
-                promise: { resolve, reject }
-            };
-            
-            this.queue.push(workItem);
-            this.logger.info(`${this.agent.getName()}: Queued skill '${skillName}'`);
-        });
-    }
-
-    // Add a scenario to the work queue
-    public queueScenario<TContext = any>(
-        skillName: string,
-        scenarioId: string,
-        context?: TContext,
-        options?: {
-            maxTurns?: number;
-            sessionId?: string;
-        },
-        flow?: IScenarioFlow
-    ): Promise<ScenarioExecutionResult> {
-        return new Promise((resolve, reject) => {
-            const workItem: AgentRoutineWorkItem<TContext> = {
-                type: 'scenario',
-                status: 'queued',
-                params: {
-                    skillName,
-                    scenarioId,
-                    context,
-                    options,
-                    scenarioFlow: flow
-                },
-                result: null,
-                promise: { resolve, reject }
-            };
-            
-            this.queue.push(workItem);
-            this.logger.info(`${this.agent.getName()}: Queued scenario '${skillName}/${scenarioId}'`);
-        });
-    }
-
-    // Add a task to the work queue
-    public queueTask<TContext = any>(
-        skillName: string,
-        scenarioId: string,
-        taskId: string,
-        context?: TContext,
-        options?: {
-            maxTurns?: number;
-            sessionId?: string;
-            captureSession?: boolean;
-        }
-    ): Promise<TaskResponse> {
-        return new Promise((resolve, reject) => {
-            const workItem: AgentRoutineWorkItem<TContext> = {
-                type: 'task',
-                status: 'queued',
-                params: {
-                    skillName,
-                    scenarioId,
-                    taskId,
-                    context,
-                    options
-                },
-                result: null,
-                promise: { resolve, reject }
-            };
-            
-            this.queue.push(workItem);
-            this.logger.info(`${this.agent.getName()}: Queued task '${skillName}/${scenarioId}/${taskId}'`);
-        });
-    }
-
-    
     /**
      * Set up event listeners for document updates
      * Listens for operations on configured inbox and WBS documents
@@ -388,6 +233,29 @@ export class AgentRoutine {
         });
     }
 
+    private queueWorkItem<TContext = any>(
+        type: WorkItemType, 
+        params: WorkItemParams<TContext>,
+        callbacks?: {
+            onSuccess?: () => void | Promise<void>;
+            onFailure?: () => void | Promise<void>;
+        }
+    ) {
+        const validationErrors = this.validateWorkItemParams(type, params);
+
+        if (validationErrors.length > 0) {
+            throw new WorkItemValidationErrors(validationErrors);
+        }
+
+        this.queue.push({
+            type,
+            status: "queued",
+            params: params,
+            result: null,
+            callbacks
+        });
+    }
+
     private validateWorkItemParams(type: WorkItemType, params: WorkItemParams): string[] {
         const errors: string[] = [];
 
@@ -445,15 +313,31 @@ export class AgentRoutine {
                     const workItem = await WbsRoutineHandler.getNextWorkItem(this.wbs.document, reactor, skillsRepository, brain);
                     if (workItem !== null) {
                         if (workItem.type !== 'idle') {
-                            console.log("Queueing wbs task", workItem);
+                            console.log("Queueing WBS task...", workItem);
                         }
                         this.queueWorkItem(workItem.type, workItem.params, workItem.callbacks);
+                    } else {
+                        this.logger.info('WbsRoutineHandler did not provide new work item.');
                     }
+                } else {
+                    const missingItems = [ 
+                        skillsRepository ? false : 'SkillsRepository',
+                        brain ? false : 'AgentBrain'
+                    ].filter(m => !!m).join(' and ');
+
+                    this.logger.warn(`AgentRoutine for ${this.agent.getName()} is missing ${missingItems}. WBS will not be processed.`);
                 }
+
+            } else {
+                this.logger.warn(`AgentRoutine for ${this.agent.getName()} is missing Reactor. WBS will not be processed.`);
             }
         }
 
-        return this.hasWorkPending() ? this.executeNextWorkItem() : null;
+        if (this.hasWorkPending()) {
+            return this.executeNextWorkItem();
+        } else {
+            return null;
+        }
     }
 
     private async executeNextWorkItem(): Promise<IterationResult> {
@@ -463,12 +347,12 @@ export class AgentRoutine {
             return { workExecuted: false };
         }
         
-
         // Mark as in-progress
         workItem.status = 'in-progress';
         const startTime = Date.now();
         
         try {
+            this.logger.info(`Executing '${workItem.type}' work item...`);
             // Execute based on work item type
             switch (workItem.type) {
                 case 'skill':
@@ -496,11 +380,6 @@ export class AgentRoutine {
             workItem.status = 'succeeded';
             const duration = Date.now() - startTime;
             
-            // Resolve promise if present
-            if (workItem.promise) {
-                workItem.promise.resolve(workItem.result);
-            }
-            
             // Call success callback if present
             if (workItem.callbacks?.onSuccess) {
                 await workItem.callbacks.onSuccess();
@@ -516,16 +395,11 @@ export class AgentRoutine {
             };
             
         } catch (error) {
-            console.error(error);
+            this.logger.error(String(error));
 
             // Mark as failed
             workItem.status = 'failed';
             const duration = Date.now() - startTime;
-            
-            // Reject promise if present
-            if (workItem.promise) {
-                workItem.promise.reject(error);
-            }
             
             // Call failure callback if present
             if (workItem.callbacks?.onFailure) {
@@ -559,15 +433,15 @@ export class AgentRoutine {
                 switch(switchNeeded) {
                     case "full":
                         console.log("Switching out full context without session ID transfer");
+                        await routineContext.setup();
+                        this.currentContext.getPromptDriver().endSession();
                         this.currentContext = routineContext;
-                        await this.currentContext.setup();
                         break;
 
                     case "scenario":
                         console.log("Switching out context with session ID transfer");
-                        const sessionId = this.currentContext.getPromptDriver().getSessionId();
+                        await routineContext.setup(this.currentContext.getPromptDriver().getSessionId());
                         this.currentContext = routineContext;
-                        await this.currentContext.setup(sessionId);
                         break;
 
                     case "none":
