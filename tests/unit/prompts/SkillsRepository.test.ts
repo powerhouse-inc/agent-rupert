@@ -140,7 +140,8 @@ describe('SkillsRepository', () => {
       const reloadedSkills = repository.getSkills();
       
       expect(reloadedSkills.length).toBe(initialSkills.length);
-      expect(reloadedSkills).toEqual(initialSkills);
+      // Sort both arrays to ensure consistent comparison (order may vary)
+      expect(reloadedSkills.sort()).toEqual(initialSkills.sort());
     });
   });
 
