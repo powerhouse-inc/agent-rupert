@@ -376,9 +376,9 @@ export class WbsRoutineHandler {
 
         // Traverse goals in order to find the first eligible leaf
         for (const goal of goals) {
-            console.log("Considering goal: ", goal.description);
+            //console.log("Considering goal: ", goal.description);
             if (isLeafGoal(goal) && isEligibleForWork(goal)) {
-                console.log(" > Goal selected", goal);
+                //console.log(" > Goal selected", goal);
                 const goalChain = getAncestorChain(goal);
                 
                 // Find sibling goals (same parent, same workType)
@@ -403,9 +403,9 @@ export class WbsRoutineHandler {
                 };
             } else {
                 if (isLeafGoal(goal)) {
-                    console.log(" - Not eligible");
+                    //console.log(" - Not eligible");
                 } else {
-                    console.log(" - Not a leaf goal");
+                    //console.log(" - Not a leaf goal");
                 }
             }
         }

@@ -352,7 +352,7 @@ export class AgentRoutine {
         const startTime = Date.now();
         
         try {
-            this.logger.info(`Executing '${workItem.type}' work item...`);
+            //this.logger.info(`Executing '${workItem.type}' work item...`);
             // Execute based on work item type
             switch (workItem.type) {
                 case 'skill':

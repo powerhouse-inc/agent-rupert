@@ -37,6 +37,7 @@ export class ReactorPackageDevAgent extends AgentBase<IAgentBrain> {
             allowedTools: [
                 'Read', 'Write', 'Edit', 'Bash', 'Grep', 'Glob',
                 'mcp__agent-manager-drive__*',  // Allow all MCP tools from agent-manager-drive
+                'mcp__active-project-vetra__*',
                 ...getReactorMcpToolNames(),  // Include all ReactorProjectsManager tools
                 ...getSelfReflectionMcpToolNames()  // Include self-reflection tools
             ],
@@ -45,7 +46,7 @@ export class ReactorPackageDevAgent extends AgentBase<IAgentBrain> {
                 allowedWritePaths: ['./agent-workspace/reactor-package']
             },
             model: 'haiku',
-            maxTurns: 100
+            maxTurns: 50
         };
     }
     
@@ -124,8 +125,8 @@ export class ReactorPackageDevAgent extends AgentBase<IAgentBrain> {
         // Create and register MCP server if we have a Claude brain
         if (this.brain && this.brain instanceof AgentClaudeBrain) {
             this.logger.info(`${this.config.name}: Creating ReactorProjectsManager MCP server`);
-            const reactorServer = createReactorProjectsManagerMcpServer(this.packagesManager, this, this.logger);
-            (this.brain as AgentClaudeBrain).addSdkMcpServer('reactor_prjmgr', reactorServer);
+            const serverConfig = createReactorProjectsManagerMcpServer(this.packagesManager, this, this.logger);
+            (this.brain as AgentClaudeBrain).addMcpServer('reactor_prjmgr', serverConfig);
             this.logger.info(`${this.config.name}: ReactorProjectsManager MCP server registered`);
         }
     }

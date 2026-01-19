@@ -3,7 +3,7 @@
  * Creates an MCP server that exposes ReactorPackagesManager functionality
  */
 
-import { createSdkMcpServer } from '@anthropic-ai/claude-agent-sdk';
+import { createSdkMcpServer, type McpServerConfig } from '@anthropic-ai/claude-agent-sdk';
 import type { ReactorPackagesManager } from '../agents/ReactorPackageDevAgent/ReactorPackagesManager.js';
 import type { ILogger } from '../agents/AgentBase/AgentBase.js';
 import {
@@ -25,12 +25,13 @@ import { ReactorPackageDevAgent } from '../agents/ReactorPackageDevAgent/Reactor
  * - mcp__reactor_prjmgr__list_projects
  * - mcp__reactor_prjmgr__run_project
  * etc.
+ * @returns McpSdkServerConfigWithInstance - ready to use with addMcpServer
  */
 export function createReactorProjectsManagerMcpServer(
     manager: ReactorPackagesManager,
     agent: ReactorPackageDevAgent,
     logger?: ILogger
-) {
+): McpServerConfig {
     logger?.info('Creating ReactorProjectsManager MCP server');
     
     // Create all tools with the manager instance

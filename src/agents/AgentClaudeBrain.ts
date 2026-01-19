@@ -1,5 +1,5 @@
 import { query } from '@anthropic-ai/claude-agent-sdk';
-import type { HookJSONOutput, SDKMessage, McpServerConfig as SdkMcpServerConfig } from '@anthropic-ai/claude-agent-sdk';
+import type { HookJSONOutput, SDKMessage, McpServerConfig, Options } from '@anthropic-ai/claude-agent-sdk';
 import { IAgentBrain, IBrainLogger } from './IAgentBrain.js';
 import * as path from 'path';
 import { writeFileSync, mkdirSync, existsSync } from 'fs';
@@ -22,11 +22,6 @@ export interface AgentClaudeBrainConfig {
     maxTurns?: number;
     bypassPermissions?: boolean;  // For testing - bypasses tool permission requests
 }
-
-/**
- * MCP Server configuration - uses SDK's native type
- */
-export type McpServerConfig = SdkMcpServerConfig;
 
 /**
  * Brain implementation using Claude Agent SDK with MCP server support
@@ -184,22 +179,6 @@ export class AgentClaudeBrain implements IAgentBrain {
      */
     public getMcpServer(name: string): McpServerConfig | undefined {
         return this.mcpServers.get(name);
-    }
-
-    /**
-     * Add an SDK MCP server (already created using createSdkMcpServer)
-     * These are SDK-native servers that don't need configuration
-     * @param name Unique name for the server
-     * @param server The SDK MCP server object
-     */
-    public addSdkMcpServer(name: string, server: unknown): void {
-        // Store SDK server directly - these will be passed to query options
-        // Use a special marker to differentiate from config-based servers
-        this.mcpServers.set(name, { type: 'sdk', name, instance: server } as SdkMcpServerConfig);
-        
-        if (this.logger) {
-            this.logger.info(`   AgentClaudeBrain: Added SDK MCP server '${name}'`);
-        }
     }
 
     /**
@@ -470,8 +449,10 @@ Reply to this prompt with a very short sentence summary of what you did.
             logContent += `- Session: ${sessionId ? `Resuming ${sessionId}` : 'New session'}\n`;
             logContent += `- AllowedTools: none\n\n`;
 
+            
+
             // Build options with resume if sessionId provided
-            const queryOptions: Record<string, unknown> = {
+            const queryOptions: Options = {
                 settingSources: [],  // No filesystem config lookups
                 maxTurns: options?.maxTurns || 5,  // Use provided maxTurns or default to 5
                 cwd: workingDir,

@@ -1,4 +1,4 @@
-import { createSdkMcpServer } from '@anthropic-ai/claude-agent-sdk';
+import { createSdkMcpServer, type McpServerConfig } from '@anthropic-ai/claude-agent-sdk';
 import type { AgentBase } from '../agents/AgentBase/AgentBase.js';
 import type { ILogger } from '../agents/AgentBase/AgentBase.js';
 import {
@@ -11,10 +11,14 @@ import {
     createListMcpEndpointsTool
 } from './selfReflectionTools.js';
 
+/**
+ * Create an MCP server for self-reflection capabilities
+ * @returns McpSdkServerConfigWithInstance - ready to use with addMcpServer
+ */
 export function createSelfReflectionMcpServer(
     agent: AgentBase,
     logger?: ILogger
-) {
+): McpServerConfig {
     logger?.info('Creating SelfReflection MCP server');
     
     const tools = [

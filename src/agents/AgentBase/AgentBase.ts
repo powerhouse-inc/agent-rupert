@@ -286,8 +286,8 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
         
         // Register self-reflection MCP server if brain supports it
         if (this.brain && this.brain instanceof AgentClaudeBrain) {
-            const server = createSelfReflectionMcpServer(this, this.logger);
-            (this.brain as AgentClaudeBrain).addSdkMcpServer('self_reflection', server);
+            const serverConfig = createSelfReflectionMcpServer(this, this.logger);
+            (this.brain as AgentClaudeBrain).addMcpServer('self_reflection', serverConfig);
             this.logger.info(`${this.config.name}: Self-reflection MCP server registered`);
         }
         
