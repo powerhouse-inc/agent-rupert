@@ -1,5 +1,5 @@
 import { query } from '@anthropic-ai/claude-agent-sdk';
-import type { HookJSONOutput, SDKMessage } from '@anthropic-ai/claude-agent-sdk';
+import type { HookJSONOutput, SDKMessage, McpServerConfig as SdkMcpServerConfig } from '@anthropic-ai/claude-agent-sdk';
 import { IAgentBrain, IBrainLogger } from './IAgentBrain.js';
 import * as path from 'path';
 import { writeFileSync, mkdirSync, existsSync } from 'fs';
@@ -24,15 +24,9 @@ export interface AgentClaudeBrainConfig {
 }
 
 /**
- * MCP Server configuration
+ * MCP Server configuration - uses SDK's native type
  */
-export interface McpServerConfig {
-    type: 'http' | 'stdio' | 'sse';
-    url?: string;
-    command?: string;
-    args?: string[];
-    headers?: Record<string, string>;
-}
+export type McpServerConfig = SdkMcpServerConfig;
 
 /**
  * Brain implementation using Claude Agent SDK with MCP server support
@@ -131,12 +125,29 @@ export class AgentClaudeBrain implements IAgentBrain {
         this.mcpServers.set(name, config);
         
         if (this.logger) {
+            const configDetails = this.getMcpServerDetails(config);
             if (existingServer) {
-                this.logger.info(`   AgentClaudeBrain: Updated MCP server '${name}' - Type: ${config.type}, URL: ${config.url || 'N/A'}`);
+                this.logger.info(`   AgentClaudeBrain: Updated MCP server '${name}' - ${configDetails}`);
             } else {
-                this.logger.info(`   AgentClaudeBrain: Added MCP server '${name}' - Type: ${config.type}, URL: ${config.url || 'N/A'}`);
+                this.logger.info(`   AgentClaudeBrain: Added MCP server '${name}' - ${configDetails}`);
             }
         }
+    }
+
+    /**
+     * Get descriptive details about MCP server config for logging
+     */
+    private getMcpServerDetails(config: McpServerConfig): string {
+        if ('type' in config && config.type === 'http') {
+            return `Type: http, URL: ${config.url}`;
+        } else if ('type' in config && config.type === 'sse') {
+            return `Type: sse, URL: ${config.url}`;
+        } else if ('type' in config && config.type === 'sdk') {
+            return `Type: sdk, Name: ${config.name}`;
+        } else if ('command' in config) {
+            return `Type: stdio, Command: ${config.command}`;
+        }
+        return `Type: unknown`;
     }
 
     /**
@@ -181,10 +192,10 @@ export class AgentClaudeBrain implements IAgentBrain {
      * @param name Unique name for the server
      * @param server The SDK MCP server object
      */
-    public addSdkMcpServer(name: string, server: any): void {
+    public addSdkMcpServer(name: string, server: unknown): void {
         // Store SDK server directly - these will be passed to query options
         // Use a special marker to differentiate from config-based servers
-        this.mcpServers.set(name, { type: 'sdk', server } as any);
+        this.mcpServers.set(name, { type: 'sdk', name, instance: server } as SdkMcpServerConfig);
         
         if (this.logger) {
             this.logger.info(`   AgentClaudeBrain: Added SDK MCP server '${name}'`);
@@ -194,7 +205,7 @@ export class AgentClaudeBrain implements IAgentBrain {
     /**
      * Describe WBS operations in natural language using Agent SDK
      */
-    async describeWbsOperations(operations: any[]): Promise<string> {
+    async describeWbsOperations(operations: unknown[]): Promise<string> {
         // AgentClaudeBrain: describeWbsOperations called with operations
         try {
             const prompt = `Analyze these Work Breakdown Structure (WBS) operations and describe what changes occurred in simple, clear English. Focus on the business meaning, not technical details.
@@ -208,7 +219,7 @@ Provide a concise summary of what happened.`;
             
             for await (const message of this.queryStream(prompt)) {
                 if (message.type === 'assistant' && message.message) {
-                    const textContent = message.message.content.find((c: any) => c.type === 'text');
+                    const textContent = message.message.content.find((c) => c.type === 'text');
                     if (textContent && 'text' in textContent) {
                         description += textContent.text;
                     }
@@ -228,7 +239,7 @@ Provide a concise summary of what happened.`;
     /**
      * Describe inbox operations in natural language using Agent SDK
      */
-    async describeInboxOperations(operations: any[]): Promise<string> {
+    async describeInboxOperations(operations: unknown[]): Promise<string> {
         // AgentClaudeBrain: describeInboxOperations called with operations
         try {
             const prompt = `
@@ -253,7 +264,7 @@ Reply to this prompt with a very short sentence summary of what you did.
             // Use full turns since we're asking the agent to perform actions
             for await (const message of this.queryStream(prompt, true)) {
                 if (message.type === 'assistant' && message.message) {
-                    const textContent = message.message.content.find((c: any) => c.type === 'text');
+                    const textContent = message.message.content.find((c) => c.type === 'text');
                     if (textContent && 'text' in textContent) {
                         description += textContent.text;
                     }
@@ -275,14 +286,14 @@ Reply to this prompt with a very short sentence summary of what you did.
      */
     private async *queryStream(prompt: string, useFullTurns: boolean = false): AsyncIterable<SDKMessage> {
         // Build MCP servers configuration from the map
-        const mcpServers: any = {};
+        const mcpServers: Record<string, McpServerConfig> = {};
         
         // Add all configured MCP servers
         for (const [name, config] of this.mcpServers) {
-            // Check if this is an SDK server (has type: 'sdk' and server property)
-            if ((config as any).type === 'sdk' && (config as any).server) {
-                // SDK servers are passed directly
-                mcpServers[name] = (config as any).server;
+            // Check if this is an SDK server with instance (McpSdkServerConfigWithInstance)
+            if ('type' in config && config.type === 'sdk' && 'instance' in config) {
+                // The SDK expects the full config with instance for SDK servers
+                mcpServers[name] = config;
             } else {
                 // Regular config-based servers
                 mcpServers[name] = config;
@@ -325,7 +336,7 @@ Reply to this prompt with a very short sentence summary of what you did.
     /**
      * Create file system access control hooks
      */
-    private createFileSystemHooks(): any {
+    private createFileSystemHooks(): Record<string, unknown> {
         if (!this.config.fileSystemPaths) {
             return {};
         }
@@ -338,7 +349,7 @@ Reply to this prompt with a very short sentence summary of what you did.
                 {
                     matcher: "Read|Grep|Glob",
                     hooks: [
-                        async (input: any): Promise<HookJSONOutput> => {
+                        async (input: { tool_name: string; tool_input: Record<string, unknown> }): Promise<HookJSONOutput> => {
                             const toolName = input.tool_name;
                             const toolInput = input.tool_input;
 
@@ -348,9 +359,9 @@ Reply to this prompt with a very short sentence summary of what you did.
 
                             let filePath = '';
                             if (toolName === 'Read') {
-                                filePath = toolInput.file_path || '';
+                                filePath = (toolInput.file_path as string) || '';
                             } else if (toolName === 'Grep' || toolName === 'Glob') {
-                                filePath = toolInput.path || '.';
+                                filePath = (toolInput.path as string) || '.';
                             }
 
                             // Check if path is in allowed read paths
@@ -376,7 +387,7 @@ Reply to this prompt with a very short sentence summary of what you did.
                 {
                     matcher: "Write|Edit|MultiEdit",
                     hooks: [
-                        async (input: any): Promise<HookJSONOutput> => {
+                        async (input: { tool_name: string; tool_input: Record<string, unknown> }): Promise<HookJSONOutput> => {
                             const toolName = input.tool_name;
                             const toolInput = input.tool_input;
 
@@ -386,9 +397,9 @@ Reply to this prompt with a very short sentence summary of what you did.
 
                             let filePath = '';
                             if (toolName === 'Write' || toolName === 'Edit') {
-                                filePath = toolInput.file_path || '';
+                                filePath = (toolInput.file_path as string) || '';
                             } else if (toolName === 'MultiEdit') {
-                                filePath = toolInput.file_path || '';
+                                filePath = (toolInput.file_path as string) || '';
                             }
 
                             // Check if path is in allowed write paths
@@ -431,12 +442,12 @@ Reply to this prompt with a very short sentence summary of what you did.
 
         try {
             // Build MCP servers configuration
-            const mcpServers: any = {};
+            const mcpServers: Record<string, McpServerConfig> = {};
             for (const [name, config] of this.mcpServers) {
-                // Check if this is an SDK server (has type: 'sdk' and server property)
-                if ((config as any).type === 'sdk' && (config as any).server) {
-                    // SDK servers are passed directly
-                    mcpServers[name] = (config as any).server;
+                // Check if this is an SDK server with instance (McpSdkServerConfigWithInstance)
+                if ('type' in config && config.type === 'sdk' && 'instance' in config) {
+                    // The SDK expects the full config with instance for SDK servers
+                    mcpServers[name] = config;
                 } else {
                     // Regular config-based servers
                     mcpServers[name] = config;
@@ -460,7 +471,7 @@ Reply to this prompt with a very short sentence summary of what you did.
             logContent += `- AllowedTools: none\n\n`;
 
             // Build options with resume if sessionId provided
-            const queryOptions: any = {
+            const queryOptions: Record<string, unknown> = {
                 settingSources: [],  // No filesystem config lookups
                 maxTurns: options?.maxTurns || 5,  // Use provided maxTurns or default to 5
                 cwd: workingDir,
@@ -526,9 +537,9 @@ Reply to this prompt with a very short sentence summary of what you did.
                             logContent += `${JSON.stringify(block, null, 2)}\n`;
                         }
                     }
-                } else if (msg.type === 'user' && (msg as any).message) {
+                } else if (msg.type === 'user' && 'message' in msg) {
                     logContent += `User message:\n`;
-                    const userMsg = (msg as any).message;
+                    const userMsg = (msg as SDKMessage & { message: unknown }).message;
                     if (typeof userMsg === 'string') {
                         logContent += `${userMsg}\n`;
                     } else {
@@ -536,20 +547,27 @@ Reply to this prompt with a very short sentence summary of what you did.
                     }
                 } else if (msg.type === 'system') {
                     logContent += `System message:\n`;
-                    if ((msg as any).subtype) {
-                        logContent += `- Subtype: ${(msg as any).subtype}\n`;
+                    const systemMsg = msg as SDKMessage & { subtype?: string; session_id?: string; content?: unknown };
+                    if (systemMsg.subtype) {
+                        logContent += `- Subtype: ${systemMsg.subtype}\n`;
                         // Capture session ID from init message
-                        if ((msg as any).subtype === 'init' && (msg as any).session_id) {
-                            capturedSessionId = (msg as any).session_id;
+                        if (systemMsg.subtype === 'init' && systemMsg.session_id) {
+                            capturedSessionId = systemMsg.session_id;
                             logContent += `- Session ID: ${capturedSessionId}\n`;
                         }
                     }
-                    if ((msg as any).content) {
-                        logContent += `- Content: ${JSON.stringify((msg as any).content, null, 2)}\n`;
+                    if (systemMsg.content) {
+                        logContent += `- Content: ${JSON.stringify(systemMsg.content, null, 2)}\n`;
                     }
                 } else if (msg.type === 'result') {
                     logContent += `Result message:\n`;
-                    const resultMsg = msg as any;
+                    const resultMsg = msg as SDKMessage & { 
+                        subtype?: string; 
+                        is_error?: boolean;
+                        errors?: string[];
+                        permission_denials?: unknown[];
+                        content?: unknown;
+                    };
                     if (resultMsg.subtype) {
                         logContent += `- Subtype: ${resultMsg.subtype}\n`;
                     }
