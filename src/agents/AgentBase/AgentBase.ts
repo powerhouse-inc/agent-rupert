@@ -277,7 +277,7 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
         
         // Initialize PromptDriver if brain is available
         if (this.brain) {
-            this.defaultPromptDriver = new PromptDriver(this.brain, './build/prompts');
+            this.defaultPromptDriver = new PromptDriver(this.brain, './build/prompts', this.logger);
             await this.defaultPromptDriver.initialize();
             
             const skillNames = (this.constructor as typeof AgentBase).getDefaultSkillNames();

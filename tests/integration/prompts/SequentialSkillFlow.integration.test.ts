@@ -115,8 +115,6 @@ describe('CreativeWriterAgent with SequentialSkillFlow', () => {
         
         // Create the skill flow with all scenarios
         skillFlow = new SequentialSkillFlow(skillName, renderedScenarios);
-
-        console.log(" Test setup finished. "); 
     });
     
     it('should have loaded scenarios correctly', () => {

@@ -5,6 +5,7 @@ import { RenderedScenario, RenderedScenarioTask } from './types.js';
 import type { IScenarioFlow } from './flows/IScenarioFlow.js';
 import type { ISkillFlow, ScenarioResult } from './flows/ISkillFlow.js';
 import { SequentialScenarioFlow } from './flows/SequentialScenarioFlow.js';
+import type { ILogger } from '../agents/AgentBase/AgentBase.js';
 
 export interface SkillExecutionResult {
   skill: string;
@@ -36,10 +37,12 @@ export class PromptDriver {
   private agent: IAgentBrain;
   private sessionId: string | null = null;
   private maxTurns: number = 5;  // Default maxTurns for message sending
+  private logger: ILogger | null = null;
 
   constructor(
     agent: IAgentBrain,
-    repositoryOrPath: ISkillsRepository | string = './build/prompts'
+    repositoryOrPath: ISkillsRepository | string = './build/prompts',
+    logger?: ILogger
   ) {
     this.agent = agent;
     if (typeof repositoryOrPath === 'string') {
@@ -47,6 +50,7 @@ export class PromptDriver {
     } else {
       this.repository = repositoryOrPath;
     }
+    this.logger = logger || null;
   }
 
   /**
@@ -123,7 +127,7 @@ export class PromptDriver {
       let scenario = await flow.nextScenario();
       
       while (scenario !== null) {
-        console.log(`PromptDriver::executeSkillFlow - Starting scenario "${scenario.id} - ${scenario.title}"`);
+        this.logger?.info(`PromptDriver::executeSkillFlow - Starting scenario "${scenario.id} - ${scenario.title}"`);
         try {
           // Create a scenario flow for this scenario
           const scenarioFlow = await flow.createScenarioFlow(scenario);
@@ -149,7 +153,7 @@ export class PromptDriver {
             totalTasks: scenarioResult.totalTasks
           };
 
-          console.log(`PromptDriver::executeSkillFlow - Reporting scenario result: "${scenario.id} - ${scenario.title}"`);
+          this.logger?.info(`PromptDriver::executeSkillFlow - Reporting scenario result: "${scenario.id} - ${scenario.title}"`);
           await flow.reportScenarioResult(result);
           
         } catch (error) {
@@ -185,7 +189,7 @@ export class PromptDriver {
         scenario = await flow.nextScenario();
       }
       
-      console.log(`PromptDriver::executeSkillFlow - Completed ${flow.getProgress().completedScenarios}/${flow.getProgress().totalScenarios} scenarios for skill ${skill}`);
+      this.logger?.info(`PromptDriver::executeSkillFlow - Completed ${flow.getProgress().completedScenarios}/${flow.getProgress().totalScenarios} scenarios for skill ${skill}`);
 
       // Get final status from skill flow
       const finalStatus = flow.status();
@@ -247,14 +251,14 @@ export class PromptDriver {
     flow.reset();
 
     try {
-      console.log(`PromptDriver::executeScenarioFlow - Sending scenario briefing "${scenario.id} - ${scenario.title}"`);
+      this.logger?.debug(`PromptDriver::executeScenarioFlow - Sending scenario briefing "${scenario.id} - ${scenario.title}"`);
       // Always send the briefing (regardless of session state)
       await this.sendRenderedScenarioBriefing(scenario, flow, maxTurns);
 
       // Execute tasks using the flow
       let task = flow.nextTask();
       while (task !== null) {
-        console.log(`PromptDriver::executeScenarioFlow - Starting task "${task.id} - ${task.title}"`);
+        this.logger?.debug(`PromptDriver::executeScenarioFlow - Starting task "${task.id} - ${task.title}"`);
         try {
           const response = await this.executeRenderedTask(task, maxTurns);
           
@@ -292,7 +296,7 @@ export class PromptDriver {
         task = flow.nextTask();
       }
 
-      console.log(`PromptDriver::executeScenarioFlow - Finished ${scenario.tasks.length} tasks for scenario "${scenario.id} - ${scenario.title}"`);
+      this.logger?.debug(`PromptDriver::executeScenarioFlow - Finished ${scenario.tasks.length} tasks for scenario "${scenario.id} - ${scenario.title}"`);
 
       return {
         scenarioId: scenario.id,

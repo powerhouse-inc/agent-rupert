@@ -3,11 +3,6 @@ import path from 'path';
 import { glob } from 'glob';
 import { pathToFileURL } from 'url';
 import { SkillsRepositoryBase } from './SkillsRepositoryBase.js';
-import type { 
-  ScenarioTemplate, 
-  SkillTemplate, 
-  ScenarioTaskTemplate,
-} from './types.js';
 
 /**
  * File-based implementation of Skills Repository
@@ -74,7 +69,6 @@ export class FileSkillsRepository extends SkillsRepositoryBase {
     await Promise.all(resultFiles.map(file => this.loadSkillExpectedOutcome(file)));
 
     this.loaded = true;
-    console.log(`Loaded ${this.skills.size} skills with ${this.scenarioTemplates.size} scenarios`);
   }
 
   /**
