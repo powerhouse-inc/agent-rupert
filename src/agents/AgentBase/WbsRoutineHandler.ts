@@ -8,7 +8,25 @@ import { MemorySkillsRepository } from "../../prompts/MemorySkillsRepository.js"
 import { PromptDriver } from "../../prompts/PromptDriver.js";
 import type { IAgentBrain } from "../IAgentBrain.js";
 
+interface WorkItemResolution {
+    skillName: string;
+    scenarioId: string;
+    taskId: string;
+    confidence: 'explicit' | 'inferred' | 'constructed';
+    source: {
+        skill: 'wbs' | 'scenario_prefix' | 'task_prefix' | 'repository_scan';
+        scenario: 'wbs' | 'task_prefix' | 'repository_scan';
+        task: 'wbs';
+    };
+}
 
+interface ParsedId {
+    full: string;
+    segments: string[];
+    possibleSkill: string | null;
+    possibleScenario: string | null;
+    task: string;
+}
 
 export class WbsRoutineHandler {
     
@@ -42,81 +60,75 @@ export class WbsRoutineHandler {
                 await this.markInProgress(nextGoal, wbs.header.id, reactor);
             }
 
-            try {
-                // Extract skill, scenario and task info from goal chain
-                const skillWorkId = goalChain.find(g => g.instructions?.workType === "SKILL")?.instructions?.workId;
-                const scenarioWorkId = goalChain.find(g => g.instructions?.workType === "SCENARIO")?.instructions?.workId;
-                const taskGoal = goalChain.find(g => g.instructions?.workType === "TASK");
-                const taskWorkId = taskGoal?.instructions?.workId;
-
-                if (skillWorkId && scenarioWorkId && taskWorkId) {
-                    // Create filtered PromptDriver for this goal chain with siblings
-                    const driverResult = this.createGoalChainPromptDriver(
-                        goalChain, 
-                        precedingSiblings,
-                        followingSiblings,
-                        skillsRepository, 
-                        brain
-                    );
-                    
-                    if (driverResult) {
-                        // Get prior completed tasks (TODO: implement actual tracking from WBS)
-                        const priorCompletedTasks: string[] = [];
-                        
-                        // Create context for this goal chain with resolved skill name
-                        const routineContext = new AgentRoutineContext(
-                            goalChain,
-                            priorCompletedTasks,
-                            driverResult.driver,
-                            driverResult.skillName
-                        );
-                        
-                        // Return a task work item with the resolved skill name
-                        return {
-                            type: 'task',
-                            params: {
-                                skillName: driverResult.skillName,  // Use the resolved skill name
-                                scenarioId: scenarioWorkId,
-                                taskId: taskWorkId,
-                                context: {
-                                    goals: {
-                                        skill: goalChain.find(g => g.instructions?.workType == 'SKILL') || null,
-                                        scenario: goalChain.find(g => g.instructions?.workType == 'SCENARIO') || null,
-                                        task: goalChain.find(g => g.instructions?.workType == 'TASK') || null,
-                                        precedingTasks: precedingSiblings,
-                                        followingTasks: followingSiblings,
-                                    },
-                                    // TODO: collect template variables
-                                },
-                                routineContext: routineContext,
-                                options: {
-                                    maxTurns: 50,
-                                    captureSession: false
-                                }
-                            },
-                            callbacks: {
-                                onSuccess: async () => {
-                                    await this.markCompleted(nextGoal, wbs.header.id, reactor);
-                                },
-                                onFailure: async () => {
-                                    await this.markBlocked(nextGoal, wbs.header.id, reactor);
-                                },
-                            }
-                        };
-                    }
-                } else {
-                    console.warn("Missing information", {
-                        skillWorkId,
-                        scenarioWorkId,
-                        taskWorkId,
-                        taskGoal
-                    });
-                }
-                
-            } catch (error) {
-                console.error(`Failed to mark goal ${nextGoal.id} as IN_PROGRESS:`, error);
-                // Continue even if marking fails - we still want to return a work item
+            // Resolve work item using intelligent resolution
+            const resolution = this.resolveWorkItem(goalChain, skillsRepository);
+            
+            if (!resolution) {
+                console.warn("Could not resolve work item from goal chain");
+                return { type: 'idle', params: {} };
             }
+            
+            console.log(`Resolved work item: ${resolution.skillName}/${resolution.scenarioId}/${resolution.taskId} (${resolution.confidence})`);
+            console.log(`  Source: skill=${resolution.source.skill}, scenario=${resolution.source.scenario}, task=${resolution.source.task}`);
+            
+            // Create filtered PromptDriver for this resolution
+            const driver = this.createDriverForResolution(
+                resolution,
+                goalChain, 
+                precedingSiblings,
+                followingSiblings,
+                skillsRepository, 
+                brain
+            );
+            
+            if (driver) {
+                // Get prior completed tasks (TODO: implement actual tracking from WBS)
+                const priorCompletedTasks: string[] = [];
+                
+                // Create context for this goal chain with resolved skill name
+                const routineContext = new AgentRoutineContext(
+                    goalChain,
+                    priorCompletedTasks,
+                    driver,
+                    resolution.skillName
+                );
+                
+                // Return a task work item with the resolved skill name
+                return {
+                    type: 'task',
+                    params: {
+                        skillName: resolution.skillName,
+                        scenarioId: resolution.scenarioId,
+                        taskId: resolution.taskId,
+                        context: {
+                            goals: {
+                                skill: goalChain.find(g => g.instructions?.workType == 'SKILL') || null,
+                                scenario: goalChain.find(g => g.instructions?.workType == 'SCENARIO') || null,
+                                task: goalChain.find(g => g.instructions?.workType == 'TASK') || null,
+                                precedingTasks: precedingSiblings,
+                                followingTasks: followingSiblings,
+                            },
+                            resolution: resolution,
+                        },
+                        routineContext: routineContext,
+                        options: {
+                            maxTurns: 50,
+                            captureSession: false
+                        }
+                    },
+                    callbacks: {
+                        onSuccess: async () => {
+                            await this.markCompleted(nextGoal, wbs.header.id, reactor);
+                        },
+                        onFailure: async () => {
+                            await this.markBlocked(nextGoal, wbs.header.id, reactor);
+                        },
+                    }
+                };
+            }
+            
+            console.warn("Could not create PromptDriver for resolved work item");
+            return { type: 'idle', params: {} }
         }
         
         // Return idle work item if no WBS goal to work on
@@ -124,6 +136,194 @@ export class WbsRoutineHandler {
             type: 'idle',
             params: {}
         };
+    }
+
+    /**
+     * Parse a work ID into its component parts
+     * Handles both dot-notation (CRP.00.1) and hyphenated (create-reactor-package.00.1)
+     */
+    private static parseWorkId(id: string): ParsedId {
+        const segments = id.split('.');
+        return {
+            full: id,
+            segments,
+            possibleSkill: segments.length > 0 ? segments[0] : null,
+            possibleScenario: segments.length >= 2 ? 
+                segments.slice(0, -1).join('.') : null,
+            task: id
+        };
+    }
+
+    /**
+     * Resolve a complete work item from the goal chain
+     * Intelligently infers missing pieces from available information
+     */
+    private static resolveWorkItem(
+        goalChain: Goal[],
+        skillsRepository: ISkillsRepository
+    ): WorkItemResolution | null {
+        // Step 1: Extract explicit IDs from goal chain
+        const skillGoal = goalChain.find(g => g.instructions?.workType === "SKILL");
+        const scenarioGoal = goalChain.find(g => g.instructions?.workType === "SCENARIO");
+        const taskGoal = goalChain.find(g => g.instructions?.workType === "TASK");
+        
+        // Task is required - without it we can't execute anything
+        if (!taskGoal?.instructions?.workId) {
+            console.warn("No task work ID found in goal chain");
+            return null;
+        }
+        
+        const taskId = taskGoal.instructions.workId;
+        const parsedTask = this.parseWorkId(taskId);
+        
+        // Step 2: Resolve scenario
+        let scenarioId: string | null = null;
+        let scenarioSource: WorkItemResolution['source']['scenario'] = 'wbs';
+        
+        if (scenarioGoal?.instructions?.workId) {
+            // Explicit scenario from WBS
+            scenarioId = scenarioGoal.instructions.workId;
+            scenarioSource = 'wbs';
+        } else if (parsedTask.possibleScenario) {
+            // Infer from task ID pattern (e.g., "CRP.00.1" -> "CRP.00")
+            scenarioId = parsedTask.possibleScenario;
+            scenarioSource = 'task_prefix';
+        }
+        
+        // Step 3: Resolve skill
+        let skillName: string | null = null;
+        let skillSource: WorkItemResolution['source']['skill'] = 'wbs';
+        
+        if (skillGoal?.instructions?.workId) {
+            // Explicit skill from WBS - need to resolve to actual skill name
+            const workId = skillGoal.instructions.workId;
+            skillName = this.resolveSkillName(workId, scenarioId, skillsRepository);
+            skillSource = 'wbs';
+        } else if (scenarioId) {
+            // Try to infer from scenario ID
+            const parsedScenario = this.parseWorkId(scenarioId);
+            if (parsedScenario.possibleSkill) {
+                skillName = this.resolveSkillName(parsedScenario.possibleSkill, scenarioId, skillsRepository);
+                skillSource = 'scenario_prefix';
+            }
+        } else if (parsedTask.possibleSkill) {
+            // Try to infer from task ID
+            skillName = this.resolveSkillName(parsedTask.possibleSkill, null, skillsRepository);
+            skillSource = 'task_prefix';
+        }
+        
+        // Step 4: If still missing pieces, scan repository
+        if (!skillName || !scenarioId) {
+            const scanResult = this.findWorkItemInRepository(taskId, skillsRepository);
+            if (scanResult) {
+                if (!skillName) {
+                    skillName = scanResult.skillName;
+                    skillSource = 'repository_scan';
+                }
+                if (!scenarioId) {
+                    scenarioId = scanResult.scenarioId;
+                    scenarioSource = 'repository_scan';
+                }
+            }
+        }
+        
+        // Step 5: Validate we have everything
+        if (!skillName || !scenarioId) {
+            console.warn(`Could not resolve complete work item: skill=${skillName}, scenario=${scenarioId}, task=${taskId}`);
+            return null;
+        }
+        
+        // Determine overall confidence level
+        const confidence: WorkItemResolution['confidence'] = 
+            (skillSource === 'wbs' && scenarioSource === 'wbs') ? 'explicit' :
+            (skillSource === 'repository_scan' || scenarioSource === 'repository_scan') ? 'constructed' :
+            'inferred';
+        
+        return {
+            skillName,
+            scenarioId,
+            taskId,
+            confidence,
+            source: {
+                skill: skillSource,
+                scenario: scenarioSource,
+                task: 'wbs'
+            }
+        };
+    }
+
+    /**
+     * Resolve a skill name from a work ID
+     * Handles both direct names and prefix matching
+     */
+    private static resolveSkillName(
+        workId: string,
+        scenarioId: string | null,
+        skillsRepository: ISkillsRepository
+    ): string | null {
+        // Try direct lookup first
+        const directSkill = skillsRepository.getSkillTemplate(workId);
+        if (directSkill) {
+            return workId;
+        }
+        
+        // Try to find by prefix matching
+        const allSkills = skillsRepository.getSkills();
+        for (const skillName of allSkills) {
+            const skill = skillsRepository.getSkillTemplate(skillName);
+            if (skill) {
+                // Check if skill name matches the work ID
+                if (skillName === workId) {
+                    return skillName;
+                }
+                
+                // Check if any scenario ID starts with the workId prefix
+                const hasMatchingPrefix = skill.scenarios.some(s => 
+                    s.id && s.id.startsWith(workId + '.')
+                );
+                if (hasMatchingPrefix) {
+                    return skillName;
+                }
+                
+                // If we have a scenario ID, check if this skill contains it
+                if (scenarioId && skill.scenarios.some(s => s.id === scenarioId)) {
+                    return skillName;
+                }
+            }
+        }
+        
+        return null;
+    }
+
+    /**
+     * Scan the entire repository to find where a task belongs
+     */
+    private static findWorkItemInRepository(
+        taskId: string,
+        skillsRepository: ISkillsRepository
+    ): WorkItemResolution | null {
+        for (const skillName of skillsRepository.getSkills()) {
+            const skill = skillsRepository.getSkillTemplate(skillName);
+            if (!skill) continue;
+            
+            for (const scenario of skill.scenarios) {
+                const task = scenario.tasks.find(t => t.id === taskId);
+                if (task) {
+                    return {
+                        skillName,
+                        scenarioId: scenario.id,
+                        taskId: task.id,
+                        confidence: 'constructed',
+                        source: {
+                            skill: 'repository_scan',
+                            scenario: 'repository_scan',
+                            task: 'wbs'
+                        }
+                    };
+                }
+            }
+        }
+        return null;
     }
 
     /**
@@ -376,6 +576,72 @@ export class WbsRoutineHandler {
             followingTaskTemplates,
             wbsTaskIds
         };
+    }
+
+    /**
+     * Create a PromptDriver with resolution-based templates
+     * Uses the resolved work item to create a properly filtered driver
+     */
+    private static createDriverForResolution(
+        resolution: WorkItemResolution,
+        _goalChain: Goal[],
+        precedingSiblings: Goal[],
+        followingSiblings: Goal[],
+        skillRepository: ISkillsRepository,
+        brain: IAgentBrain
+    ): PromptDriver | null {
+        // Get the skill template
+        const skillTemplate = skillRepository.getSkillTemplate(resolution.skillName);
+        if (!skillTemplate) {
+            console.warn(`Skill template not found for: ${resolution.skillName}`);
+            return null;
+        }
+        
+        // Find the scenario
+        const scenarioTemplate = skillTemplate.scenarios.find(s => s.id === resolution.scenarioId);
+        if (!scenarioTemplate) {
+            console.warn(`Scenario ${resolution.scenarioId} not found in skill ${resolution.skillName}`);
+            return null;
+        }
+        
+        // Find the current task and categorize siblings
+        const currentTaskIndex = scenarioTemplate.tasks.findIndex(t => t.id === resolution.taskId);
+        if (currentTaskIndex === -1) {
+            console.warn(`Task ${resolution.taskId} not found in scenario ${resolution.scenarioId}`);
+            return null;
+        }
+        
+        // Get sibling task IDs from WBS goals
+        const siblingTaskIds = new Set<string>();
+        [...precedingSiblings, ...followingSiblings].forEach(goal => {
+            if (goal.instructions?.workId) {
+                siblingTaskIds.add(goal.instructions.workId);
+            }
+        });
+        
+        // Filter tasks to include current + WBS siblings
+        const filteredTasks = scenarioTemplate.tasks.filter((task, index) => {
+            return index === currentTaskIndex || siblingTaskIds.has(task.id);
+        });
+        
+        // Create filtered scenario and skill
+        const filteredScenario: ScenarioTemplate = {
+            ...scenarioTemplate,
+            tasks: filteredTasks
+        };
+        
+        const filteredSkillTemplate: SkillTemplate = {
+            ...skillTemplate,
+            scenarios: [filteredScenario]
+        };
+        
+        // Create memory repository with filtered skill
+        const memoryRepository = new MemorySkillsRepository(
+            [filteredSkillTemplate],
+            []
+        );
+        
+        return new PromptDriver(brain, memoryRepository);
     }
 
     /**
