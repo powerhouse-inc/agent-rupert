@@ -108,16 +108,7 @@ describe('CreativeWriterAgent with SequentialSkillFlow', () => {
         const context = { character: 'Al Dente' }; // Context for template rendering
         
         // Get rendered scenarios for the skill
-        const scenarioIds = repository.getScenarioIdsBySkill(skillName);
-        const renderedScenarios: RenderedScenario[] = [];
-        
-        for (const scenarioId of scenarioIds) {
-            const scenarioKey = `${skillName}/${scenarioId}`;
-            const renderedScenario = repository.getScenarioByKey(scenarioKey, context);
-            if (renderedScenario) {
-                renderedScenarios.push(renderedScenario);
-            }
-        }
+        const renderedScenarios = repository.getScenariosBySkill(skillName, context);
         
         // Sort scenarios by ID to ensure proper order (SS.00, SS.01, etc.)
         renderedScenarios.sort((a, b) => a.id.localeCompare(b.id));
