@@ -313,7 +313,7 @@ export class AgentRoutine {
                     const workItem = await WbsRoutineHandler.getNextWorkItem(this.wbs.document, reactor, skillsRepository, brain);
                     if (workItem !== null) {
                         if (workItem.type !== 'idle') {
-                            console.log("Queueing WBS task...", workItem);
+                            console.log("Queueing WBS task...", workItem.params, workItem.params.context);
                         }
                         this.queueWorkItem(workItem.type, workItem.params, workItem.callbacks);
                     } else {
@@ -532,7 +532,8 @@ export class AgentRoutine {
         
         return promptDriver.executeTask(
             task,
-            options
+            options,
+            context
         );
     }
 

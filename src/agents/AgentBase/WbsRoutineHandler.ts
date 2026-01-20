@@ -101,6 +101,7 @@ export class WbsRoutineHandler {
                         scenarioId: resolution.scenarioId,
                         taskId: resolution.taskId,
                         context: {
+                            wbsId: wbs.header.id,
                             goals: {
                                 skill: goalChain.find(g => g.instructions?.workType == 'SKILL') || null,
                                 scenario: goalChain.find(g => g.instructions?.workType == 'SCENARIO') || null,
@@ -806,22 +807,36 @@ export class WbsRoutineHandler {
     ): Promise<void> {
         console.log(`Marking goal ${goal.id} as DONE: ${goal.description}`);
         
-        // Create the markCompleted action
-        const action = actions.markCompleted({
-            id: goal.id
-        });
+        let skipUpdate = false;
+        const currentWbs = await reactor.getDocument(wbsDocumentId) as WorkBreakdownStructureDocument;
+        const currentGoal = currentWbs.state.global.goals.find(g => g.id === goal.id);
 
-        // Submit the action to the reactor
-        const result = await reactor.addAction(wbsDocumentId, action);
-        
-        // Check if the operation was successful
-        if (!result || result.error) {
-            throw new Error(
-                `Failed to mark goal ${goal.id} as DONE: ${
-                    result?.error?.message || 'Unknown error'
-                }`
-            );
+        if (currentGoal) {
+            const currentStatus = currentGoal.status;
+            if (currentGoal.status !== "IN_PROGRESS") {
+                console.log(" Processed goal status is no longer IN_PROGRESS. Skipping status update.", currentGoal);
+                skipUpdate = true;
+            }
         }
+
+        if (!skipUpdate) {
+            // Create the markCompleted action
+            const action = actions.markCompleted({
+                id: goal.id
+            });
+
+            // Submit the action to the reactor
+            const result = await reactor.addAction(wbsDocumentId, action);
+            
+            // Check if the operation was successful
+            if (!result || result.error) {
+                throw new Error(
+                    `Failed to mark goal ${goal.id} as COMPLETED: ${
+                        result?.error?.message || 'Unknown error'
+                    }`
+                );
+            }
+        }        
     }
 
     /**

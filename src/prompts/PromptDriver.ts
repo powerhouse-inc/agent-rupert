@@ -6,6 +6,15 @@ import type { IScenarioFlow } from './flows/IScenarioFlow.js';
 import type { ISkillFlow, ScenarioResult } from './flows/ISkillFlow.js';
 import { SequentialScenarioFlow } from './flows/SequentialScenarioFlow.js';
 import type { ILogger } from '../agents/AgentBase/AgentBase.js';
+import { Goal } from 'powerhouse-agent/document-models/work-breakdown-structure';
+
+type WbsTaskContext = { 
+  skill: Goal | null, 
+  scenario: Goal | null, 
+  task: Goal, 
+  precedingTasks: Goal[], 
+  followingTasks: Goal[] 
+}
 
 export interface SkillExecutionResult {
   skill: string;
@@ -316,14 +325,15 @@ export class PromptDriver {
    * @param options Execution options
    * @returns The task response
    */
-  public async executeTask(
+  public async executeTask<TTaskContext = any>(
     task: RenderedScenarioTask,
     options?: { 
       maxTurns?: number;
       sessionId?: string;
       captureSession?: boolean;
       preamble?: string;
-    }
+    },
+    context: TTaskContext = {} as TTaskContext
   ): Promise<TaskResponse> {
     // Use provided maxTurns or fallback to instance default
     const maxTurns = options?.maxTurns ?? this.maxTurns;
@@ -343,6 +353,17 @@ export class PromptDriver {
          options?.preamble || '',
          task.content
       ];
+
+      const wbsGoalsContext = {
+        wbsId: (context as any).wbsId as string | undefined,
+        goals: (context as any).goals as WbsTaskContext | undefined,
+      };
+
+      if (wbsGoalsContext.wbsId && wbsGoalsContext.goals) {
+        const p = this.getGoalContextMessage(wbsGoalsContext.wbsId, wbsGoalsContext.goals);
+        taskPrompt.push(p);
+        console.log("WbsGoalContext", p); 
+      }
       
       // Send the task and optionally capture session
       const result = await this.sendMessage(taskPrompt.filter(t => t.length > 0).join("\n\n"), maxTurns, captureSession);
@@ -427,7 +448,7 @@ Listen to your briefing and acknowledge before proceeding.
 
 # Scenario Overview
 
-You are about to execute a structured sequence of tasks taken from the following scenario:
+You are about to execute a structured sequence of tasks taken from the following template:
 
 <scenario>${scenario.id} : ${scenario.title}</scenario>
 
@@ -438,6 +459,49 @@ ${scenario.tasks.map(t => ' - ' + t.id + ' ' + t.title).join("\n")}
 Tasks will be following a ${flow?.name() || 'controlled flow'}. ${flow?.description() || 'Be ready to execute tasks in arbitrary order.'}
 
 Keep this overview in mind to proceed with one task at a time when you're instructed to do so.`;
+  }
+
+  /**
+   * Build the base briefing message
+   */
+  private getGoalContextMessage(wbsId: string, goals: WbsTaskContext): string {
+    return `=== GOAL CONTEXT START ===
+
+The purpose of this task is to complete your next WBS goal.
+
+**WBS document ID:** '${wbsId}'
+
+# Task Goal Reference
+
+ - Goal ID: '${goals.task.id}'
+ - Description: '${goals.task.description}'
+ - Status: ${goals.task.status}
+
+# Parent Goals
+ - Skill-level Goal: [${goals.skill?.status}] ${goals.skill?.description}
+   - Scenario-level Goal: [${goals.scenario?.status}] ${goals.scenario?.description}
+     > Task Goal: ${goals.task.id}
+
+${
+  goals.task.instructions ? 
+  "\n# Goal Instructions\n\n" + goals.task.instructions.comments + "\n":
+  "\nNo additional goal instructions were provided\n"
+}${
+  goals.precedingTasks.length > 0 ? 
+  "\n# Preceding Tasks (already processed)\n" + goals.precedingTasks.map(t => ` - [${t.status}] ${t.description}`).join("\n") + "\n":
+  "\nThis is the first task of the scenario.\n"
+}${
+  goals.followingTasks.length > 0 ? 
+  "\n# Later Tasks (wait with these until instructed)\n" + goals.followingTasks.map(t => ` - [${t.status}] ${t.description}`).join("\n") + "\n":
+  "\nThis is the final task of the scenario.\n"
+}${
+  goals.task.notes.length > 0 ?
+  "\n# Additional Notes\n\n" + goals.task.notes.map((n, i) => `**Note ${i+1}:**\n<note>\n  <author>${n.author}</author>\n\n${n.note}\n</note>\n`).join("\n") :
+  "\nNo additional notes were provided.\n"
+}
+
+=== GOAL CONTEXT END ===
+`;
   }
   
   /**
