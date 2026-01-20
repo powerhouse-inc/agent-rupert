@@ -73,29 +73,6 @@
 | DM.01.4 | Come up with a good document file extension | - |
 | DM.01.5 | Fill out the remaining package information in Vetra Studio drive | - |
 
-#### document-editor-implementation (ED)
-
-**ED.00: Check the prerequisites for creating a document model**
-
-| Task ID | Title | Expected Outcome |
-|---------|-------|------------------|
-| ED.00.1 | Ensure you have the required input and context | - |
-| ED.00.2 | Use the ReactorPackagesManager to run Vetra Connect and Switchboard | - |
-| ED.00.3 | Review the existing package specs and implementation | - |
-| ED.00.4 | Consider updating the Reactor Package information | - |
-| ED.00.5 | Create the document model specification document if needed | - |
-| ED.00.6 | Provide a stakeholder update | - |
-
-**ED.01: Write the document model description**
-
-| Task ID | Title | Expected Outcome |
-|---------|-------|------------------|
-| ED.01.1 | Start by listing the users who will use the new document model | - |
-| ED.01.2 | Come up with a good, concise description | - |
-| ED.01.3 | Come up with a document type identifier that fits the description | - |
-| ED.01.4 | Come up with a good document file extension | - |
-| ED.01.5 | Fill out the remaining package information in Vetra Studio drive | - |
-
 #### handle-stakeholder-message (HSM)
 
 **HSM.00: Categorize the stakeholder message**
@@ -604,48 +581,189 @@ If shutdown fails:
 **Skill Preamble:**
 
 ```md
-=== BEGIN BRIEFING === 
+=== BEGIN SKILL BRIEFING === 
 
-IMPORTANT:  Don't take any action yet. You will be guided through the tasks after 
-            the briefing(s). Just process and confirm your understanding.
+IMPORTANT:  Don't take any action yet. You will be guided through your tasks after the briefing(s). Just process and confirm your understanding.
 
-# DOCUMENT MODELING SKILL PREAMBLE
+# Document Modeling - Skill Preamble
 
-With this skill, you typically creates document models for the Powerhouse ecosystem. Your role is to help users create these modules based on their needs.
-This skill briefing teaches you about general document modeling practices. Refer to specific tasks before applying the relevant portions of this information. 
+With this skill, you can design and implement new Reactor 'document model' modules for the Powerhouse ecosystem. Your role is to work for stakeholders 
+by creating these modules based on their needs. This briefing teaches you about general document modeling practices. Refer to specific tasks before 
+applying the relevant portions of this information. 
 
 ## Core Concepts
 
-- **Document Model**: A template for creating documents. Defines schema and allowed operations for a document type.
-- **Document**: An instance of a document model containing actual data that follows the model's structure and can be modified using operations.
-- **Drive**: A document of type "powerhouse/document-drive" representing a collection of documents and folders. Add documents using "addActions" with "ADD_FILE" action.
+### Documents and Drives
+
+- **Document Model**: A template for creating documents. Defines the schema and allowed operations for a `document type`. Document types are formatted like `acme/invoice`, `pizza-plaza/order`, etc.
+- **Document**: An instance of a document model containing actual data that follows the model's structure and can be modified using operations. For example an `acme/invoice` document with multiple `ADD_LINE_ITEM` operations in its edit history.
+- **Drive**: A very common document of type `powerhouse/document-drive` representing a collection of documents and folders. Drive usage rules are explained further down.
 - **Action**: A proposed change to a document (JSON object with action name and input). Dispatch using "addActions" tool.
 - **Operation**: A completed change to a document containing the action plus metadata (index, timestamp, hash, errors). Actions become operations after dispatch.
 
-## CRITICAL: MCP Tool Usage Rules Throughout this skill
+Working with document models and drives is a universal skill that you will use for various purposes.
 
-**MANDATORY**: Use the `reactor_prjmgr` MCP tool to inspect the list of running projects and find out the active project you're working on. 
+At least, you will at the same time:
+  (1) be a user of documents and drives for the purpose of communication, planning, technical specification, etc. 
+  (2) and, as a Reactor Project developer, create new document models yourself
 
-Each Reactor Project has (1) a `vetra drive` used for creating specification documents such `powerhouse/package`, 
-`powerhouse/document-model`, ... and (2) a `preview drive` where you can create and test new document models once 
-you have specified and implemented them, for example `acme/your-invoice-document`.
+### Technology Primer
 
-**MANDATORY**: Always use the `active-project-vetra` MCP tool to identify and access the `vetra drive` and `preview drive` of your active project. 
-There you can read, create, and write specification documents and test document-models. If the `active-project-vetra` MCP tool is unavailable, 
-try to restart your project with `reactor_prjmgr` -- starting a project will make the `active-project-vetra` MCP tool available to you.
+#### The Powerhouse Organization
 
-### Key Requirements when creating and editing documents
+The core, open-source, technology for the document model system is developed by a scalable network organization (SNO) called `Powerhouse`, 
+which you are a part of!
 
-- Never set document IDs manually - they're auto-generated by 'createDocument'
+#### The Reactor Component
+
+The `Reactor` is a highly reusable core component that is capable of loading document models, creating and storing documents, replaying 
+document operations to calculate their latest state, and accepting new actions dispatched by the user. It has a synchronization 
+feature to sync documents with other Reactors through the subscription to remote drives. It also supports document processor modules
+that can aggregate information from multiple documents into a specialized read model (similar to CQRS.)
+
+The Reactor uses a highly extensible, modular architecture. Developers create `Reactor Pacakages` that contain the various modules a Reactor
+can load: most importantly document models, editors, processors, subgraphs, drive apps, etc. 
+
+The Reactor is `storage-agnostic` in the sense that it supports various adapters for storing documents and read models: in memory, using 
+the filesystem, in Postgres, or even in the browser with pglite. The operation history of documents is append-only, making it possible 
+to write storage adapters for immutable systems such as blockchain.
+
+Unlike, for example, tables in a database, Reactor documents are `self-contained` and `cryptographically verifiable`. This means that individual 
+documents can always be exported as a (.phd) file, and shared with other users. The `.phd` file format is a zip file that contains the latest 
+state of the document and its operation history with signed operations. So anyone can independently read and verify the correctness of the 
+documents. This decoupled foundation makes Reactor documents the ideal choice for local-first, decentralized and self-sovereign applications.
+
+#### Reactor Host Applications
+
+Various `host applications` make use of the Reactor component to offer end-user functionality based on document models. Powerhouse has
+developed two important, customizable, host applications:
+
+- `Powerhouse Connect` is a web application for document management. Users can create local or shared (remote) drives and install
+  Reactor Package modules for the document models and editors they would like to use. 
+  
+  Another type of Reactor module, drive apps, offer a tailored user interface for presenting and exploring the documents in a drive. As such 
+  the user experience is typically much richer and domain-specific than a generic drive explorer such as Google Drive, and to the user it feels 
+  more like a polished application rather than a traditional document management system.
+
+  Connect can be used out of the box or as a white-label solution to be customized. `Vetra Studio` (see further) is an example of a
+  customized Connect application.
+
+- `Powerhouse Switchboard`, likewise, offers drive and document management, but as an API service with GraphQL and MCP endpoints . Switchboard 
+  supports out of the box creation of drives and document reading and mutation functionality (through the submission of documents actions), and
+  synchronzation (through the exchange of document operations.)
+
+  Switchboard, like Connect, can be used out of the box or as a white-label solution to be customized. `Vetra Switchboard` (see further) is an 
+  example of a customized Switchboard application.
+
+#### Powerhouse Vetra
+
+`Vetra` is the brand name for set of applications for Reactor Package developers. It consists of: 
+
+- The [vetra.io](https://vetra.io) cloud platform where Reactor Package developers can publish their Reactor Packages and buy Connect 
+  and Switchboard cloud hosting for offering their own solutions to end-users.
+
+- The [Vetra Academy](https://vetra.academy), an extensive resource for learning everything about Reactor Package Development 
+  and the related Powerhouse technologies.
+
+- The `Vetra Studio` (Connect UI) application and the `Vetra Switchboard` service for the local development environment of Reactor Package 
+  Developers. Vetra Studio and Switchboard are used for two distinct purposes:
+  
+  1. To manage the specification documents of the Reactor Package in the 'Vetra Drive' (see further), and
+  2. To serve as development hosting applications to load and test the new Reactor Package documents using the 'Preview Drive' (see further)
+
+  Developers can run Vetra Studio and Switchboard through the Powerhouse CLI, by running `ph vetra --watch`.
+  
+  **IMPORTANT**: as an AI Agent, you should always run Vetra Studio and Switchboard via the `reactor_prjmgr` MCP tool instead!
+
+## Usage rules and MCP tools for Reactor Project management
+
+For this skill, you will always work within the context of a single Reactor Project, which contains the specification documents and 
+implementation code for its modules. These are the document models, document editors, drive apps, graphql subgraphs, etc.
+
+**IMPORTANT**: Always use the `reactor_prjmgr` MCP tool to (1) inspect the list of projects that are available to you and (2) confirm the 
+running project you're working on.
+
+ - The `reactor_prjmgr` tool gives you access to a lot of information about the running project, such as its endpoints and logs. Explore 
+   this information and make good use of it.
+
+ - When a reactor project is running through `reactor_prjmgr`, a new MCP tool, called `active-project-vetra`, is automatically made available 
+   to you. This tool allows you to access your Vetra instance, with all the drives and documents related to your project. Verify that this 
+   tool is available to you and that it is responsive. Don't proceed unless this is the case.
+
+## Usage rules and MCP tools for documents and drives
+
+### Working with Reactor documents
+
+- When creating a document, never set the document ID manually - they're auto-generated by 'createDocument'
 - Minimize "addActions" calls by batching multiple actions together
 - Always add new document model specifications to `vetra drive` (with ID `vetra-{hash}`), unless specified otherwise
 - Always add new example and test document to the `preview drive` (with ID `preview-{same-hash}`), unless specified otherwise
-- Always check document model schema before calling addActions
+- Always check a document model schema before calling addActions
 - Use MCP tools for ALL document and document-model operations
 
-## Document Model Creation Workflow
+### Working with Reactor Drives
 
-### 1. Planning Phase
+**MANDATORY**: Check the document-drive schema before performing drive operations.
+
+#### Drive Types and MCP tooling
+
+Reactor drives and documents are used for various purposes: planning, specifications, communication, testing, and so on.
+
+There will typically be 3 drives available, each with their own specific purpose. Carefully select the right drive, _especially_
+when you are creating new documents! Creating documents in the wrong drive is a big mistake.
+
+1. **Vetra Drive** (`vetra-{hash}`, found through `mcp__active-project-vetra__*` tools):
+
+   - Contains all **specification documents** for the project, which will trigger the code generator
+     when they are correctly filled out. This is your primary workspace for document modeling work.
+   - New and existing package details (`powerhouse/package`), document model specs (`powerhouse/document-model`), 
+     editor specs (`powerhouse/document-editor`), etc. are placed here
+   - Putting specification documents in _any other drive_ will fail to trigger the code generator and
+     lead to failure of your tasks. Make sure to get it right.
+
+2. **Preview Drive** (`preview-{hash}` found through `mcp__active-project-vetra__*` tools):
+
+   - Contains **demo and preview documents** (document instances)
+   - Use this drive for showcasing and testing the document models and editor you are creating
+   - Add actual document instances here. For example, if you are building an invoice document model 
+     for Acme corp, you would create `acme/invoice` documents in the preview drive.
+
+3. **Comms Drive** found through `mcp__agent-manager-drive__*` tools
+
+   - Contains your inbox document (ID: ) and WBS (ID: )
+   - Used only for stakeholder communication and planning purposes
+   - **NEVER** create new documents here
+
+**CRITICAL** 
+
+Both `mcp__agent-manager-drive` and `mcp__active-project-vetra` are Reactor MCP tools, giving access to drives
+and documents. As any Reactor and Reactor MCP tool, they may give access to many drives, and their IDs may 
+look very similar! Do not confuse them and always make sure (1) to use the right MCP tool _and_ (2) double-check 
+the drive ID before creating a new document.
+
+#### Drive Operations
+
+When working any drive (adding/removing documents, creating folders, etc.):
+
+1. **Always get the drive schema first**:
+
+  \`\`\`
+  mcp__reactor-name__getDocumentModelSchema({ type: "powerhouse/document-drive" });
+  \`\`\`
+
+2. **Review available operations** in the schema, such as:
+
+   - `ADD_FILE` - Add a document to the drive
+   - `ADD_FOLDER` - Create a new folder
+   - `DELETE_NODE` - Remove a file or folder (use this, NOT "DELETE_FILE")
+   - `UPDATE_NODE` - Update node properties
+   - `MOVE_NODE` - Move a node to different location
+
+3. **Check input schemas** for each operation to ensure you're passing correct parameters
+
+## Document Model Creation Principles
+
+### 1. Planning
 
 **MANDATORY**: Present your proposal to the user and ask for confirmation before implementing ANY document model.
 
@@ -679,209 +797,6 @@ After doing changes to the code, or after creating a new document model or a new
 
 - **TypeScript Check**: Run `npm run tsc` to validate type safety
 - **ESLint Check**: Run `npm run lint:fix` to check for errors with ESLint
-
-## Document editor creation flow
-
-When the user requests to create or make changes on a document editor, follow these steps:
-
-- Check if the document editor already exists and if it does, ask the user if a new one should be created or if the existing one should be reimplemented
-- If it's a new editor, create a new editor document on the "vetra-{hash}" drive if available, of type `powerhouse/document-editor`
-- Check the document editor schema and comply with it
-- After adding the editor document to the `vetra-{hash}` drive, a new editor will be generated in the `editors` folder
-- Inspect the hooks in `editors/hooks` as they should be useful
-- Read the schema of the document model that the editor is for to know how to interact with it
-- Style the editor using tailwind classes or a style tag. If using a style tag, make sure to make the selectors specific to only apply to the editor component.
-- Create modular components for the UI elements and place them on separate files to make it easier to maintain and update
-- Consider using the React Components exported by `@powerhousedao/design-system` and `@powerhousedao/document-engineering`
-- Separate business logic from presentation logic
-- Use TypeScript for type safety, avoid using any and type casting
-- Always check for type and lint errors after creating or modifying the editor
-
-### Document Editor Implementation Pattern
-
-**CRITICAL**: When implementing document editors, use the modern React hooks pattern from `@powerhousedao/reactor-browser`.
-
-The following section is valid for editors that edit a single document type.
-
-#### Required Imports and Setup
-
-Using a "Todo" document model as example:
-
-\`\`\`typescript
-import { generateId } from "document-model/core";
-import { useSelectedTodoDocument } from "../hooks/useTodoDocument.js";
-import {
-  addTodo,
-} from "../../document-models/todo/gen/creators.js";
-
-export default function Editor() {
-  const [document, dispatch] = useSelectedTodoDocument();
-
-  function handleAddTodo(values: { title: string }) {
-    if (values.title) {
-      dispatch(addTodo({ id: generateId(), title: values.title }));
-    }
-  };
-\`\`\`
-
-The `useSelectedTodoDocument` gets generated automatically so you don't need to implement it yourself.
-
-## ⚠️ CRITICAL: Generated Files & Modification Rules
-
-### Generated Files Rule
-
-**NEVER edit files in `gen/` folders** - they are auto-generated and will be overwritten.
-
-### Document Model Modification Process
-
-For ANY document model changes, follow this **mandatory** two-step process:
-
-#### Step 1: Update Document Model via MCP
-
-Use `mcp__active-project-vetra__addActions` with operations like:
-
-- `SET_OPERATION_SCHEMA` - update input/output schemas
-- `SET_OPERATION_REDUCER` - update reducer code
-- `SET_STATE_SCHEMA` - update state definitions
-
-#### Step 2: Update Existing Source Files
-
-**ALSO manually update existing reducer files in `src/` folder** - these are NOT auto-generated.
-Make sure to check if the operation reducer code needs to be updated after changing the state schema.
-
-### ⚠️ Critical Reminder
-
-**ALWAYS do BOTH steps when fixing reducer issues:**
-
-1. ✅ Fix existing reducer files in `src/` manually
-2. ✅ Update document model via MCP with same fixes
-
-**Forgetting step 2 means future code generations will still contain the bugs!**
-
-## Reducer Implementation Guidelines
-
-### ❌ Forbidden in Reducers (Non-Deterministic)
-
-- `crypto.randomUUID()`, `Math.random()`, `Date.now()`, `new Date()`
-- External API calls or side effects
-- Asynchronous functions
-- Any non-deterministic functions
-
-### ❌ Forbidden Patterns
-
-\`\`\`typescript
-// NEVER use fallback values with non-deterministic functions
-id: action.input.id || crypto.randomUUID(); // ❌ FORBIDDEN
-timestamp: action.input.timestamp || new Date(); // ❌ FORBIDDEN
-\`\`\`
-
-### ✅ Required Pattern
-
-All dynamic values must come from action input:
-
-- **IDs**: Include `id: OID!` in input schema, use `action.input.id` in reducer
-- **Timestamps**: Include `timestamp: DateTime!` in input schema
-- **Computed values**: Calculate before dispatching action
-
-### Example
-
-\`\`\`typescript
-// ❌ BAD - impure reducer
-const newItem = {
-  id: crypto.randomUUID(), // Non-deterministic
-  createdAt: new Date(), // Non-deterministic
-};
-
-// ✅ GOOD - pure reducer
-const newItem = {
-  id: action.input.id, // From action input
-  createdAt: action.input.createdAt, // From action input
-};
-\`\`\`
-
-### Handling Nullable Input Types
-
-**CRITICAL**: Be careful when handling optional input types:
-
-- Optional input types use `InputMaybe<T>` allowing `null | undefined | T`.
-- Optional state types use `Maybe<T>` = `T | null`.
-- If there is no applicable default value then use `|| null`.
-
-\`\`\`typescript
-// ❌ BAD - Type error with Maybe<string>
-amount: action.input.amount,
-notes: action.input.notes,
-
-// ✅ GOOD - Matches Maybe<T> = T | null
-amount: action.input.amount || null,
-notes: action.input.notes || [],
-\`\`\`
-
-Use truthy checks when conditionally assigning optional values from input to state:
-
-\`\`\`typescript
-// ❌ BAD - Type 'string | null' is not assignable to type 'string'.
-if (action.input.field !== undefined) entry.field = action.input.field;
-
-// ✅ GOOD - use truthy checks
-if (action.input.field) state.field = action.input.field;
-
-// ✅ GOOD - For booleans use explicit null/undefined checks
-if (action.input.field !== undefined && action.input.field !== null)
-  state.field = action.input.field;
-\`\`\`
-
-### Error Handling in Operations
-
-**MANDATORY**: Define specific error types for each operation to handle invalid inputs and edge cases properly.
-Action inputs are validated so they are guaranteed to respect the input schema.
-Errors referenced in the reducer code will be imported automatically.
-
-#### Error Definition Requirements
-
-1. **Add error definitions** to operations using `ADD_OPERATION_ERROR`:
-
-   - `code`: Uppercase snake_case (e.g., `"MISSING_ID"`, `"ENTRY_NOT_FOUND"`)
-   - `name`: PascalCase ending with "Error" (e.g., `"MissingIdError"`, `"EntryNotFoundError"`)
-   - `description`: Human-readable description of the error condition
-
-2. **Error names must end with "Error"** for consistency and code generation
-
-3. **Use specific error types** rather than generic validation
-
-4. **Must use unique error names and ids**
-
-#### Error Usage in Reducers
-
-\`\`\`typescript
-// ✅ GOOD - Throw specific errors by name
-if (!action.input.id) {
-  throw new MissingIdError("ID is required for operation");
-}
-
-if (entryIndex === -1) {
-  throw new EntryNotFoundError(`Entry with ID ${action.input.id} not found`);
-}
-
-// ❌ BAD - Generic Error
-throw new Error("Something went wrong");
-
-// ❌ BAD - Nested error access
-throw new errors.ModuleName.MissingIdError("message");
-
-// ❌ BAD - Do not import error classes in the reducer code,
-import { MissingIdError } from "../../gen/module-name/error.js";
-
-// ✅ GOOD - Simply reference the error and it will be imported automatically
-throw new MissingIdError("message");
-\`\`\`
-
-#### Common Error Patterns
-
-- **EntityNotFoundError**: Referenced entity doesn't exist
-- **DuplicateIdError**: ID already exists when creating new entries
-- **InvalidInputError**: Business logic violations
-- **PermissionDeniedError**: Access control violations
 
 ## Document Model Structure
 
@@ -986,48 +901,59 @@ type TodoListLocalState {
 - Simple, specific fields over complex nested types
 - System auto-generates `OID` for new objects (users don't provide manually)
 
-## Working with Drives
+## Error Handling in Operations
 
-**MANDATORY**: Check the document-drive schema before performing drive operations.
+**MANDATORY**: Define specific error types for each operation to handle invalid inputs and edge cases properly.
+Action inputs are validated so they are guaranteed to respect the input schema.
+Errors referenced in the reducer code will be imported automatically.
 
-### Drive Types
+### Error Definition Requirements
 
-There might be two drives available with a special use case:
+1. **Add error definitions** to operations using `ADD_OPERATION_ERROR`:
 
-1. **Vetra Drive** (`vetra-{hash}`):
+   - `code`: Uppercase snake_case (e.g., `"MISSING_ID"`, `"ENTRY_NOT_FOUND"`)
+   - `name`: PascalCase ending with "Error" (e.g., `"MissingIdError"`, `"EntryNotFoundError"`)
+   - `description`: Human-readable description of the error condition
 
-   - Contains **specification documents**: document models and document editors
-   - Used for development
-   - Add document model and editor definitions here
+2. **Error names must end with "Error"** for consistency and code generation
 
-2. **Preview Drive** (`preview-{hash}`, named "Vetra Preview"):
-   - Contains **demo and preview documents** (document instances)
-   - Used for showcasing and testing document models
-   - Add actual document instances here
+3. **Use specific error types** rather than generic validation
 
-### Drive Operations
+4. **Must use unique error names and ids**
 
-When working with drives (adding/removing documents, creating folders, etc.):
+### Error Usage in Reducers
 
-1. **Always get the drive schema first**:
+\`\`\`typescript
+// ✅ GOOD - Throw specific errors by name
+if (!action.input.id) {
+  throw new MissingIdError("ID is required for operation");
+}
 
-   \`\`\`typescript
-   mcp__reactor -
-     mcp__getDocumentModelSchema({ type: "powerhouse/document-drive" });
-   \`\`\`
+if (entryIndex === -1) {
+  throw new EntryNotFoundError(`Entry with ID ${action.input.id} not found`);
+}
 
-2. **Review available operations** in the schema, such as:
+// ❌ BAD - Generic Error
+throw new Error("Something went wrong");
 
-   - `ADD_FILE` - Add a document to the drive
-   - `ADD_FOLDER` - Create a new folder
-   - `DELETE_NODE` - Remove a file or folder (use this, NOT "DELETE_FILE")
-   - `UPDATE_NODE` - Update node properties
-   - `MOVE_NODE` - Move a node to different location
+// ❌ BAD - Nested error access
+throw new errors.ModuleName.MissingIdError("message");
 
-3. **Check input schemas** for each operation to ensure you're passing correct parameters
+// ❌ BAD - Do not import error classes in the reducer code,
+import { MissingIdError } from "../../gen/module-name/error.js";
 
-=== END BRIEFING ===
+// ✅ GOOD - Simply reference the error and it will be imported automatically
+throw new MissingIdError("message");
+\`\`\`
 
+### Common Error Patterns
+
+- **EntityNotFoundError**: Referenced entity doesn't exist
+- **DuplicateIdError**: ID already exists when creating new entries
+- **InvalidInputError**: Business logic violations
+- **PermissionDeniedError**: Access control violations
+
+=== END OF SKILL BRIEFING ===
 ```
 
 **Skill Expected Outcome:**
@@ -1243,196 +1169,6 @@ logic should be precise and predictable: easy to implement and test.
 ```
 
 ###### DM.01.5: Fill out the remaining package information in Vetra Studio drive
-
-**Task Template:**
-
-```md
--
-```
-
----
-
-### Skill: document-editor-implementation (ED)
-
-#### Scenarios
-
-##### ED.00: Check the prerequisites for creating a document model
-
-**Scenario Preamble:**
-
-```md
-Note on task management:
-
-- The creation of a new document model is associated with a single goal/task in your WBS document.
-- Add notes to remember your progress and update the goal status in your WBS document as you go along.
-
-Note on communication:
-
-- Always communicate with the stakeholder through your inbox, in the appropriate messages thread.
-- Don't hesitate to ask the stakeholder for clarification, feedback or confirmation if you are unsure
-of how to proceed.
-- If and only if you are waiting for a stakeholder reply, mark the WBS goal as BLOCKED until you can proceed.
-Then unblock the goal and move it back to In Progress.
-- Notify the stakeholder regularly with status updates.
-```
-
-**Tasks:**
-
-###### ED.00.1: Ensure you have the required input and context
-
-**Task Template:**
-
-```md
-- Ensure you know who the stakeholder is who is requesting the new document model.
-- Ensure you can contact the stakeholder through your inbox to ask questions and share updates.
-- Ensure you have identified the WBS goal associated with the task. Create a new goal if needed.
-- Rephrase the stakeholder request for clarity if needed.
-- Ensure you know at least the informal name of the new document model and who the users are.
-- Ensure that you know which Reactor Package project this document model will be in.
-```
-
-###### ED.00.2: Use the ReactorPackagesManager to run Vetra Connect and Switchboard
-
-**Task Template:**
-
-```md
-- List the available reactor package projects and confirm it includes the one you need
-- Check which project is running, if any. If another project is running, shut it down first.
-- Start the project you need if it's not running yet.
-- Once the project is running, request the MCP endpoint from the ReactorPackageManager
-and verify it's working.
-- Request the Vetra drive from the ReactorPackageManager and verify you see it through the MCP endpoint.
-- Verify that you see the accompanying preview drive too.
-```
-
-###### ED.00.3: Review the existing package specs and implementation
-
-**Task Template:**
-
-```md
-- Review the specification documents in the Vetra drive and consider how the new document model
-will fit in.
-- Review the package implementation code in the project folder to get a good understanding of the
-existing functionality.
-- Run the project unit tests and confirm that they are passing.
-- Ensure that there are no pending previous changes. Commit outstanding changes if needed.
-```
-
-###### ED.00.4: Consider updating the Reactor Package information
-
-**Task Template:**
-
-```md
-- Read the `powerhouse/package` document in the Vetra drive and check if the information is complete.
-- Consider the potentially expanded package scope with the new document model that will be added. Consider
-what an improved name, description, category, publisher + url and keywords could be.
-- Decide if it's worth to update the information. Don't be too strict as you should not update the package
-information often. If the existing data still fits the purpose, then leave it.
-- If you decide to update the information, ask the stakeholder for confirmation first.
-```
-
-###### ED.00.5: Create the document model specification document if needed
-
-**Task Template:**
-
-```md
-- If the new document model specification document is not present in the Vetra drive yet,
-create a new one to work with
-```
-
-###### ED.00.6: Provide a stakeholder update
-
-**Task Template:**
-
-```md
-- Request the Vetra Connect, Switchboard and MCP endpoints from the ReactorPackageManager
-- Notify the stakeholder that you started the document modeling task and summarize your task for them
-based on your considerations to this point
-- Make sure to share the Connect, Switchboard and MCP endpoints with the stakeholder for them to follow along.
-```
-
-##### ED.01: Write the document model description
-
-**Tasks:**
-
-###### ED.01.1: Start by listing the users who will use the new document model
-
-**Task Template:**
-
-```md
-### Example
-
-\`\`\`
-- Pizza Plaza restaurant owner
-- Pizza Plaza customers
-- Pizza Plaza kitchen chefs
-\`\`\`
-```
-
-###### ED.01.2: Come up with a good, concise description
-
-**Task Template:**
-
-```md
-A good description includes its users, how they will use the document in a typical workflow, and it narrows
-its scope as much as possible by describing what will not be included.
-
-### Example
-
-\`\`\`
-The Pizza Plaza order document will be used by the restaurant owner, their customers and the kitchen chefs. 
-The restaurant owner will prepare the document by defining the menu categories, options and prices in it. 
-The customer will then use this menu to add the pizzas, sides and drinks they want to order to their basket. 
-They will see the itemized prices and the total. Once the order is placed, a kitchen chef will check off the
-items one by one as ready.
-
-The order document does not support customization options for the items and it does not track the entire lifecycle
-of payment, delivery, etc. It is meant to be a reliable reference for what the restaurant offers, what the customers 
-wants, and what the kitchen has prepared.
-\`\`\`
-
-### Restrictions
-
-- The description must not be longer than two or three paragraphs of text
-- The scope of a document model should be "small" in the sense that the state of the documents it describes
-should not contain more than a couple of kilobytes of JSON on average.
-- The document model should be "simple" in the sense that it should focus on a single purpose and its business
-logic should be precise and predictable: easy to implement and test.
-
-### Wrap-up
-
-- Add the description to the specification document in Vetra Studio drive.
-```
-
-###### ED.01.3: Come up with a document type identifier that fits the description
-
-**Task Template:**
-
-```md
-- The document type must be of the form `{organization}/{document-type-name}`
-- For example: `pizza-plaza/order`
-
-### Wrap-up
-
-- Set the document type in the specification document in Vetra Studio drive.
-```
-
-###### ED.01.4: Come up with a good document file extension
-
-**Task Template:**
-
-```md
-- Reduce the document type to an abbreviation of 2 to 4 characters with a dot in front
-- Avoid abbreviations with problematice connotations
-- For example: `pizza-plaza/order` => `.ppo`
-- For example: `software-engineering/xml` => `.sxml`, not `.sex`
-
-### Wrap-up
-
-- Set the document extension in the specification document in Vetra Studio drive
-```
-
-###### ED.01.5: Fill out the remaining package information in Vetra Studio drive
 
 **Task Template:**
 
