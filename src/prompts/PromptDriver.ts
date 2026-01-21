@@ -348,11 +348,7 @@ export class PromptDriver {
     
     try {
       // Build the task prompt
-      const taskPrompt: string[] = [
-         `## Task ${task.id}: ${task.title}`,
-         options?.preamble || '',
-         task.content
-      ];
+      const taskPrompt: string[] = [];
 
       const wbsGoalsContext = {
         wbsId: (context as any).wbsId as string | undefined,
@@ -365,6 +361,11 @@ export class PromptDriver {
         console.log("WbsGoalContext", p); 
       }
       
+      taskPrompt.push(`## Task ${task.id}: ${task.title}`);
+      taskPrompt.push(options?.preamble || '');
+      taskPrompt.push(task.content);
+      taskPrompt.push("\n\n All briefings are completed. Proceed now with the task.");
+
       // Send the task and optionally capture session
       const result = await this.sendMessage(taskPrompt.filter(t => t.length > 0).join("\n\n"), maxTurns, captureSession);
       
@@ -499,6 +500,7 @@ ${
   "\n# Additional Notes\n\n" + goals.task.notes.map((n, i) => `**Note ${i+1}:**\n<note>\n  <author>${n.author}</author>\n\n${n.note}\n</note>\n`).join("\n") :
   "\nNo additional notes were provided.\n"
 }
+
 
 === GOAL CONTEXT END ===
 `;

@@ -77,7 +77,8 @@
 |---------|-------|------------------|
 | DM.02.1 | Define the global state schema | - |
 | DM.02.2 | Generate a minimal default value for the document | - |
-| DM.02.3 | Define the modules and operations | - |
+| DM.02.3 | Define the modules and operations titles | - |
+| DM.02.4 | Define the operation inputs | - |
 
 #### document-editor-creation (ED)
 
@@ -162,19 +163,36 @@ As a Powerhouse Agent, you operate with:
 **Inbox Document**: 《documentIds.inbox》
 
 Use the inbox document to communicate with stakeholders in the relevant message threads.《/if》
+
 《#if documentIds.wbs》
 **WBS Document**: 《documentIds.wbs》 
 
-Use the Work-Breakdown Structure (WBS) document for tracking high-level goals and breaking them down to the level of Tasks available through the 
-self-reflection tool. For the creation and restructuring of goal hierarchies, make sure to always set the correct parent goals.
+Use the Work-Breakdown Structure (WBS) document for tracking high-level goals and breaking them down to the level of Tasks available through the self-reflection tool. For the creation and restructuring of goal hierarchies, make sure to always set the correct parent goals.
 
 DO NOT use the WBS by creating goals for planning-related tasks about tasks such as: "create a goal hierarchy for x", 
 or "break down goal Y into subgoals". If you need to add a goal to break it down later, add it as a DRAFT goal instead.
+
+The WBS document is a note taking tool as much as a planning tool.
+ - When you have completed a goal: 
+    - Consider adding a note with status update for your future self. It's important to add useful notes as you.
+    - Consider adding an outcome JSON when marking the goal as COMPLETED. Outcome JSONs are meant to record key 
+      decision data, and keep track of where the output of a goal is located, e.g. a document ID or URL.
+
 《/if》
 
 **IMPORTANT** 
 
 Use the self-reflection MCP tool to discover the specific capabilities you possess. When you create and maintain your work breakdown to satisfy stakeholder requests, it is important to be aware of your own capabilities at all times so that you can effectively set goals that map onto your capabilities.
+
+### Note on communication
+
+- Always communicate with the stakeholder through your inbox, in the appropriate messages thread.
+- Don't hesitate to ask the stakeholder for clarification, feedback or confirmation if you are unsure of how to proceed.
+- If and only if you are waiting for a stakeholder reply, mark the WBS goal as BLOCKED until you can proceed.
+  Then unblock the goal and move it back to In Progress.
+- Notify the stakeholder regularly with status updates 
+    - Brief one-sentence updates for intermediary scenario tasks.
+    - A paragraph for final scenario tasks.
 
 ## Response Guidelines
 
@@ -1070,16 +1088,6 @@ Note on task management:
 - The creation of a new document model is associated with a single goal/task in your WBS document.
 - Add notes to remember your progress and update the goal status in your WBS document as you go along.
 
-Note on communication: 
-- Always communicate with the stakeholder through your inbox, in the appropriate messages thread.
-- Don't hesitate to ask the stakeholder for clarification, feedback or confirmation if you are unsure 
-  of how to proceed.
-- If and only if you are waiting for a stakeholder reply, mark the WBS goal as BLOCKED until you can proceed.
-  Then unblock the goal and move it back to In Progress.
-- Notify the stakeholder regularly with status updates 
-    - Brief one-sentence updates for intermediary scenario tasks.
-    - A paragraph for final scenario tasks.
-
 === END OF SKILL BRIEFING ===
 ```
 
@@ -1101,15 +1109,6 @@ Note on task management:
 
 - The creation of a new document model is associated with a single goal/task in your WBS document.
 - Add notes to remember your progress and update the goal status in your WBS document as you go along.
-
-Note on communication:
-
-- Always communicate with the stakeholder through your inbox, in the appropriate messages thread.
-- Don't hesitate to ask the stakeholder for clarification, feedback or confirmation if you are unsure
-of how to proceed.
-- If and only if you are waiting for a stakeholder reply, mark the WBS goal as BLOCKED until you can proceed.
-Then unblock the goal and move it back to In Progress.
-- Notify the stakeholder regularly with status updates.
 ```
 
 **Scenario Expected Outcome:**
@@ -1211,7 +1210,9 @@ based on your considerations to this point
 
 ```md
 Make extensive use of the `active-project-vetra` MCP tool for this scenario DM.01.
-Do not make any changes in the code yet!
+
+- Do not make any changes in the code yet!
+- Do not create any files but always use the MCP tools for accessing documents.
 ```
 
 **Tasks:**
@@ -1276,7 +1277,8 @@ logic should be precise and predictable: easy to implement and test.
 
 ### Wrap-up
 
-- Add the description to the specification document in Vetra Studio drive.
+Use the `mcp__active-project-vetra__*` tools to verify that all details are correctly written to the
+document model specification in Vetra Studio drive.
 ```
 
 ###### DM.01.4: Fill out the remaining header fields
@@ -1309,7 +1311,8 @@ If both are unknown, use 'https://powerhouse.inc' as a default.
 
 ### Wrap-up
 
-- Verify that all details are correctly written to the specification document in Vetra Studio drive.
+Use the `mcp__active-project-vetra__*` tools to verify that all details are correctly written to the
+document model specification in Vetra Studio drive.
 ```
 
 ##### DM.02: Create the state schema and operations
@@ -1318,7 +1321,9 @@ If both are unknown, use 'https://powerhouse.inc' as a default.
 
 ```md
 Make extensive use of the `active-project-vetra` MCP tool for this scenario DM.02.
-Do not make any changes in the code yet. We are still only editing the specification document.
+
+- Do not make any changes in the code yet!
+- Do not create any files but always use the MCP tools for accessing documents.
 
 Recall the best practices on how to create document model state schemas and operations.
 ```
@@ -1599,24 +1604,95 @@ Our empty `pizza-plaza/order` document would look as follows:
 
 ### Wrap-up
 
-- Ensure that the default JSON is set in the document model spec using `active-project-vetra`,
-for the `global` scope
-- Verify the document is correctly updated
+- Prettify the JSON to improve readability
+- Ensure that the default JSON is set in the document model spec for the `global` scope
+- Verify the document is correctly updated using `active-project-vetra`
 
 ### Expected Outcome
 
 - The default value JSON is available in the document and complies to the state schema
 ```
 
-###### DM.02.3: Define the modules and operations
+###### DM.02.3: Define the modules and operations titles
 
 **Task Template:**
 
 ```md
-Define the document model modules to group operations.
+Keep the users of the new document model in mind and generate a list of operations grouped in modules.
 
-Recall your best practices and apply them. Begin by setting the operation names.
-Then consider the following for their input types:
+### Example
+
+\`\`\`
+Module 'menu_categories'
+- ADD_CATEGORY(id:OID!, label:String!, taxRate:Float!)
+- SET_CATEGORY_LABEL(id:OID!, label:String!)
+- SET_CATEGORY_TAX_RATE(id:OID!, taxRate:Float!)
+- REMOVE_CATEGORY(id:OID!)
+- REORDER_CATEGORIES(orderedCategories:[OID!]!, insertBefore:OID)
+
+Module 'menu_items'
+- ADD_MENU_ITEM(categoryId:OID!, item:NewMenuItemInput!, insertBefore:OID)
+- UPDATE_MENU_ITEM(id:OID!, item:MenuItemUpdateInput!)
+- UPDATE_MENU_ITEM_STATUS(id:OID!, status:MenuItemStatus!)
+- REMOVE_MENU_ITEM(id:OID!)
+- REORDER_MENU_ITEMS(orderedMenuItems:[OID!]!, insertBefore:OID)
+
+Module 'point_of_sale'
+- SET_POINT_OF_SALE(docId:PHID!, name:String!, companyID:String!, address:String, telephone:String)
+- UPDATE_POINT_OF_SALE_INFO(name:String, companyID:String, address:String, telephone:String)
+- CLEAR_POINT_OF_SALE()
+
+Module 'basket'
+- ADD_LINE(id:OID!, menuItemId:OID!, quantity:Int)
+- UPDATE_LINE_QTY(id:OID!, quantity:Int)
+- REMOVE_LINE(id:OID!)
+
+Module 'kitchen'
+- MARK_ITEM_PREPARED(id:OID!)
+- MARK_ITEM_TODO(id:OID!)
+
+Module 'workflow'
+- FINISH_MENU_EDITING(time:DateTime!)
+- REOPEN_MENU_EDITING(time:DateTime!)
+- CONFIRM_BASKET(time:DateTime!)
+- MARK_ORDER_FULFILLED(time:DateTime!)
+\`\`\`
+
+### Check consistency and correctness
+
+- Remember that operation reducers are pure, deterministic functions
+- So we need to pass all OID values for new objects, for example: `ADD_CATEGORY` needs an `id:OID!` as input
+- And we need to pass all system-dependent data as input to avoid side effects, for example: `FINISH_MENU_EDITING` needs the `time`
+- Users will have permissions on an operation level, so operations' responsibilities must be separated
+- For example: `MARK_ITEM_PREPARED` must be separated from `UPDATE_LINE_*`
+- All state variables must be directly or indirectly controlled by the user
+- For example: `SET_CATEGORY_LABEL` is a straight-forward direct update
+- For example: `ADD_LINE`, `SET_CATEGORY_TAX_RATE`, ... sets the tax values/totals indirectly
+- For example: the workflow operations control the `status` field
+
+### Update the document model specification using `active-project-vetra`
+
+- Always work in the document model's global scope
+- Create all modules in the document
+- Create all operations with their name and description
+
+### Wrap-up
+
+- Verify the document is correctly updated using `active-project-vetra`
+
+### Expected Outcome
+
+- Document model operations and now listed in the document model spec in Vetra drive, grouped by module.
+- Operation input types are still missing.
+```
+
+###### DM.02.4: Define the operation inputs
+
+**Task Template:**
+
+```md
+Now add the input types to the document model using `active-project-vetra`.
+Take the rules below into account.
 
 ### CRITICAL: Input root type name
 
@@ -1717,14 +1793,14 @@ input ClearMenuItemPictureInput {
 
 ### Wrap-up
 
-- Ensure that all modules, operations and their input types have been added to the document model
-spec via `active-project-vetra`, for the `global` scope
+- Ensure that all modules, operations and their input types have been added to the document model spec via `active-project-vetra`, for the `global` scope
 - Verify the document is correctly updated
-- Verify that the code generator has been correctly triggered at this point
+- In the project folder, verify that the code generator has been correctly triggered at this point
 
 ### Expected Outcome
 
-Document model operations and their input types are now available in the document model spec in Vetra drive.
+- Document model operations and their input types are now available in the document model spec in Vetra drive.
+- The TypeScript types and the reducers' boilerplate code are generated in the project folder.
 ```
 
 ---
@@ -2158,12 +2234,28 @@ If you decide an update is needed, use the agent-manager MCP tool to update your
 
 **Create a new WBS goal (hierarchy) only if needed**
 
-**Ensure that new goal(s) are broken down in scenarios and tasks you took from your self-reflected capability.**
+**Ensure that new goal(s) are broken down in skills, scenarios and tasks you took from your self-reflected capability.**
 
 For stakeholder planning requests that require one or more WBS goals:
 
-- Lay out the goal hierarchy with the stakeholder request at the top level, broken down in subgoals following the
-(1) skills, (2) scenarios and (3) tasks from your capabilities.
+- Lay out the goal hierarchy with an optional stakeholder request goal at the top level, then broken down in subgoals
+following the (1) skills, (2) scenarios and (3) tasks from your capabilities.
+Consequently, the deepest tree you can build is 4 levels deep:
+(1 Stakeholder Request Group) > (Skill(s)) > (Scenario(s)) > (Task(s))
+However, for simple requests always consider more shallow hierarchies, always with 1 root node:
+- Just (1 Skill) > (Scenario(s)) > (Task(s))
+- Just (1 Scenario) > (Task(s))
+- Or just (1 Task)
+You are not required to include every scenario of a skill, or every task of a scenario.
+You can also match and mix:
+(1 Stakeholder Request Group)
+> (Scenario) > (Task(s))
+> (Task)
+> (Skill) > (Scenario(s)) > (Task(s))
+> (Another Task)
+> 
+However, keep in mind that following the standard scenarios gives the most reliable results. Mixing too much brings risks.
+**ALWAYS** break it down the level of tasks though! And remember that tasks are executed in order, depth-first.
 - Always generate a unique id for new goals. This can be a `{short-slug}-{suffix}` for readability, e.g. 'mktplan.1.5-287af5'
 - Include stakeholder, thread ID and message ID as a comment, at least in the top level goal(s) you create, so you can find the converation again later when you're executing the task.
 - **CRITICAL:** When creating a goal based on your self-reflected capabilities, ALWAYS fill out the instructions.workType and
@@ -2177,8 +2269,7 @@ able to formulate the right tasks for you later.
 `{ workType: 'SKILL', workId: 'DM' or 'document-modelling' }`
 The values 'DM.01.1', 'DM.01', 'DM' or 'document-modelling' in the examples **MUST** be identical to the capabilities IDs and the types must match.
 - Do include any specific details that are relevent from the original conversation as comment or context on the instructions. Think of it as sending a message to your future self.
-- It is not a problem to add duplicate capability skills, scenarios, and/or tasks to your work breakdown as goals, if steps or procedures should be repeated. You can
-mix and match as long as the goals have unique IDs, and they reference the capability's workType and workId correctly. Consequently, duplicate instruction workIds
+- It is not a problem to add duplicate capability skills, scenarios, and/or tasks to your work breakdown as goals, if steps or procedures should be repeated. You can mix and match as long as the goals have unique IDs, and they reference the capability's workType and workId correctly. Consequently, duplicate instruction workIds
 are totally fine. Duplicate goal IDs are not!
 - Create short goal titles inspired by the capability but applied to the topic of the request,
 - For example, `DM.01.1 Start by listing the users who will use the new document model` becomes: `DM.01.1 - List Pizza Order document users`
@@ -2193,6 +2284,10 @@ are totally fine. Duplicate goal IDs are not!
 - Message reference: Message 《message.id》
 - Expected deliverables
 - Any specific requirements mentioned
+
+### Self-check
+
+- Before finishing the planning, double-check that all leaf nodes are of workType: TASK and if not, break them down further.
 ```
 
 ###### HSM.01.3: Update existing goals only if needed
