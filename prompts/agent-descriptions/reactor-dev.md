@@ -66,11 +66,18 @@
 
 | Task ID | Title | Expected Outcome |
 |---------|-------|------------------|
-| DM.01.1 | Start by listing the users who will use the new document model | - |
-| DM.01.2 | Come up with a good, concise description | - |
-| DM.01.3 | Come up with a document type identifier that fits the description | - |
-| DM.01.4 | Come up with a good document file extension | - |
-| DM.01.5 | Fill out the remaining package information in Vetra Studio drive | - |
+| DM.01.1 | Ensure the document model specification document exists in Vetra drive | - |
+| DM.01.2 | Start by listing the users who will use the new document model | - |
+| DM.01.3 | Come up with a good, concise description | - |
+| DM.01.4 | Fill out the remaining header fields | - |
+
+**DM.02: Create the state schema and operations**
+
+| Task ID | Title | Expected Outcome |
+|---------|-------|------------------|
+| DM.02.1 | Define the global state schema | - |
+| DM.02.2 | Generate a minimal default value for the document | - |
+| DM.02.3 | Define the modules and operations | - |
 
 #### document-editor-creation (ED)
 
@@ -952,27 +959,26 @@ type TodoListLocalState {
 
 ### Available Scalar Types
 
-| Standard  | Custom Identity        | Custom Amounts      | Custom Specialized |
-| --------- | ---------------------- | ------------------- | ------------------ |
-| `String`  | `OID` (Object ID)      | `Amount`            | `EthereumAddress`  |
-| `Int`     | `PHID` (Powerhouse ID) | `Amount_Tokens`     | `EmailAddress`     |
-| `Float`   | `OLabel`               | `Amount_Money`      | `Date`             |
-| `Boolean` |                        | `Amount_Fiat`       | `DateTime`         |
-|           |                        | `Amount_Currency`   | `URL`              |
-|           |                        | `Amount_Crypto`     | `Currency`         |
-|           |                        | `Amount_Percentage` |                    |
+| Standard  | Custom Identity                   | Custom Amounts      | Custom Specialized |
+| --------- | --------------------------------- | ------------------- | ------------------ |
+| `String`  | `OID` (Object ID)                 | `Amount`            | `EthereumAddress`  |
+| `Int`     | `PHID` (Powerhouse document ID)   | `Amount_Tokens`     | `EmailAddress`     |
+| `Float`   | `OLabel`                          | `Amount_Money`      | `Date`             |
+| `Boolean` |                                   | `Amount_Fiat`       | `DateTime`         |
+|           |                                   | `Amount_Currency`   | `URL`              |
+|           |                                   | `Amount_Crypto`     | `Currency`         |
+|           |                                   | `Amount_Percentage` |                    |
 
 ### Arrays and Objects
 
 - **Arrays**: Must be mandatory `[ObjectType!]!`
-- **Objects in arrays**: Must include `OID!` field for unique identification
+- **Objects in arrays**: Must include `id: OID!` field for unique identification
 - Include `OLabel` for metadata when relevant
 
 ### Input Types
 
 - Reflect user intent with descriptive names
 - Simple, specific fields over complex nested types
-- System auto-generates `OID` for new objects (users don't provide manually)
 
 ## Error Handling in Operations
 
@@ -1210,7 +1216,21 @@ Do not make any changes in the code yet!
 
 **Tasks:**
 
-###### DM.01.1: Start by listing the users who will use the new document model
+###### DM.01.1: Ensure the document model specification document exists in Vetra drive
+
+**Task Template:**
+
+```md
+- Check the Vetra drive to confirm if a preliminary document model specification
+(formal type: `powerhouse/document-model`) already exists for the document model you
+want to create.
+- If it already exists, note the document ID in the task outcome
+- If it does not exist already, create it first before proceeding
+- Make sure to set the name and add the document to the correct drive
+- After adding it, ensure you see the document model in the Vetra drive
+```
+
+###### DM.01.2: Start by listing the users who will use the new document model
 
 **Task Template:**
 
@@ -1224,7 +1244,7 @@ Do not make any changes in the code yet!
 \`\`\`
 ```
 
-###### DM.01.2: Come up with a good, concise description
+###### DM.01.3: Come up with a good, concise description
 
 **Task Template:**
 
@@ -1259,40 +1279,452 @@ logic should be precise and predictable: easy to implement and test.
 - Add the description to the specification document in Vetra Studio drive.
 ```
 
-###### DM.01.3: Come up with a document type identifier that fits the description
+###### DM.01.4: Fill out the remaining header fields
 
 **Task Template:**
 
 ```md
+### Document Type and Name
+
 - The document type must be of the form `{organization}/{document-type-name}`
 - For example: `pizza-plaza/order`
+- Make sure that the name is set in a human-readable, capitalized form
+- For example: `Pizza Plaza Order`
+- Make sure all extra spacing is removed and each word is capitalized
+- The name must match `/[a-zA-Z][a-zA-Z0-9 ]*/`. This is critical for the state schema later,
+which uses this name to derive the root type name.
 
-### Wrap-up
+### Document File Extension
 
-- Set the document type in the specification document in Vetra Studio drive.
-```
-
-###### DM.01.4: Come up with a good document file extension
-
-**Task Template:**
-
-```md
 - Reduce the document type to an abbreviation of 2 to 4 characters with a dot in front
 - Avoid abbreviations with problematice connotations
 - For example: `pizza-plaza/order` => `.ppo`
 - For example: `software-engineering/xml` => `.sxml`, not `.sex`
 
+### Author fields
+
+- Fill out the author name with yours
+- Fill out the website URL with the stakeholder's if you know it, or the package publisher's URL.
+If both are unknown, use 'https://powerhouse.inc' as a default.
+
 ### Wrap-up
 
-- Set the document extension in the specification document in Vetra Studio drive
+- Verify that all details are correctly written to the specification document in Vetra Studio drive.
 ```
 
-###### DM.01.5: Fill out the remaining package information in Vetra Studio drive
+##### DM.02: Create the state schema and operations
+
+**Scenario Preamble:**
+
+```md
+Make extensive use of the `active-project-vetra` MCP tool for this scenario DM.02.
+Do not make any changes in the code yet. We are still only editing the specification document.
+
+Recall the best practices on how to create document model state schemas and operations.
+```
+
+**Tasks:**
+
+###### DM.02.1: Define the global state schema
 
 **Task Template:**
 
 ```md
--
+### Reread the document description and come up with an extended version with more detail
+
+- Take the scope restrictions into account but don't include them in the extended description
+- Consider example data
+- Describe in more detail what the users can do with the data
+- Consider creation, modification, sorting/moving and removal of data objects
+- Consider actions with more advanced business logic
+- Consider workflow status transitions
+- Consider the relationship between the document you're creating and other document types
+- While documents must always be self-contained data structures, other documents can
+be referenced with a `PHID` and, typically, a number of cached properties.
+
+### Example
+
+If the original document description reads like this:
+
+\`\`\`
+The Pizza Plaza order document will be used by the restaurant owner, their customers and the kitchen chefs. 
+The restaurant owner will prepare the document by defining the menu categories, options and prices in it. 
+The customer will then use this menu to add the pizzas, sides and drinks they want to order to their basket. 
+They will see the itemized prices and the total. Once the order is placed, a kitchen chef will check off the
+items one by one as ready.
+
+The order document does not support customization options for the items and it does not track the entire lifecycle
+of payment, delivery, etc. It is meant to be a reliable reference for what the restaurant offers, what the customers 
+wants, and what the kitchen has prepared.
+\`\`\`
+
+An extended version can be this:
+
+\`\`\`md
+The Pizza Plaza order document will be used by the restaurant owner, their customers and the kitchen chefs. 
+The restaurant owner will prepare the document by defining the menu categories, options and prices in it.
+
+Example categories are 'Small Pizzas', 'Medium Pizzas', 'Large Pizzas', 'Sides', and 'Drinks'. The restaurant 
+owner will define them simply with a label, and sort them in the right order. The category options are the actual 
+products such as 'Peperoni Pizza', which should have a name, picture URL, short description sentence, and a 
+unit price. The restaurant owner can create and edit the product details, and they can order the products within 
+the category, and they can delete products.
+
+The customer will then use this menu to add the pizzas, sides and drinks they want to order to their basket. They can 
+update the amount and remove products from their basket. They cannot add the same product to their basket twice. They 
+cannot change the order of the products in their basket. The products will simply appear in the same order as in the menu.
+
+Customers will see the itemized prices and the total price of each basket line item. The restaurant owner will set a 
+tax rate on each product category, which will also be applied. Overall we're keeping track of unit price excl. taxes, 
+unit price incl. taxes, subtotal excl. taxes and subtotal incl. taxes, basket total excl. taxes, basket tax total per 
+tax rate, and basket total incl. taxes. 
+
+Customers can clear their entire basket and start over. They can add additional notes to the order, which they can do
+to communicate for example allergies or delivery instructions.
+
+**Workflow**
+
+The document workflow enforces menu creation first, which is then locked down. As a second phase the customer will fill
+their basket and confirm. Once confirmed, the basket can no longer be edited and the kitch chef will check off the items.
+Once all items are checked off, the order document is fulfilled. It is possible to go back to menu editing but then the 
+basket will be automatically cleared. There should be timestamps for each one of the status transitions.
+
+**External documents**
+
+The shop owner will reference a `pizza-plaza/point-of-sale` document in the `pizza-plaza/order` document, from where the
+local name, company ID, address and telephone number will be cached.
+\`\`\`
+
+### Extract an initial state schema from the extended description
+
+**State Schema Root Type**
+
+- **CRITICAL** There is always a single root type called State which is required
+to be the PascalCase version of the document name. Failing to apply this pattern will break the
+code generator later on.
+For example: if the document model name is `Pizza Plaza Order`, its root type name is `PizzaPlazaOrderState`
+- The root type must not have an ID field (OID or PHID), because the document header already contains an
+ID. However, it may contain a business logic code or reference that the user would use as document identifier.
+For example: Pizza Plaza needs an *order id* for their accounting. This should be a `String` field or another
+appropriate scalar type, but not an `OID` or `PHID`, for example `orderRef: String`.
+
+**OIDs and PHIDs**
+
+- All objects in collections (arrays) MUST HAVE an `id: OID!`. `OID` fields are used both as "primary key" and
+"foreign key reference". Good practice is to call the property `id` if it's a primary key, and call it
+`otherObjectId: OID!` if it's a foreign key, with a comment to define which object types it can reference.
+- Use the `PHID` only to reference external documents if needed and identify the cached data properties
+that are needed.
+"Cached data property" simply means that a number of properties will be set together with the
+external document id so that the user can understand what was in the external document at the time when
+the PHID field was set. These data properties can get out-of-date, so the system will need to ensure it's
+updated when it matters.
+This is the same principle as the title and snippet information in HTML links and social media preview cards:
+\`\`\`html
+<a href="http://example.com/document.html">
+  <img src="..." alt="cached image"/>
+  <p>Cached description that may be out-of-date</p>
+</a>
+\`\`\`
+- The `ID` type which is a wider common practice in GraphQL, is not used.
+- Always use `enum` types for workflow statuses.
+
+**When to use mandatory and optional state fields**
+
+Mandatory properties in a state and operation input schema are indicated with an exclamation mark, e.g. `id: OID!`.
+
+Note that the reasoning about when to use mandatory fields in the state schema is quite different from the reasoning
+about operation input schemas. We're only concerned with the former, in this section.
+
+- **IMPORTANT** A user must always be able to create an empty document *without* providing any information, and the state
+schema needs to cover the entire life cycle of the document. This means that, in the root type, *properties can only be mandatory if they have a logical default value*!
+For example, one might think: "A Pizza Plaza order always needs an order ID for their accounting, make it mandatory",
+but this overlooks the fact that the restaurant owner must be able to create an empty order document in the first place.
+Order ID in this case also does not have a logical default, because it has to be unique in the system. Therefore,
+the `orderRef: String` field should definitely not be mandatory.
+- Collections, ie. array types, should always use double exclamation marks like `lines: [BasketLine!]!`. The inner
+exclamation mark simply expresses that array items should never be a NULL value, which is always the case. The outer
+exclamation mark indicates that at least an empty array should always be set as value of the collection, as opposed to
+`lines = null`. Following our rule, this is almost always a very logical default.
+- Another situation with a common 'logical default' is in the case of a child objects. In our Pizza Plaza order example,
+the `menu: Menu!` should always *exist*, although it should be empty in the beginning. Note that this can only be done
+if the child object also has a logical empty default -- mandatory properties of the child object may prevent us from
+setting the
+The customer basket, however, may logically only come into existence when the document moves on to the "BASKET_EDITING"
+phase. Therefore it could be made optional as a design decision to reflect the lifecycle business logic: `basket: Basket`
+
+**Collection sorting**
+
+- There is no need to use a `position` or `weight` property to sort items in a collection. The items must be kept ordered
+in the array via their index.
+- Since all collection objects have an `id: OID!`, moving and sorting operations can defined as
+`SORT(ids: [OID!]!, insertBefore: OID!)`. This is a best practice that creates operations that have good branching and
+merging behavior too.
+
+**Trees and Recursion**
+
+- Always define trees as a flat list, e.g. `TreeNodeType { id:OID!, parentId:OID }`, whereby root nodes have `parentId=null`
+- During reducer impelementation, it's good practice to have a sorting helper function that deterministically sorts the tree
+nodes, e.g. dept-first, and apply this helper function in every reducer that manipulates the tree structure.
+
+### Example
+
+The intial state schema could be like this:
+
+\`\`\`graphql
+
+type PizzaPlazaOrderState {
+  status: OrderStatus!          # default = MENU_EDITING
+  pos: PointOfSaleInfo          # mandatory child properties make this optional
+  menu: Menu!                   # default = empty menu
+  basket: Basket                # does not exist until status = BASKET_EDITING
+  customerNotes: String         # optional
+  timestamps: OrderTimestamps!  # default = empty timestamps
+}
+
+enum OrderStatus {
+  MENU_EDITING
+  BASKET_EDITING
+  BASKET_CONFIRMED
+  ORDER_FULFILLED
+}
+
+type PointOfSaleInfo {
+  docId: PHID!                  # references pizza-plaza/point-of-sale document
+  name: String!                 # cached property
+  companyID: String!            # cached property
+  address: String               # cached property
+  telephone: String             # cached property
+}
+
+type OrderTimestamps {
+  menuCreatedAt: DateTime
+  basketConfirmedAt: DateTime
+  orderFulfilledAt: DateTime
+}
+
+type Menu {
+  categories: [MenuCategory!]!
+}
+
+type MenuCategory {
+  id: OID!
+  label: String!
+  taxRate: Float!
+  items: [MenuItem!]!
+}
+
+type MenuItem {
+  id: OID!
+  status: MenuItemStatus!
+  name: String!
+  pictureUrl: URL
+  description: String
+  unitPriceInclTax: Float!
+}
+
+enum MenuItemStatus {
+  DRAFT,
+  AVAILABLE, 
+  OUT_OF_STOCK
+}
+
+type Basket {
+  lines: [BasketLine!]!
+  totals: BasketTotals!
+}
+
+type BasketLine {
+  id: OID!                  # Primary Key
+  itemId: OID!              # Foreign Key: MenuItem.id
+  quantity: Int!
+  unitPriceExclTax: Float!
+  unitPriceInclTax: Float!
+  subtotalExclTax: Float!
+  subtotalInclTax: Float!
+  categoryTaxRate: Float!
+  preparedByKitchen: Boolean!
+}
+
+type BasketTotals {
+  totalExclTax: Float!
+  taxBreakdown: [TaxRateTotal!]!
+  totalInclTax: Float!
+}
+
+type TaxRateTotal {
+  taxRate: Float!
+  taxAmount: Float!
+}
+\`\`\`
+
+### Wrap-up
+
+- Add the extended description to the WBS notes
+- Ensure that the state schema is set in the document model spec using `active-project-vetra`, for the `global` scope
+- Verify the document is correctly updated
+
+### Expected Outcome
+
+The state schema of the document model is created following best-practice rules and written to the spec.
+```
+
+###### DM.02.2: Generate a minimal default value for the document
+
+**Task Template:**
+
+```md
+Create a JSON object that complies to the root object type with only the mandatory properties filled.
+
+### Example
+
+Our empty `pizza-plaza/order` document would look as follows:
+
+\`\`\`json
+{
+  "status": "MENU_EDITING",
+  "pos": null,
+  "menu": {
+    "categories": []
+  },
+  "basket": null,
+  "customerNotes": null,
+  "timestamps": {
+    "menuCreatedAt": null,
+    "basketConfirmedAt": null,
+    "orderFulfilledAt": null
+  }
+}
+\`\`\`
+
+### Wrap-up
+
+- Ensure that the default JSON is set in the document model spec using `active-project-vetra`,
+for the `global` scope
+- Verify the document is correctly updated
+
+### Expected Outcome
+
+- The default value JSON is available in the document and complies to the state schema
+```
+
+###### DM.02.3: Define the modules and operations
+
+**Task Template:**
+
+```md
+Define the document model modules to group operations.
+
+Recall your best practices and apply them. Begin by setting the operation names.
+Then consider the following for their input types:
+
+### CRITICAL: Input root type name
+
+- The input root type name must always be `<OperationName>Input` where `<OperationName>` is the pascal case version
+of the operation name. For example: the `SET_CATEGORY_LABEL` operation would have `SetCategoryLabelInput` as root
+input type.
+- Failing to apply this rule will break compilation later.
+
+### CRITICAL: Getting type references right
+
+- In the operation input schema, **ONLY** `enum` types (and scalars) from the state schema can be used. All other types
+are read model types and cannot be referenced as input types.
+- Instead, consider creating additional input types to mirror the state schema types, but appreciate the differences,
+especially in the rules for mandatory properties. State schema enum types MUST NOT be redefined in the input types.
+Doing so will result in compiler errors; they should just be used directly.
+- Don't reuse the mirror input types either. Think of each input type as unique to its own operation.
+
+### Knowing when to use mandatory / optional input type properties
+
+Input types are about *user intent and the mutation that will be applied*. As such, properties in input types should
+often be mandatory or optional, even if they are (not) optional in the state schema. Optional input properties that are
+set to null are either interpreted as "not included in the input" (add/patch-like operation) or could mean "clear this
+value in the state."
+
+- Due to this ambiguity and also because clearing data often should have a separate permission associated, it's often
+advisable to create a separate `CLEAR_PROPERTY` operation.
+- For example: the `pizza-plaza/order` state schema has an optional `orderRef: String` state property because the order
+reference won't be set when the empty document is first created.
+- However, the `SET_ORDER_REF` operation's input type requires an orderRef parameter because, once set, the orderRef
+should generally not be cleared.
+- Should the requirement come up that an order ref, in fact, should be cleared in some cases, an additional
+`CLEAR_ORDER_REF` operation should be added.
+
+### Example
+
+If Pizza Plaza's state schema looks like this:
+
+\`\`\`graphql
+type MenuCategory {
+  id: OID!
+  items: [MenuItem!]!
+}
+
+type MenuItem {
+  id: OID!
+  status: MenuItemStatus!
+  name: String!
+  picture: URL
+}
+
+enum MenuItemStatus {
+  DRAFT,
+  AVAILABLE, 
+  OUT_OF_STOCK
+}
+\`\`\`
+
+We could have operations `ADD_CATEGORY_MENU_ITEMS`, `UPDATE_CATEGORY_MENU_ITEMS` and `CLEAR_MENU_ITEM_PICTURE` with input types:
+
+\`\`\`graphql
+"Operation: ADD_CATEGORY_MENU_ITEMS"
+input AddCategoryMenuItemsInput {
+  categoryId: OID!
+  items: [NewMenuItemInput!]!   # we MUST NOT reference the MenuItem state type, instead we mirror with 
+                                # a unique input type, NewMenuItemInput
+}
+
+input NewMenuItemInput {
+  id: OID!                      # new item's OID, always required to keep the reducers pure
+
+  status: MenuItemStatus        # enum state type _is_ available -- we can use it, MUST NOT redefine it
+                                # default = AVAILABLE -- optional input, mandatory state value
+
+  name: String!                 # no default, mandatory as the state value
+  picture: URL                  # no default, optional as the state value
+}
+
+"Operation: UPDATE_CATEGORY_MENU_ITEMS"
+input UpdateCategoryMenuItemsInput {
+  categoryId: OID!
+  items: [MenuItemUpdateInput!]! # we MUST NOT reference the MenuItem state type, or input type NewMenuItemInput 
+                                 # instead we mirror with a unique input type, MenuItemUpdateInput
+}
+
+input MenuItemUpdateInput {
+  id: OID!                      # existing item's OID
+  status: MenuItemStatus        # enum state type _is_ available -- we can use it, MUST NOT redefine it
+                                # default = no update
+  name: String                  # default = no update
+  picture: URL                  # default = no update
+}
+
+"Operation: CLEAR_MENU_ITEM_PICTURE"
+input ClearMenuItemPictureInput {
+  menuItemId: OID!
+}
+\`\`\`
+
+### Wrap-up
+
+- Ensure that all modules, operations and their input types have been added to the document model
+spec via `active-project-vetra`, for the `global` scope
+- Verify the document is correctly updated
+- Verify that the code generator has been correctly triggered at this point
+
+### Expected Outcome
+
+Document model operations and their input types are now available in the document model spec in Vetra drive.
 ```
 
 ---
@@ -1732,14 +2164,27 @@ For stakeholder planning requests that require one or more WBS goals:
 
 - Lay out the goal hierarchy with the stakeholder request at the top level, broken down in subgoals following the
 (1) skills, (2) scenarios and (3) tasks from your capabilities.
-- Create short goal titles
-- For leaf goals mapped to a capability task use: `<task.id> - <task title applied to stakeholder request>`
-For example, `DM.01.1 Start by listing the users who will use the new document model` becomes: `DM.01.1 List Pizza Order document users`
-- For parent goals mapped to a capability scenarion use `<scenario.id> - <scenario title applied to stakeholder request>`
-For example, `DM.00 Check Prerequisites` becomes: `DM.00 Check prerequisites for Pizza Order reactor module`
-- For parent goals mapped to a capability skills, use `<skill.id> - <skill title applied to stakeholder request>`
-For example, `DM document-modelling` becomes: `DM. Pizza Order document modelling`
-- Try to keep the title length below 60 chars
+- Always generate a unique id for new goals. This can be a `{short-slug}-{suffix}` for readability, e.g. 'mktplan.1.5-287af5'
+- Include stakeholder, thread ID and message ID as a comment, at least in the top level goal(s) you create, so you can find the converation again later when you're executing the task.
+- **CRITICAL:** When creating a goal based on your self-reflected capabilities, ALWAYS fill out the instructions.workType and
+instructions.workId with the corresponding value of the capability. If you don't get this right, your task planner won't be
+able to formulate the right tasks for you later.
+- For leaf goals mapped to a capability task use, for example:
+`{ workType: 'TASK', workId: 'DM.01.1', comment: 'Consider only two user categories, customer and shop owner, per stakeholder request.' }`
+- For parent goals mapped to a capability scenarion use, for example:
+`{ workType: 'SCENARIO', workId: 'DM.01' }`
+- For parent goals mapped to a capability skills, use, for example:
+`{ workType: 'SKILL', workId: 'DM' or 'document-modelling' }`
+The values 'DM.01.1', 'DM.01', 'DM' or 'document-modelling' in the examples **MUST** be identical to the capabilities IDs and the types must match.
+- Do include any specific details that are relevent from the original conversation as comment or context on the instructions. Think of it as sending a message to your future self.
+- It is not a problem to add duplicate capability skills, scenarios, and/or tasks to your work breakdown as goals, if steps or procedures should be repeated. You can
+mix and match as long as the goals have unique IDs, and they reference the capability's workType and workId correctly. Consequently, duplicate instruction workIds
+are totally fine. Duplicate goal IDs are not!
+- Create short goal titles inspired by the capability but applied to the topic of the request,
+- For example, `DM.01.1 Start by listing the users who will use the new document model` becomes: `DM.01.1 - List Pizza Order document users`
+- For example, `DM.00 Check Prerequisites` becomes: `DM.00 - Check prerequisites for Pizza Order reactor module`
+- For example, `DM document-modelling` becomes: `DM - Pizza Order document modelling`
+- Try to keep the title length below 50 chars
 - Always add goals and potential subgoals under the appropriate parent goal in your WBS
 - Set the initial status (typically TODO or IN PROGRESS)
 - Add relevant details including:
@@ -1762,6 +2207,11 @@ Based on your planning work so far, consider if further updates to the WBS are n
 - Consider adding notes about the stakeholder's feedback or additional requirements.
 Don't use the notes for planning. Goals should be in the goal hierarchy itself.
 - Consider linking the message reference for traceability
+
+**IMPORTANT**
+
+Verify that all goals are broken down the level of capability tasks. Goals matched to scenarios and skills
+without child goals will not get picked up by your task planner!
 
 Based on the message and your ability to proceed:
 

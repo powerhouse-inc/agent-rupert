@@ -858,10 +858,8 @@ export class WbsRoutineHandler {
         // Create the reportBlocked action
         const action = actions.reportBlocked({
             id: goal.id,
-            question: {
-                id: `blocked-${Date.now()}`,
-                note: 'Task execution failed. Please review the error and provide guidance.'
-            }
+            type: "OTHER",
+            comment: "Failed to execute the WBS task produced by WbsRoutineHandler."
         });
 
         // Submit the action to the reactor
