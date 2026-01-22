@@ -92,14 +92,14 @@ describe('ReactorPackageDevAgent MCP Integration', () => {
             maxTurns: 5,
             bypassPermissions: true,  // Bypass permissions for testing
             allowedTools: [
-                'mcp__reactor_prjmgr__init_project',
-                'mcp__reactor_prjmgr__list_projects',
-                'mcp__reactor_prjmgr__run_project',
-                'mcp__reactor_prjmgr__shutdown_project',
-                'mcp__reactor_prjmgr__get_project_logs',
-                'mcp__reactor_prjmgr__get_project_status',
-                'mcp__reactor_prjmgr__is_project_ready',
-                'mcp__reactor_prjmgr__get_projects_dir',
+                'mcp__reactor-prjmgr__init_project',
+                'mcp__reactor-prjmgr__list_projects',
+                'mcp__reactor-prjmgr__run_project',
+                'mcp__reactor-prjmgr__shutdown_project',
+                'mcp__reactor-prjmgr__get_project_logs',
+                'mcp__reactor-prjmgr__get_project_status',
+                'mcp__reactor-prjmgr__is_project_ready',
+                'mcp__reactor-prjmgr__get_projects_dir',
                 'mcp__self_reflection__list_skills',
                 'mcp__self_reflection__get_skill_details',
                 'mcp__self_reflection__list_mcp_endpoints'
@@ -134,7 +134,7 @@ describe('ReactorPackageDevAgent MCP Integration', () => {
         
         // Verify that the MCP server was added to the brain
         const servers = brain.listMcpServers();
-        expect(servers).toContain('reactor_prjmgr');
+        expect(servers).toContain('reactor-prjmgr');
     });
     
     test('should respond to request to list projects using MCP tools', async () => {
@@ -148,7 +148,7 @@ describe('ReactorPackageDevAgent MCP Integration', () => {
         brain.setSystemPrompt(
             'You are a helpful assistant with access to ReactorProjectsManager tools via MCP. ' +
             'Always respond with valid JSON following the exact template provided. ' +
-            'Use the mcp__reactor_prjmgr__list_projects tool when asked about projects.',
+            'Use the mcp__reactor-prjmgr__list_projects tool when asked about projects.',
             'test-agent'
         );
         
@@ -187,7 +187,7 @@ describe('ReactorPackageDevAgent MCP Integration', () => {
         brain.setSystemPrompt(
             'You are a helpful assistant with access to ReactorProjectsManager tools via MCP. ' +
             'Always respond with valid JSON following the exact template provided. ' +
-            'Use the mcp__reactor_prjmgr__get_projects_dir tool when asked about the projects directory.',
+            'Use the mcp__reactor-prjmgr__get_projects_dir tool when asked about the projects directory.',
             'test-agent'
         );
         
@@ -222,7 +222,7 @@ describe('ReactorPackageDevAgent MCP Integration', () => {
         brain.setSystemPrompt(
             'You are a helpful assistant with access to ReactorProjectsManager tools via MCP. ' +
             'Always respond with valid JSON following the exact template provided. ' +
-            'Use the mcp__reactor_prjmgr__is_project_ready and mcp__reactor_prjmgr__get_project_status tools.',
+            'Use the mcp__reactor-prjmgr__is_project_ready and mcp__reactor-prjmgr__get_project_status tools.',
             'test-agent'
         );
         
@@ -258,21 +258,21 @@ describe('ReactorPackageDevAgent MCP Integration', () => {
         
         // Get the list of MCP servers from the brain
         const servers = brain.listMcpServers();
-        expect(servers).toContain('reactor_prjmgr');
+        expect(servers).toContain('reactor-prjmgr');
         
         // The brain's allowed tools should include all reactor tools
         const brainConfig = (brain as any).config;
         const allowedTools = brainConfig.allowedTools || [];
         
         const expectedTools = [
-            'mcp__reactor_prjmgr__init_project',
-            'mcp__reactor_prjmgr__list_projects',
-            'mcp__reactor_prjmgr__run_project',
-            'mcp__reactor_prjmgr__shutdown_project',
-            'mcp__reactor_prjmgr__get_project_logs',
-            'mcp__reactor_prjmgr__get_project_status',
-            'mcp__reactor_prjmgr__is_project_ready',
-            'mcp__reactor_prjmgr__get_projects_dir'
+            'mcp__reactor-prjmgr__init_project',
+            'mcp__reactor-prjmgr__list_projects',
+            'mcp__reactor-prjmgr__run_project',
+            'mcp__reactor-prjmgr__shutdown_project',
+            'mcp__reactor-prjmgr__get_project_logs',
+            'mcp__reactor-prjmgr__get_project_status',
+            'mcp__reactor-prjmgr__is_project_ready',
+            'mcp__reactor-prjmgr__get_projects_dir'
         ];
         
         // Check that all expected tools are in the allowed tools
@@ -292,8 +292,8 @@ describe('ReactorPackageDevAgent MCP Integration', () => {
         brain.setSystemPrompt(
             'You are a helpful assistant with access to ReactorProjectsManager tools via MCP. ' +
             'Always respond with valid JSON following the exact template provided. ' +
-            'You can use tools like mcp__reactor_prjmgr__list_projects, mcp__reactor_prjmgr__get_projects_dir, ' +
-            'and mcp__reactor_prjmgr__get_project_status to answer questions.',
+            'You can use tools like mcp__reactor-prjmgr__list_projects, mcp__reactor-prjmgr__get_projects_dir, ' +
+            'and mcp__reactor-prjmgr__get_project_status to answer questions.',
             'test-agent'
         );
         
@@ -452,7 +452,7 @@ describe('ReactorPackageDevAgent MCP Integration', () => {
         
         // Get the list of MCP servers from the brain
         const servers = brain.listMcpServers();
-        expect(servers).toContain('reactor_prjmgr');
+        expect(servers).toContain('reactor-prjmgr');
         expect(servers).toContain('self_reflection');  // Should also have self_reflection server
     });
     
@@ -491,11 +491,11 @@ describe('ReactorPackageDevAgent MCP Integration', () => {
         expect(jsonResponse).toHaveProperty('count');
         expect(Array.isArray(jsonResponse.endpoints)).toBe(true);
         
-        // Should have at least reactor_prjmgr and self_reflection
+        // Should have at least reactor-prjmgr and self_reflection
         const endpointNames = jsonResponse.endpoints.map((e: any) => 
             typeof e === 'string' ? e : e.name
         );
-        expect(endpointNames).toContain('reactor_prjmgr');
+        expect(endpointNames).toContain('reactor-prjmgr');
         expect(endpointNames).toContain('self_reflection');
         
         // Should have at least 2 endpoints

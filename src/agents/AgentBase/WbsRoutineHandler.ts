@@ -56,7 +56,7 @@ export class WbsRoutineHandler {
             const nextGoal = goalChain[goalChain.length - 1];
             
             if (nextGoal.status !== "IN_PROGRESS") {
-                console.log("Marking next goal in progress", nextGoal);
+                //console.log("Marking next goal in progress", nextGoal);
                 await this.markInProgress(nextGoal, wbs.header.id, reactor);
             }
 
@@ -68,8 +68,8 @@ export class WbsRoutineHandler {
                 return { type: 'idle', params: {} };
             }
             
-            console.log(`Resolved work item: ${resolution.skillName}/${resolution.scenarioId}/${resolution.taskId} (${resolution.confidence})`);
-            console.log(`  Source: skill=${resolution.source.skill}, scenario=${resolution.source.scenario}, task=${resolution.source.task}`);
+            //console.log(`Resolved work item: ${resolution.skillName}/${resolution.scenarioId}/${resolution.taskId} (${resolution.confidence})`);
+            //console.log(`  Source: skill=${resolution.source.skill}, scenario=${resolution.source.scenario}, task=${resolution.source.task}`);
             
             // Create filtered PromptDriver for this resolution
             const driver = this.createDriverForResolution(
@@ -345,32 +345,6 @@ export class WbsRoutineHandler {
             return null;
         }
 
-        // Helper function to compare workIds for sorting
-        const compareWorkIds = (a: string, b: string): number => {
-            // Split workIds into parts (e.g., "DM.01.1" -> ["DM", "01", "1"])
-            const partsA = a.split('.');
-            const partsB = b.split('.');
-            
-            for (let i = 0; i < Math.max(partsA.length, partsB.length); i++) {
-                const partA = partsA[i] || '';
-                const partB = partsB[i] || '';
-                
-                // Try to compare as numbers first
-                const numA = parseInt(partA, 10);
-                const numB = parseInt(partB, 10);
-                
-                if (!isNaN(numA) && !isNaN(numB)) {
-                    if (numA !== numB) return numA - numB;
-                } else {
-                    // Compare as strings
-                    const cmp = partA.localeCompare(partB);
-                    if (cmp !== 0) return cmp;
-                }
-            }
-            
-            return 0;
-        };
-
         // Helper function to check if a goal is a leaf node
         const isLeafGoal = (goal: Goal): boolean => {
             // A goal is a leaf if no other goals have it as their parentId
@@ -401,15 +375,9 @@ export class WbsRoutineHandler {
             return chain;
         };
 
-        // Sort goals by workId to ensure proper execution order
-        const sortedGoals = [...goals].sort((a, b) => {
-            const workIdA = a.instructions?.workId || '';
-            const workIdB = b.instructions?.workId || '';
-            return compareWorkIds(workIdA, workIdB);
-        });
-
         // Traverse sorted goals to find the first eligible leaf
-        for (const goal of sortedGoals) {
+        for (let index=0; index<goals.length; index++) {
+            const goal = goals[index];
             //console.log("Considering goal: ", goal.description);
             if (isLeafGoal(goal) && isEligibleForWork(goal)) {
                 //console.log(" > Goal selected", goal);
@@ -417,32 +385,25 @@ export class WbsRoutineHandler {
                 
                 // Find sibling goals (same parent, same workType)
                 const parentId = goal.parentId;
-                const workType = goal.instructions?.workType;
                 
-                const siblings = goals.filter(g => 
-                    g.parentId === parentId && 
-                    g.instructions?.workType === workType &&
-                    g.id !== goal.id
-                );
+                const children = goals.filter(g => g.parentId === parentId);
                 
-                // Sort siblings by workId
-                const sortedSiblings = siblings.sort((a, b) => {
-                    const workIdA = a.instructions?.workId || '';
-                    const workIdB = b.instructions?.workId || '';
-                    return compareWorkIds(workIdA, workIdB);
-                });
+                const precedingSiblings: Goal[] = [];
+                const followingSiblings: Goal[] = [];
+                let encounteredCurrent = false;
+
+                for (const c of children) {
+                    if (c.id === goal.id) {
+                        encounteredCurrent = true;
+                    } else if (encounteredCurrent) {
+                        followingSiblings.push(c);
+                    } else {
+                        precedingSiblings.push(c);
+                    }
+                }
                 
-                // Find the goal's position in sorted order
-                const goalWorkId = goal.instructions?.workId || '';
-                const precedingSiblings = sortedSiblings.filter(s => {
-                    const siblingWorkId = s.instructions?.workId || '';
-                    return compareWorkIds(siblingWorkId, goalWorkId) < 0;
-                });
-                const followingSiblings = sortedSiblings.filter(s => {
-                    const siblingWorkId = s.instructions?.workId || '';
-                    return compareWorkIds(siblingWorkId, goalWorkId) > 0;
-                });
-                
+                //console.log(" Siblings", precedingSiblings.map(s => s.instructions?.workId), followingSiblings.map(s => s.instructions?.workId));
+
                 return {
                     goalChain,
                     precedingSiblings,
@@ -805,7 +766,7 @@ export class WbsRoutineHandler {
         wbsDocumentId: string,
         reactor: IDocumentDriveServer
     ): Promise<void> {
-        console.log(`Marking goal ${goal.id} as DONE: ${goal.description}`);
+        //console.log(`Marking goal ${goal.id} as DONE: ${goal.description}`);
         
         let skipUpdate = false;
         const currentWbs = await reactor.getDocument(wbsDocumentId) as WorkBreakdownStructureDocument;
@@ -814,7 +775,7 @@ export class WbsRoutineHandler {
         if (currentGoal) {
             const currentStatus = currentGoal.status;
             if (currentGoal.status !== "IN_PROGRESS") {
-                console.log(" Processed goal status is no longer IN_PROGRESS. Skipping status update.", currentGoal);
+                //console.log(" Processed goal status is no longer IN_PROGRESS. Skipping status update.", currentGoal);
                 skipUpdate = true;
             }
         }

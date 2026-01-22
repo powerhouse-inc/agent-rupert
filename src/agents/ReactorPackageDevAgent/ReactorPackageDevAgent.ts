@@ -126,7 +126,7 @@ export class ReactorPackageDevAgent extends AgentBase<IAgentBrain> {
         if (this.brain && this.brain instanceof AgentClaudeBrain) {
             this.logger.info(`${this.config.name}: Creating ReactorProjectsManager MCP server`);
             const serverConfig = createReactorProjectsManagerMcpServer(this.packagesManager, this, this.logger);
-            (this.brain as AgentClaudeBrain).addMcpServer('reactor_prjmgr', serverConfig);
+            (this.brain as AgentClaudeBrain).addMcpServer('reactor-prjmgr', serverConfig);
             this.logger.info(`${this.config.name}: ReactorProjectsManager MCP server registered`);
         }
     }

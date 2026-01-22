@@ -170,7 +170,7 @@ export class ReactorPackagesManager {
                 title: `Initialize Powerhouse project: ${projectName}`,
                 instructions: `Create a new Powerhouse project using ph init`,
                 command: 'ph',
-                args: ['init', projectName],
+                args: ['init', '--staging', projectName],
                 workingDirectory: this.projectsDir,
                 environment: {
                     // Ensure non-interactive mode if available

@@ -85,10 +85,10 @@ describe('ReactorPackageDevAgent MCP Simple Test', () => {
         
         // Verify the MCP server was registered
         const servers = brain.listMcpServers();
-        expect(servers).toContain('reactor_prjmgr');
+        expect(servers).toContain('reactor-prjmgr');
         
         // Get the registered server
-        const server = brain.getMcpServer('reactor_prjmgr');
+        const server = brain.getMcpServer('reactor-prjmgr');
         expect(server).toBeDefined();
     });
     

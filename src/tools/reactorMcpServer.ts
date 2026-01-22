@@ -20,10 +20,10 @@ import { ReactorPackageDevAgent } from '../agents/ReactorPackageDevAgent/Reactor
 
 /**
  * Create an MCP server for ReactorPackagesManager
- * Server name will be 'reactor_prjmgr' resulting in tool names like:
- * - mcp__reactor_prjmgr__init_project
- * - mcp__reactor_prjmgr__list_projects
- * - mcp__reactor_prjmgr__run_project
+ * Server name will be 'reactor-prjmgr' resulting in tool names like:
+ * - mcp__reactor-prjmgr__init_project
+ * - mcp__reactor-prjmgr__list_projects
+ * - mcp__reactor-prjmgr__run_project
  * etc.
  * @returns McpSdkServerConfigWithInstance - ready to use with addMcpServer
  */
@@ -50,7 +50,7 @@ export function createReactorProjectsManagerMcpServer(
     
     // Create and return the MCP server
     const server = createSdkMcpServer({
-        name: 'reactor_prjmgr',
+        name: 'reactor-prjmgr',
         version: '1.0.0',
         tools: tools
     });
@@ -64,13 +64,13 @@ export function createReactorProjectsManagerMcpServer(
  */
 export function getReactorMcpToolNames(): string[] {
     return [
-        'mcp__reactor_prjmgr__init_project',
-        'mcp__reactor_prjmgr__list_projects',
-        'mcp__reactor_prjmgr__run_project',
-        'mcp__reactor_prjmgr__shutdown_project',
-        'mcp__reactor_prjmgr__get_project_logs',
-        'mcp__reactor_prjmgr__get_project_status',
-        'mcp__reactor_prjmgr__is_project_ready',
-        'mcp__reactor_prjmgr__get_projects_dir'
+        'mcp__reactor-prjmgr__init_project',
+        'mcp__reactor-prjmgr__list_projects',
+        'mcp__reactor-prjmgr__run_project',
+        'mcp__reactor-prjmgr__shutdown_project',
+        'mcp__reactor-prjmgr__get_project_logs',
+        'mcp__reactor-prjmgr__get_project_status',
+        'mcp__reactor-prjmgr__is_project_ready',
+        'mcp__reactor-prjmgr__get_projects_dir'
     ];
 }
