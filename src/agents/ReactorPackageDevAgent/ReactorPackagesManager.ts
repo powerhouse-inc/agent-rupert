@@ -170,7 +170,7 @@ export class ReactorPackagesManager {
                 title: `Initialize Powerhouse project: ${projectName}`,
                 instructions: `Create a new Powerhouse project using ph init`,
                 command: 'ph',
-                args: ['init', '--staging', projectName],
+                args: ['init', projectName],
                 workingDirectory: this.projectsDir,
                 environment: {
                     // Ensure non-interactive mode if available
@@ -179,7 +179,30 @@ export class ReactorPackagesManager {
             });
 
             // Execute the initialization
-            const result = await this.cliExecutor.execute(initTask);
+            let result = await this.cliExecutor.execute(initTask);
+
+            if(result.exitCode === 0) {
+                /*
+                *   TODO: CLEAN UP LATER -- this command is a bug fix to avoid zod issues with DateTime types
+                *   
+                *   Typical error: 
+                *   Property 'iso' does not exist on type ... z.iso.datetime(),
+                */
+                const upgradeTask: CLITask = createCLITask({
+                    title: `Install document-engineering package v1.40.0 for project: ${projectName}`,
+                    instructions: `Upgrade document-engineering to avoid zod issues`,
+                    command: 'pnpm',
+                    args: ['install', '@powerhousedao/document-engineering@1.40.0'],
+                    workingDirectory: projectPath,
+                    environment: {
+                        // Ensure non-interactive mode if available
+                        CI: 'true'
+                    }
+                });
+
+                // Execute the upgrade
+                result = await this.cliExecutor.execute(upgradeTask);
+            }
 
             // Check if initialization was successful
             if (result.exitCode === 0) {
