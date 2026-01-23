@@ -103,10 +103,12 @@
 
 | Task ID | Title | Expected Outcome |
 |---------|-------|------------------|
-| ED.01.1 | Verify the code generation was triggered and editor boilerplate code was created | - |
-| ED.01.2 | Implement the document editor | - |
-| ED.01.3 | Set up user acceptance test | - |
-| ED.01.4 | Stakholder communication | - |
+| ED.01.1 | Verify code generation and clean up the boilerplate code | - |
+| ED.01.2 | Ensure that test documents have been generated | - |
+| ED.01.3 | Implement viewing functionality | - |
+| ED.01.4 | Implement editing functionality | - |
+| ED.01.5 | Resolve outstanding issues | - |
+| ED.01.6 | Stakholder communication | - |
 
 #### handle-stakeholder-message (HSM)
 
@@ -1443,6 +1445,7 @@ This is the same principle as the title and snippet information in HTML links an
   <p>Cached description that may be out-of-date</p>
 </a>
 \`\`\`
+Only use PHID fields when it's needed for the use case. Linking multiple documents always increases complexity.
 - The `ID` type which is a wider common practice in GraphQL, is not used.
 - Always use `enum` types for workflow statuses.
 
@@ -1469,6 +1472,11 @@ if the child object also has a logical empty default -- mandatory properties of 
 setting the
 The customer basket, however, may logically only come into existence when the document moves on to the "BASKET_EDITING"
 phase. Therefore it could be made optional as a design decision to reflect the lifecycle business logic: `basket: Basket`
+
+**Images and attachments**
+
+There is no support for embedded images or attachments at the moment. Use the URL type to link images and attachments
+in the document model.
 
 **Collection sorting**
 
@@ -1535,7 +1543,7 @@ type MenuItem {
   id: OID!
   status: MenuItemStatus!
   name: String!
-  pictureUrl: URL
+  picture: URL
   description: String
   unitPriceInclTax: Float!
 }
@@ -1887,6 +1895,10 @@ For each operations module with reducers that require work:
 1. Write the reducer implementation to the .ts file
 
 \`\`\`
+   **IMPORTANT** Keep the reducers and their parameters strictly-typed. No `any` types are acceptable in 
+   the reducers or their parameters, ever! Their business logic needs to be strict and well-tested, and 
+   so should their type structure be.
+
 2. Design and write one or more unit tests to verify the expected behavior
    
    **IMPORTANT** Write a unit test for each reducer that does not use mock objects,
@@ -2111,47 +2123,148 @@ Code is regenerated automatically by Vetra.
 
 **Tasks:**
 
-###### ED.01.1: Verify the code generation was triggered and editor boilerplate code was created
+###### ED.01.1: Verify code generation and clean up the boilerplate code
 
 **Task Template:**
 
 ```md
-- Verify the editor boilerplate was created in ./editors/
-- Check if the boilerplate code is still present and move it to a separate component
+- Verify the editor was created in ./editors/
+- Check if the boilerplate code is still present and remove it
 - You can recognize the boilerplate by the usage of the  component
-- If it's still in the main editor.tsx file, move it to its own file as an example
-- If it's no longer present, it may have been deleted previously
+- If it's still in the main editor.tsx file, remove the code but leave the imports as hints, and also the document toolbar
+- If the boilerplate is no longer present, it may have been deleted previously
+- Verify that the editor has a  and if not, then add it
+- The document toolbar is imported from "@powerhousedao/design-system/connect/index"
+- It allows the user to export the document to a .phd file, view its operation history and get access to
+the corresponding switchboard API endpoint for data processing / integration.
 - Verify `pnpm test` is showing no issues
 - Verify `pnpm build` is running without issues
 ```
 
-###### ED.01.2: Implement the document editor
+###### ED.01.2: Ensure that test documents have been generated
 
 **Task Template:**
 
 ```md
-- Review any existing document editor code and verify if every document model action
-can be dispatched by the user through the UI, and all (global) state information is available.
-- If actions are missing or state information is not shown, consider how to expose them in the UI
-- Generate the editor code, or adjust the existing code, to cover all missing actions
-```
-
-###### ED.01.3: Set up user acceptance test
-
-**Task Template:**
-
-```md
-- Access the Preview Drive through `active-project-vetra` and look if any test documents
-already exist
-- If there few or no test documents available, create a number of new test documents for the
-document model you're working on
+- Access the Preview Drive through `active-project-vetra` and look if any test documents are available
+- If there few or no test documents available, create a number of new test documents for the document model you're working on
 - Remember: When creating *any* document in a drive, including this, NEVER set the document ID manually. They're auto-generated by 'createDocument'
 - Consider adding a small, medium and large example document
-- If the document model has a workflow with multiple statuses, create documents, or
-objects within a document, with various statuses
+- If the document model has a workflow with multiple statuses, create documents, or objects within a document, in various stages of their life cycle
+- Inform the stakeholder that test document are available, where they can viewed, and mention you're working on the editor now.
 ```
 
-###### ED.01.4: Stakholder communication
+###### ED.01.3: Implement viewing functionality
+
+**Task Template:**
+
+```md
+Focus on the document reading experience first. Review any existing document editor code and determine if all the document state information can be comfortably explored in the document editor.
+
+If state information is inaccessible, consider how to expose it in the UI.
+
+**Decide which paradigm(s) to use**
+
+a. First of all, consider if the document type in question has a standardized way in which it is typically presented. If this is the case, just stick to the standard.
+
+- Many documents fall into this category: calendar-like, kanban-like, chat-like, spreadsheet-like ... documents, and even board games.
+- If a common standard lay-out is available, then use it.
+
+b. If no standard lay-out is immediately apparent, consider a traditional document flow paradigm where there is single view where paragraphs / sections / items / ...
+can be edited and added to the "page", and the view expands down with a scrollbar. Similar to platforms such as Notion.
+
+\`\`\`
+Example documents that can use this paradigm are all variants of text documents, single forms, single invoices, specification documents, etc. These documents lend themselves perfectly for PDF exporting or printing.
+
+Their strength comes from the pleasant reading experience with an information architecture that is aimed at processing information thoroughly and sequentially. The editing experience often focuses on the creative process of producing the document's content. It encourages deep/focused thinking rather than mechanically using the document as an information tracking and coordination tool.
+\`\`\`
+
+c. Alternatively, consider following more of an app paradigm, optionally with a full-height interface, and a more
+intricate navigation structure using tabs, menus, etc. This is ideal for documents that act more like databases
+where information is stored, searched for, consumed selectively and edited for the purpose of tracking and coordination.
+
+\`\`\`
+Example documents that use this paradigm are: collections, catalogues, etc. where the focus is more on discoverability, quick information retrieval and scattered updates to keep the information up-to-date.
+\`\`\`
+
+d. Use a mix of (b) and (c). Often the main part of the document has a traditional flow, but there are sections such as
+settings/configuration, option lists, ... that are more functional than creative/focused.
+
+**Design Styles**
+
+Unless otherwise specified, stick to a sober, generic SaaS-style design for business use cases: white editor background, rounded corners, grey accent backgrounds and borders, soft edges, subtle use of shadows, and color usage mostly for labels, chips, etc. and warnings/errors/etc.
+
+**Structure the information navigation**
+
+With the paradigm choice(s) in mind, consider which UI patterns will match:
+
+- Consider adding a sidebar for displaying the root level properties that are scalars, scalar arrays or single
+object children with simple child properties. This leaves the main area open for the more complex data.
+- If there isn't enough root level information to warrant a sidebar, consider a header instead.
+- Consider adding tables in the main area for object collections at the root level of the document.
+- If the collection's objects only have a few properties, consider adding all properties as table columns
+- For collections with many object properties, consider making rows selectable and showing the full state
+only in the sidebar pane
+- For nested collections, consider creating an inbox-style UI where the top-level collection's item summaries are shown
+in the sidebar and are selectable. Once selected, the main area can show a header with the full item details, and it
+can show the nested collections below that header.
+- Use  tags for URL fields that refer to images. Make sure to set the appropriate dimensional constraints.
+- Use tabs only sparingly.
+
+**Generate the reading experience code**
+
+- Define components following the design choices and make sure to keep a clean file structure
+- Focus on one component at a time
+- Bring them all together in a lay-out that is fitting for the earlier design decisions
+- Make sure to keep the  at the top and don't put anything next to it.
+```
+
+###### ED.01.4: Implement editing functionality
+
+**Task Template:**
+
+```md
+Implement document editing features until all operations can be triggered
+
+### Implement
+
+- Start by making as much as the state values in the reading experience in-line editable.
+- Use buttons, icons, toggles or checkboxes for actions that don't need input entered by the user,
+for example removing objects, binary status changes, moving objects up/down in a collection, etc.
+- Use a single input field with dispatch on blur for actions that need only a singe input parameter entered by
+the user. For example single property setters, creation of objects that only have one (mandatory) property
+that the user needs to enter, etc.
+- Use an inline form where only a few properties need to be provided and there is space available in the UI.
+- For the creation of larger objects and situations where the UI does not have space for inline editing, use the sidebar pane
+and pop-over modals with a semi-transparent black overlay in the background. These can facilitate more extensive forms,
+and even multi-step input processes.
+- Avoid "edit" or "edit mode" buttons where possible. Make fields and objects editable upon hover with inline forms as described.
+- Make sure to keep the  at the top and don't put anything next to it.
+
+### Checklist
+
+- Ensure that the user can directly or indirectly edit all reachable parts of the state
+- Ensure that the user can add and remove new objects to/from collections where the operations permit this
+- Check that all dispatch calls use strong typing and that the proper parameters are passed everywhere
+```
+
+###### ED.01.5: Resolve outstanding issues
+
+**Task Template:**
+
+```md
+- Run `pnpm build` to verify that all typing issues have been resolved. If issues remain, then fix them.
+- **NEVER** use `any` or strong type casts in the document model reducers or their arguments.
+Keep the reducers' code strictly typed at all times. They are the critical business logic that requires
+- **NEVER** use `any` or strong type casts in the document editor dispatch calls.
+Keep `dispatch` and its arguments strictly typed. It is the best guarantee that the editor will work well.
+- Avoid using `any` in other situations too. Typing issues should be resolved fundamentally.
+- Run `pnpm lint:fix` to detect linter issues and auto-fix where possible
+- Resolve the remaining linter issues before proceeding.
+- Run `pnpm test` to ensure that the unit tests are still passing.
+```
+
+###### ED.01.6: Stakholder communication
 
 **Task Template:**
 
