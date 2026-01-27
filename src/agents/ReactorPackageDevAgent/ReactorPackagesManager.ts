@@ -3,8 +3,9 @@ import fs from 'node:fs/promises';
 import { CLIExecutor } from '../../tasks/executors/cli-executor.js';
 import { ServiceExecutor } from '../../tasks/executors/service-executor.js';
 import { createCLITask, createServiceTask } from '../../tasks/types.js';
-import type { CLITask, ServiceTask, ServiceHandle } from '../../tasks/types.js';
+import type { CLITask, ServiceTask } from '../../tasks/types.js';
 import type { ChildProcess } from 'node:child_process';
+import { AbstractProjectManager, type InitProjectResult, type BaseRunningProject } from './AbstractProjectManager.js';
 
 export interface ReactorPackageConfig {
   name: string;
@@ -13,38 +14,18 @@ export interface ReactorPackageConfig {
   switchboardPort?: number;   // Vetra Switchboard port (default: 4001)
 }
 
-export interface InitProjectResult {
-  success: boolean;
-  projectPath: string;
-  error?: string;
-}
-
 /**
  * Represents a currently running ReactorPackage project
  */
-export interface RunningReactorPackageProject {
-  /** Project name */
-  name: string;
-  /** Absolute path to the project directory */
-  path: string;
-  /** Child process instance if available */
-  process?: ChildProcess;
-  /** Service handle for the running service */
-  serviceHandle?: ServiceHandle;
+export interface RunningReactorPackageProject extends BaseRunningProject {
   /** Connect Studio port */
   connectPort: number;
   /** Vetra Switchboard port */
   switchboardPort: number;
-  /** Timestamp when the project was started */
-  startedAt: Date;
-  /** Captured stdout/stderr logs from the running process */
-  logs: string[];
   /** The Drive URL once vetra has fully started (e.g., http://localhost:4001/drives/xyz) */
   driveUrl?: string;
   /** The MCP server once vetra has fully started (e.g., http://localhost:4001/mcp) */
   mcpServer?: string;
-  /** Indicates whether vetra has fully started and is ready to accept connections */
-  isFullyStarted: boolean;
 }
 
 /**
@@ -92,12 +73,13 @@ export interface VetraConfig {
   startupTimeout: number;
 }
 
-export class ReactorPackagesManager {
-  private readonly projectsDir: string;
-  private readonly cliExecutor: CLIExecutor;
-  private readonly serviceExecutor: ServiceExecutor;
+export class ReactorPackagesManager extends AbstractProjectManager<
+  ReactorPackageConfig,
+  RunningReactorPackageProject,
+  RunProjectOptions,
+  RunProjectResult
+> {
   private readonly vetraConfig: VetraConfig;
-  private runningProject: RunningReactorPackageProject | null = null;
 
   constructor(
     projectsDir: string = '../projects/reactor-packages',
@@ -105,17 +87,8 @@ export class ReactorPackagesManager {
     serviceExecutor?: ServiceExecutor,
     vetraConfig?: VetraConfig
   ) {
-    // Resolve the projects directory relative to the current working directory
-    this.projectsDir = path.resolve(process.cwd(), projectsDir);
-    this.cliExecutor = cliExecutor || new CLIExecutor({
-      timeout: 60000, // 1 minute timeout for ph init
-      retryAttempts: 1
-    });
-    // ServiceExecutor for long-running services (no timeout)
-    this.serviceExecutor = serviceExecutor || new ServiceExecutor({
-      maxLogSize: 500,
-      defaultGracefulShutdownTimeout: 10000
-    });
+    super(projectsDir, cliExecutor, serviceExecutor);
+    
     // Store vetraConfig with defaults if not provided
     this.vetraConfig = vetraConfig || {
       connectPort: 3000,
@@ -125,25 +98,127 @@ export class ReactorPackagesManager {
   }
 
   /**
+   * Get the configuration file name for Reactor packages
+   */
+  protected getProjectConfigFile(): string {
+    return 'powerhouse.config.json';
+  }
+
+  /**
+   * Create initialization tasks for Reactor package
+   */
+  protected createInitTask(projectName: string, projectPath: string): CLITask[] {
+    const tasks: CLITask[] = [];
+    
+    // Main ph init task
+    tasks.push(createCLITask({
+      title: `Initialize Powerhouse project: ${projectName}`,
+      instructions: `Create a new Powerhouse project using ph init`,
+      command: 'ph',
+      args: ['init', projectName],
+      workingDirectory: this.projectsDir,
+      environment: {
+        // Ensure non-interactive mode if available
+        CI: 'true'
+      }
+    }));
+
+    // Document engineering upgrade task (workaround for zod issues)
+    tasks.push(createCLITask({
+      title: `Install document-engineering package v1.40.0 for project: ${projectName}`,
+      instructions: `Upgrade document-engineering to avoid zod issues`,
+      command: 'pnpm',
+      args: ['install', '@powerhousedao/document-engineering@1.40.0'],
+      workingDirectory: projectPath,
+      environment: {
+        CI: 'true'
+      }
+    }));
+
+    return tasks;
+  }
+
+  /**
+   * Create the service task for running the Reactor package
+   */
+  protected createRunTask(project: ReactorPackageConfig, options: RunProjectOptions): ServiceTask {
+    return createServiceTask({
+      title: `Run Powerhouse project: ${project.name}`,
+      instructions: `Start Powerhouse Vetra development server for ${project.name}`,
+      command: 'ph',
+      args: [
+        'vetra',
+        '--watch',
+        '--connect-port', String(options.connectPort),
+        '--switchboard-port', String(options.switchboardPort)
+      ],
+      workingDirectory: project.path,
+      environment: {
+        NODE_ENV: 'development'
+      },
+      gracefulShutdown: {
+        signal: 'SIGTERM',
+        timeout: 10000
+      },
+      readiness: {
+        patterns: [
+          {
+            regex: 'Local:\\s*http://localhost:(\\d+)',
+            name: 'connect-port',
+            endpoints: [{
+              endpointName: 'connect-studio',
+              endpointDefaultHostUrl: 'http://localhost',
+              endpointCaptureGroup: 1,
+              monitorPortReleaseUponTermination: true
+            }]
+          },
+          {
+            regex: 'Drive URL:\\s*(https?://[^\\s]+)',
+            name: 'drive-url',
+            endpoints: [{
+              endpointName: 'drive-url',
+              endpointDefaultHostUrl: '',
+              endpointCaptureGroup: 1,
+              monitorPortReleaseUponTermination: false
+            }]
+          },
+          {
+            regex: 'MCP server available at (https?://[^\\s]+)',
+            name: 'mcp-server',
+            endpoints: [{
+              endpointName: 'mcp-server',
+              endpointDefaultHostUrl: '',
+              endpointCaptureGroup: 1,
+              monitorPortReleaseUponTermination: false
+            }]
+          },
+        ],
+        timeout: options.startupTimeout
+      }
+    });
+  }
+
+  /**
+   * Extract readiness parameters from service ready event
+   */
+  protected extractReadinessParams(event: any): VetraRuntimeParams {
+    const driveUrl = event.handle.endpoints?.get('drive-url') || null;
+    const mcpServer = event.handle.endpoints?.get('mcp-server') || null;
+    return { driveUrl, mcpServer };
+  }
+
+  /**
    * Initialize a new Powerhouse project using ph init
    * @param projectName - Name of the project to create
    * @returns Result of the initialization
    */
   async init(projectName: string): Promise<InitProjectResult> {
-    if (!projectName || projectName.trim() === '') {
+    const validation = this.validateProjectName(projectName);
+    if (!validation.valid) {
       return {
         success: false,
         projectPath: '',
-        error: 'Project name cannot be empty'
-      };
-    }
-
-    // Validate project name (alphanumeric, hyphens, underscores)
-    if (!/^[a-zA-Z0-9-_]+$/.test(projectName)) {
-      return {
-        success: false,
-        projectPath: '',
-        error: 'Project name can only contain letters, numbers, hyphens, and underscores'
+        error: validation.error
       };
     }
 
@@ -151,61 +226,33 @@ export class ReactorPackagesManager {
 
     try {
       // Ensure projects directory exists
-      await fs.mkdir(this.projectsDir, { recursive: true });
+      await this.ensureProjectsDirectory();
 
       // Check if project already exists
-      try {
-        await fs.access(projectPath);
+      if (await this.checkProjectExists(projectPath)) {
         return {
           success: false,
           projectPath,
           error: `Project '${projectName}' already exists at ${projectPath}`
         };
-      } catch {
-        // Project doesn't exist, which is good
       }
 
-      // Create CLI task for ph init
-      const initTask: CLITask = createCLITask({
-        title: `Initialize Powerhouse project: ${projectName}`,
-        instructions: `Create a new Powerhouse project using ph init`,
-        command: 'ph',
-        args: ['init', projectName],
-        workingDirectory: this.projectsDir,
-        environment: {
-          // Ensure non-interactive mode if available
-          CI: 'true'
+      // Get initialization tasks
+      const tasks = this.createInitTask(projectName, projectPath);
+      
+      // Execute all tasks
+      let lastResult;
+      for (const task of tasks) {
+        lastResult = await this.cliExecutor.execute(task);
+        
+        // Stop if any task fails, unless it's the first task which creates the project
+        if (lastResult.exitCode !== 0 && tasks.indexOf(task) > 0) {
+          break;
         }
-      });
-
-      // Execute the initialization
-      let result = await this.cliExecutor.execute(initTask);
-
-      if (result.exitCode === 0) {
-        /*
-        *   TODO: CLEAN UP LATER -- this command is a bug fix to avoid zod issues with DateTime types
-        *   
-        *   Typical error: 
-        *   Property 'iso' does not exist on type ... z.iso.datetime(),
-        */
-        const upgradeTask: CLITask = createCLITask({
-          title: `Install document-engineering package v1.40.0 for project: ${projectName}`,
-          instructions: `Upgrade document-engineering to avoid zod issues`,
-          command: 'pnpm',
-          args: ['install', '@powerhousedao/document-engineering@1.40.0'],
-          workingDirectory: projectPath,
-          environment: {
-            // Ensure non-interactive mode if available
-            CI: 'true'
-          }
-        });
-
-        // Execute the upgrade
-        result = await this.cliExecutor.execute(upgradeTask);
       }
 
       // Check if initialization was successful
-      if (result.exitCode === 0) {
+      if (lastResult && lastResult.exitCode === 0) {
         // Verify the project was created
         try {
           await fs.access(projectPath);
@@ -230,7 +277,7 @@ export class ReactorPackagesManager {
         }
       } else {
         // Extract error from stderr or stdout
-        const errorMessage = result.stderr || result.stdout || 'Unknown error during initialization';
+        const errorMessage = lastResult?.stderr || lastResult?.stdout || 'Unknown error during initialization';
         const finalErrorMessage = `ph init failed: ${errorMessage}`;
 
         return {
@@ -251,13 +298,6 @@ export class ReactorPackagesManager {
   }
 
   /**
-   * Get the projects directory path
-   */
-  getProjectsDir(): string {
-    return this.projectsDir;
-  }
-
-  /**
    * List all Powerhouse projects in the projects directory
    * @returns Array of project configurations
    */
@@ -266,7 +306,7 @@ export class ReactorPackagesManager {
 
     try {
       // Ensure directory exists
-      await fs.mkdir(this.projectsDir, { recursive: true });
+      await this.ensureProjectsDirectory();
 
       // Read directory contents
       const entries = await fs.readdir(this.projectsDir, { withFileTypes: true });
@@ -275,7 +315,7 @@ export class ReactorPackagesManager {
       for (const entry of entries) {
         if (entry.isDirectory()) {
           const projectPath = path.join(this.projectsDir, entry.name);
-          const configPath = path.join(projectPath, 'powerhouse.config.json');
+          const configPath = path.join(projectPath, this.getProjectConfigFile());
 
           try {
             // Check if it's a valid Powerhouse project
@@ -304,29 +344,6 @@ export class ReactorPackagesManager {
     return projects;
   }
 
-  /**
-   * Check if a port is in use
-   * @param port Port number to check
-   * @returns true if port is in use, false otherwise
-   */
-  private async isPortInUse(port: number): Promise<boolean> {
-    try {
-      const checkPortTask: CLITask = createCLITask({
-        title: `Check port ${port}`,
-        command: 'lsof',
-        args: ['-i', `:${port}`],
-        instructions: `Checking if port ${port} is in use`
-      });
-
-      const result = await this.cliExecutor.execute(checkPortTask);
-      // If lsof returns output, the port is in use
-      return !!result.stdout && result.stdout.trim().length > 0;
-    } catch (error) {
-      // If lsof fails (command not found, no results), assume port is free
-      return false;
-    }
-  }
-
   async runProject(projectName: string, options?: RunProjectOptions): Promise<RunProjectResult> {
     // Set defaults for options using vetraConfig
     const effectiveOptions: RunProjectOptions = {
@@ -334,6 +351,7 @@ export class ReactorPackagesManager {
       switchboardPort: options?.switchboardPort || this.vetraConfig.switchboardPort,
       startupTimeout: options?.startupTimeout || this.vetraConfig.startupTimeout
     };
+    
     // Check if a project is already running
     if (this.runningProject) {
       return {
@@ -390,61 +408,8 @@ export class ReactorPackagesManager {
     let readinessTimeoutId: NodeJS.Timeout | null = null;
 
     try {
-      // Create Service task for ph vetra --watch with port options and readiness patterns
-      const runTask: ServiceTask = createServiceTask({
-        title: `Run Powerhouse project: ${project.name}`,
-        instructions: `Start Powerhouse Vetra development server for ${project.name}`,
-        command: 'ph',
-        args: [
-          'vetra',
-          '--watch',
-          '--connect-port', String(actualConnectPort),
-          '--switchboard-port', String(actualSwitchboardPort)
-        ],
-        workingDirectory: project.path,
-        environment: {
-          NODE_ENV: 'development'
-        },
-        gracefulShutdown: {
-          signal: 'SIGTERM',
-          timeout: 10000
-        },
-        readiness: {
-          patterns: [
-            {
-              regex: 'Local:\\s*http://localhost:(\\d+)',
-              name: 'connect-port',
-              endpoints: [{
-                endpointName: 'connect-studio',
-                endpointDefaultHostUrl: 'http://localhost',
-                endpointCaptureGroup: 1,
-                monitorPortReleaseUponTermination: true
-              }]
-            },
-            {
-              regex: 'Drive URL:\\s*(https?://[^\\s]+)',
-              name: 'drive-url',
-              endpoints: [{
-                endpointName: 'drive-url',
-                endpointDefaultHostUrl: '',
-                endpointCaptureGroup: 1,
-                monitorPortReleaseUponTermination: false
-              }]
-            },
-            {
-              regex: 'MCP server available at (https?://[^\\s]+)',
-              name: 'mcp-server',
-              endpoints: [{
-                endpointName: 'mcp-server',
-                endpointDefaultHostUrl: '',
-                endpointCaptureGroup: 1,
-                monitorPortReleaseUponTermination: false
-              }]
-            },
-          ],
-          timeout: effectiveOptions.startupTimeout
-        }
-      });
+      // Create Service task
+      const runTask = this.createRunTask(project, effectiveOptions);
 
       // Store the running project info
       this.runningProject = {
@@ -488,24 +453,29 @@ export class ReactorPackagesManager {
       // Listen for service-ready event
       const readyHandler = (event: any) => {
         if (event.handle.id === this.runningProject?.serviceHandle?.id) {
-          // Extract the Drive URL from endpoints
-          const driveUrl = event.handle.endpoints?.get('drive-url') || null;
-          const mcpServer = event.handle.endpoints?.get('mcp-server') || null;
+          // Extract readiness parameters
+          const params = this.extractReadinessParams(event);
 
-          if (driveUrl && this.runningProject) {
-            this.runningProject.driveUrl = driveUrl;
-            this.runningProject.mcpServer = mcpServer;
+          if (this.runningProject) {
+            if (params.driveUrl) {
+              this.runningProject.driveUrl = params.driveUrl;
+            }
+            
+            if (params.mcpServer) { 
+              this.runningProject.mcpServer = params.mcpServer;
+            }
+            
             this.runningProject.isFullyStarted = true;
           }
 
-          // Resolve the promise with Drive URL (or null if not captured)
+          // Resolve the promise with parameters
           if (serviceReadyResolve) {
             // Clear the timeout since we're resolving
             if (readinessTimeoutId) {
               clearTimeout(readinessTimeoutId);
               readinessTimeoutId = null;
             }
-            serviceReadyResolve({ driveUrl, mcpServer });
+            serviceReadyResolve(params);
           }
         }
       };
@@ -551,18 +521,8 @@ export class ReactorPackagesManager {
         }
       });
 
-      // Wait for service to be ready (Drive URL captured)
+      // Wait for service to be ready
       const vetraOutputParams = await serviceReadyPromise;
-
-      if (!vetraOutputParams.driveUrl) {
-        // Warning: Drive URL not captured within timeout
-        // Project may still be starting up. Check logs with getProjectLogs() for details.
-      }
-
-      if (!vetraOutputParams.mcpServer) {
-        // Warning: MCP server not captured within timeout
-        // Project may still be starting up. Check logs with getProjectLogs() for details.
-      }
 
       return {
         success: true,
@@ -585,103 +545,6 @@ export class ReactorPackagesManager {
         success: false,
         projectName: project.name,
         error: error instanceof Error ? error.message : String(error)
-      };
-    }
-  }
-
-  /**
-   * Get information about the currently running project
-   * @returns Running project information or null if no project is running
-   */
-  getRunningProject(): RunningReactorPackageProject | null {
-    return this.runningProject;
-  }
-
-  /**
-   * Get logs for the currently running project
-   * @returns Logs array or undefined if no project is running
-   */
-  getProjectLogs(): string[] | undefined {
-    return this.runningProject?.logs;
-  }
-
-  /**
-   * Check if the project is fully started and ready
-   * @returns true if project is running and Drive URL has been captured
-   */
-  isProjectReady(): boolean {
-    return this.runningProject?.isFullyStarted === true;
-  }
-
-  /**
-   * Shutdown the currently running project
-   * @returns Promise that resolves when the project is shutdown
-   */
-  async shutdownProject(): Promise<{ success: boolean; error?: string }> {
-    if (!this.runningProject) {
-      return {
-        success: false,
-        error: 'No project is currently running'
-      };
-    }
-
-    const projectName = this.runningProject.name;
-    const serviceHandle = this.runningProject.serviceHandle;
-
-    try {
-      // Shutting down project
-
-      // If we have a service handle, stop it gracefully
-      if (serviceHandle) {
-        // Stopping service handle
-        await this.serviceExecutor.stop(serviceHandle.id, {
-          timeout: 10000  // 10 second timeout for graceful shutdown
-        });
-        // Service handle stopped
-      }
-      // Fallback: If we have a process reference, kill it directly
-      else if (this.runningProject.process && !this.runningProject.process.killed) {
-        const pid = this.runningProject.process.pid;
-
-        if (pid) {
-          // Kill the entire process tree using process group
-          // The negative PID kills all processes in the process group
-          try {
-            process.kill(-pid, 'SIGTERM');
-          } catch (e) {
-            // If process group kill fails, try regular kill
-            this.runningProject.process.kill('SIGTERM');
-          }
-
-          // Wait a bit for graceful shutdown
-          await new Promise(resolve => setTimeout(resolve, 1000));
-
-          // Force kill if still running
-          if (!this.runningProject.process.killed) {
-            try {
-              process.kill(-pid, 'SIGKILL');
-            } catch (e) {
-              this.runningProject.process.kill('SIGKILL');
-            }
-          }
-        } else {
-          // Fallback to regular kill if no PID
-          this.runningProject.process.kill('SIGTERM');
-        }
-      }
-
-      // Clear the running project
-      this.runningProject = null;
-
-      // Project shutdown complete
-      return {
-        success: true
-      };
-    } catch (error) {
-      const errorMessage = `Failed to shutdown project '${projectName}': ${error instanceof Error ? error.message : String(error)}`;
-      return {
-        success: false,
-        error: errorMessage
       };
     }
   }

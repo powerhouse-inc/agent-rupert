@@ -7,7 +7,6 @@ import { tool } from '@anthropic-ai/claude-agent-sdk';
 import { z } from 'zod';
 import type { ReactorPackagesManager, RunProjectOptions } from '../agents/ReactorPackageDevAgent/ReactorPackagesManager.js';
 import type { ILogger } from '../agents/AgentBase/AgentBase.js';
-import { AgentsManager } from '../agents/AgentsManager.js';
 import { ReactorPackageDevAgent } from '../agents/ReactorPackageDevAgent/ReactorPackageDevAgent.js';
 
 /**
@@ -16,7 +15,7 @@ import { ReactorPackageDevAgent } from '../agents/ReactorPackageDevAgent/Reactor
 export function createInitProjectTool(manager: ReactorPackagesManager, logger?: ILogger) {
     return tool(
         'init_project',
-        'Initialize a new Powerhouse project with the specified name',
+        'Initialize a new Reactor Package project with the specified name',
         {
             projectName: z.string()
                 .regex(/^[a-zA-Z0-9-_]+$/)
@@ -59,7 +58,7 @@ export function createInitProjectTool(manager: ReactorPackagesManager, logger?: 
 export function createListProjectsTool(manager: ReactorPackagesManager, logger?: ILogger) {
     return tool(
         'list_projects',
-        'List all available Powerhouse projects and their status',
+        'List all available Reactor Package projects and their status',
         {},
         async () => {
             try {
@@ -97,7 +96,7 @@ export function createListProjectsTool(manager: ReactorPackagesManager, logger?:
 export function createRunProjectTool(manager: ReactorPackagesManager, agent: ReactorPackageDevAgent, logger?: ILogger) {
     return tool(
         'run_project',
-        'Run a Powerhouse project with optional custom ports',
+        'Run a Reactor Package project with optional custom ports',
         {
             projectName: z.string()
                 .describe('Name of the project to run'),
@@ -169,7 +168,7 @@ export function createRunProjectTool(manager: ReactorPackagesManager, agent: Rea
 export function createShutdownProjectTool(manager: ReactorPackagesManager, agent:ReactorPackageDevAgent, logger?: ILogger) {
     return tool(
         'shutdown_project',
-        'Shutdown a running Powerhouse project',
+        'Shutdown a running Reactor Package project',
         {
             projectName: z.string()
                 .describe('Name of the project to shutdown')
@@ -212,7 +211,7 @@ export function createShutdownProjectTool(manager: ReactorPackagesManager, agent
 export function createGetProjectLogsTool(manager: ReactorPackagesManager, logger?: ILogger) {
     return tool(
         'get_project_logs',
-        'Get recent logs from a running Powerhouse project',
+        'Get recent logs from a running Reactor Package project',
         {
             projectName: z.string()
                 .describe('Name of the project to get logs from'),
@@ -258,7 +257,7 @@ export function createGetProjectLogsTool(manager: ReactorPackagesManager, logger
 export function createGetProjectStatusTool(manager: ReactorPackagesManager, logger?: ILogger) {
     return tool(
         'get_project_status',
-        'Get the current status of a Powerhouse project',
+        'Get the current status of a Reactor Package project',
         {
             projectName: z.string()
                 .describe('Name of the project to check status')
@@ -314,7 +313,7 @@ export function createGetProjectStatusTool(manager: ReactorPackagesManager, logg
 export function createIsProjectReadyTool(manager: ReactorPackagesManager, logger?: ILogger) {
     return tool(
         'is_project_ready',
-        'Check if a Powerhouse project is fully ready for use',
+        'Check if a Reactor Package project is fully ready for use',
         {
             projectName: z.string()
                 .describe('Name of the project to check readiness')
@@ -360,7 +359,7 @@ export function createIsProjectReadyTool(manager: ReactorPackagesManager, logger
 export function createGetProjectsDirTool(manager: ReactorPackagesManager, logger?: ILogger) {
     return tool(
         'get_projects_dir',
-        'Get the directory path where Powerhouse projects are stored',
+        'Get the directory path where Reactor Package projects are stored',
         {},
         async () => {
             try {
