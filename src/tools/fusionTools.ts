@@ -28,23 +28,38 @@ export function createInitFusionProjectTool(manager: FusionProjectsManager, logg
                 if (result.success) {
                     logger?.info(`Successfully initialized Fusion project: ${projectName} at ${result.projectPath}`);
                     return {
-                        success: true,
-                        message: `Fusion project '${projectName}' initialized successfully`,
-                        projectPath: result.projectPath
+                        content: [{
+                            type: 'text' as const,
+                            text: JSON.stringify({
+                                success: true,
+                                message: `Fusion project '${projectName}' initialized successfully`,
+                                projectPath: result.projectPath
+                            }, null, 2)
+                        }]
                     };
                 } else {
                     logger?.warn(`Failed to initialize Fusion project: ${result.error}`);
                     return {
-                        success: false,
-                        error: result.error || 'Failed to initialize project'
+                        content: [{
+                            type: 'text' as const,
+                            text: JSON.stringify({
+                                success: false,
+                                error: result.error || 'Failed to initialize project'
+                            }, null, 2)
+                        }]
                     };
                 }
             } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : String(error);
                 logger?.error(`Error initializing Fusion project: ${errorMessage}`);
                 return {
-                    success: false,
-                    error: `Unexpected error: ${errorMessage}`
+                    content: [{
+                        type: 'text' as const,
+                        text: JSON.stringify({
+                            success: false,
+                            error: `Unexpected error: ${errorMessage}`
+                        }, null, 2)
+                    }]
                 };
             }
         }
@@ -77,23 +92,33 @@ export function createListFusionProjectsTool(manager: FusionProjectsManager, log
                 logger?.info(`Found ${projects.length} Fusion projects`);
                 
                 return {
-                    success: true,
-                    projects: projectList,
-                    projectsDirectory: manager.getProjectsDir(),
-                    runningProject: runningProject ? {
-                        name: runningProject.name,
-                        fusionPort: runningProject.fusionPort,
-                        switchboardUrl: runningProject.switchboardUrl,
-                        startedAt: runningProject.startedAt,
-                        isReady: runningProject.isFullyStarted
-                    } : null
+                    content: [{
+                        type: 'text' as const,
+                        text: JSON.stringify({
+                            success: true,
+                            projects: projectList,
+                            projectsDirectory: manager.getProjectsDir(),
+                            runningProject: runningProject ? {
+                                name: runningProject.name,
+                                fusionPort: runningProject.fusionPort,
+                                switchboardUrl: runningProject.switchboardUrl,
+                                startedAt: runningProject.startedAt,
+                                isReady: runningProject.isFullyStarted
+                            } : null
+                        }, null, 2)
+                    }]
                 };
             } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : String(error);
                 logger?.error(`Error listing Fusion projects: ${errorMessage}`);
                 return {
-                    success: false,
-                    error: `Failed to list projects: ${errorMessage}`
+                    content: [{
+                        type: 'text' as const,
+                        text: JSON.stringify({
+                            success: false,
+                            error: `Failed to list projects: ${errorMessage}`
+                        }, null, 2)
+                    }]
                 };
             }
         }
@@ -110,7 +135,7 @@ export function createRunFusionProjectTool(manager: FusionProjectsManager, logge
         {
             projectName: z.string().describe('Name of the Fusion project to run'),
             switchboardUrl: z.string()
-                .describe('URL of the Switchboard instance to use for backend, e.d. http://localhost:4001/graphql'),
+                .describe('URL of the Switchboard instance to use for backend, e.g. http://localhost:4001/graphql'),
             fusionPort: z.number()
                 .int()
                 .min(1024)
@@ -131,8 +156,13 @@ export function createRunFusionProjectTool(manager: FusionProjectsManager, logge
                 if (currentProject) {
                     logger?.warn(`Cannot run project: ${currentProject.name} is already running`);
                     return {
-                        success: false,
-                        error: `Project '${currentProject.name}' is already running on port ${currentProject.fusionPort}. Please shutdown the current project first.`
+                        content: [{
+                            type: 'text' as const,
+                            text: JSON.stringify({
+                                success: false,
+                                error: `Project '${currentProject.name}' is already running on port ${currentProject.fusionPort}. Please shutdown the current project first.`
+                            }, null, 2)
+                        }]
                     };
                 }
                 
@@ -158,29 +188,44 @@ export function createRunFusionProjectTool(manager: FusionProjectsManager, logge
                     const isReady = manager.isProjectReady();
                     
                     return {
-                        success: true,
-                        message: `Fusion project '${projectName}' is now running`,
-                        projectName: result.projectName,
-                        projectPath: result.projectPath,
-                        fusionPort: result.fusionPort,
-                        fusionUrl: `http://localhost:${result.fusionPort}`,
-                        switchboardUrl: result.switchboardUrl,
-                        isReady,
-                        status: isReady ? 'ready' : 'starting'
+                        content: [{
+                            type: 'text' as const,
+                            text: JSON.stringify({
+                                success: true,
+                                message: `Fusion project '${projectName}' is now running`,
+                                projectName: result.projectName,
+                                projectPath: result.projectPath,
+                                fusionPort: result.fusionPort,
+                                fusionUrl: `http://localhost:${result.fusionPort}`,
+                                switchboardUrl: result.switchboardUrl,
+                                isReady,
+                                status: isReady ? 'ready' : 'starting'
+                            }, null, 2)
+                        }]
                     };
                 } else {
                     logger?.warn(`Failed to start Fusion project: ${result.error}`);
                     return {
-                        success: false,
-                        error: result.error || 'Failed to start project'
+                        content: [{
+                            type: 'text' as const,
+                            text: JSON.stringify({
+                                success: false,
+                                error: result.error || 'Failed to start project'
+                            }, null, 2)
+                        }]
                     };
                 }
             } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : String(error);
                 logger?.error(`Error running Fusion project: ${errorMessage}`);
                 return {
-                    success: false,
-                    error: `Unexpected error: ${errorMessage}`
+                    content: [{
+                        type: 'text' as const,
+                        text: JSON.stringify({
+                            success: false,
+                            error: `Unexpected error: ${errorMessage}`
+                        }, null, 2)
+                    }]
                 };
             }
         }
@@ -202,8 +247,13 @@ export function createShutdownFusionProjectTool(manager: FusionProjectsManager, 
                 if (!runningProject) {
                     logger?.info('No Fusion project is currently running');
                     return {
-                        success: true,
-                        message: 'No project was running'
+                        content: [{
+                            type: 'text' as const,
+                            text: JSON.stringify({
+                                success: true,
+                                message: 'No project was running'
+                            }, null, 2)
+                        }]
                     };
                 }
                 
@@ -215,22 +265,37 @@ export function createShutdownFusionProjectTool(manager: FusionProjectsManager, 
                 if (result.success) {
                     logger?.info(`Successfully shut down Fusion project: ${projectName}`);
                     return {
-                        success: true,
-                        message: `Fusion project '${projectName}' has been shut down`
+                        content: [{
+                            type: 'text' as const,
+                            text: JSON.stringify({
+                                success: true,
+                                message: `Fusion project '${projectName}' has been shut down`
+                            }, null, 2)
+                        }]
                     };
                 } else {
                     logger?.warn(`Failed to shutdown Fusion project: ${result.error}`);
                     return {
-                        success: false,
-                        error: result.error || 'Failed to shutdown project'
+                        content: [{
+                            type: 'text' as const,
+                            text: JSON.stringify({
+                                success: false,
+                                error: result.error || 'Failed to shutdown project'
+                            }, null, 2)
+                        }]
                     };
                 }
             } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : String(error);
                 logger?.error(`Error shutting down Fusion project: ${errorMessage}`);
                 return {
-                    success: false,
-                    error: `Unexpected error: ${errorMessage}`
+                    content: [{
+                        type: 'text' as const,
+                        text: JSON.stringify({
+                            success: false,
+                            error: `Unexpected error: ${errorMessage}`
+                        }, null, 2)
+                    }]
                 };
             }
         }
@@ -258,8 +323,13 @@ export function createGetFusionProjectLogsTool(manager: FusionProjectsManager, l
                 
                 if (!runningProject) {
                     return {
-                        success: false,
-                        error: 'No Fusion project is currently running'
+                        content: [{
+                            type: 'text' as const,
+                            text: JSON.stringify({
+                                success: false,
+                                error: 'No Fusion project is currently running'
+                            }, null, 2)
+                        }]
                     };
                 }
                 
@@ -269,18 +339,28 @@ export function createGetFusionProjectLogsTool(manager: FusionProjectsManager, l
                 logger?.info(`Retrieved ${recentLogs.length} log lines for project: ${runningProject.name}`);
                 
                 return {
-                    success: true,
-                    projectName: runningProject.name,
-                    logs: recentLogs,
-                    totalLogs: logs.length,
-                    isReady: runningProject.isFullyStarted
+                    content: [{
+                        type: 'text' as const,
+                        text: JSON.stringify({
+                            success: true,
+                            projectName: runningProject.name,
+                            logs: recentLogs,
+                            totalLogs: logs.length,
+                            isReady: runningProject.isFullyStarted
+                        }, null, 2)
+                    }]
                 };
             } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : String(error);
                 logger?.error(`Error getting Fusion project logs: ${errorMessage}`);
                 return {
-                    success: false,
-                    error: `Failed to get logs: ${errorMessage}`
+                    content: [{
+                        type: 'text' as const,
+                        text: JSON.stringify({
+                            success: false,
+                            error: `Failed to get logs: ${errorMessage}`
+                        }, null, 2)
+                    }]
                 };
             }
         }
@@ -301,9 +381,14 @@ export function createGetFusionProjectStatusTool(manager: FusionProjectsManager,
                 
                 if (!runningProject) {
                     return {
-                        success: true,
-                        status: 'stopped',
-                        message: 'No Fusion project is currently running'
+                        content: [{
+                            type: 'text' as const,
+                            text: JSON.stringify({
+                                success: true,
+                                status: 'stopped',
+                                message: 'No Fusion project is currently running'
+                            }, null, 2)
+                        }]
                     };
                 }
                 
@@ -313,24 +398,34 @@ export function createGetFusionProjectStatusTool(manager: FusionProjectsManager,
                 logger?.info(`Fusion project status: ${runningProject.name} - ${isReady ? 'ready' : 'starting'}`);
                 
                 return {
-                    success: true,
-                    status: isReady ? 'ready' : 'starting',
-                    project: {
-                        name: runningProject.name,
-                        path: runningProject.path,
-                        fusionPort: runningProject.fusionPort,
-                        fusionUrl: `http://localhost:${runningProject.fusionPort}`,
-                        startedAt: runningProject.startedAt,
-                        isReady,
-                        logCount: logs.length
-                    }
+                    content: [{
+                        type: 'text' as const,
+                        text: JSON.stringify({
+                            success: true,
+                            status: isReady ? 'ready' : 'starting',
+                            project: {
+                                name: runningProject.name,
+                                path: runningProject.path,
+                                fusionPort: runningProject.fusionPort,
+                                fusionUrl: `http://localhost:${runningProject.fusionPort}`,
+                                startedAt: runningProject.startedAt,
+                                isReady,
+                                logCount: logs.length
+                            }
+                        }, null, 2)
+                    }]
                 };
             } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : String(error);
                 logger?.error(`Error getting Fusion project status: ${errorMessage}`);
                 return {
-                    success: false,
-                    error: `Failed to get status: ${errorMessage}`
+                    content: [{
+                        type: 'text' as const,
+                        text: JSON.stringify({
+                            success: false,
+                            error: `Failed to get status: ${errorMessage}`
+                        }, null, 2)
+                    }]
                 };
             }
         }
@@ -351,9 +446,14 @@ export function createIsFusionProjectReadyTool(manager: FusionProjectsManager, l
                 
                 if (!runningProject) {
                     return {
-                        success: true,
-                        isReady: false,
-                        message: 'No Fusion project is currently running'
+                        content: [{
+                            type: 'text' as const,
+                            text: JSON.stringify({
+                                success: true,
+                                isReady: false,
+                                message: 'No Fusion project is currently running'
+                            }, null, 2)
+                        }]
                     };
                 }
                 
@@ -362,19 +462,29 @@ export function createIsFusionProjectReadyTool(manager: FusionProjectsManager, l
                 logger?.info(`Fusion project ${runningProject.name} ready status: ${isReady}`);
                 
                 return {
-                    success: true,
-                    isReady,
-                    projectName: runningProject.name,
-                    message: isReady 
-                        ? `Fusion project '${runningProject.name}' is ready` 
-                        : `Fusion project '${runningProject.name}' is still starting up`
+                    content: [{
+                        type: 'text' as const,
+                        text: JSON.stringify({
+                            success: true,
+                            isReady,
+                            projectName: runningProject.name,
+                            message: isReady 
+                                ? `Fusion project '${runningProject.name}' is ready` 
+                                : `Fusion project '${runningProject.name}' is still starting up`
+                        }, null, 2)
+                    }]
                 };
             } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : String(error);
                 logger?.error(`Error checking Fusion project readiness: ${errorMessage}`);
                 return {
-                    success: false,
-                    error: `Failed to check readiness: ${errorMessage}`
+                    content: [{
+                        type: 'text' as const,
+                        text: JSON.stringify({
+                            success: false,
+                            error: `Failed to check readiness: ${errorMessage}`
+                        }, null, 2)
+                    }]
                 };
             }
         }
@@ -395,15 +505,25 @@ export function createGetFusionProjectsDirTool(manager: FusionProjectsManager, l
                 logger?.info(`Fusion projects directory: ${projectsDir}`);
                 
                 return {
-                    success: true,
-                    projectsDir
+                    content: [{
+                        type: 'text' as const,
+                        text: JSON.stringify({
+                            success: true,
+                            projectsDir
+                        }, null, 2)
+                    }]
                 };
             } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : String(error);
                 logger?.error(`Error getting Fusion projects directory: ${errorMessage}`);
                 return {
-                    success: false,
-                    error: `Failed to get projects directory: ${errorMessage}`
+                    content: [{
+                        type: 'text' as const,
+                        text: JSON.stringify({
+                            success: false,
+                            error: `Failed to get projects directory: ${errorMessage}`
+                        }, null, 2)
+                    }]
                 };
             }
         }

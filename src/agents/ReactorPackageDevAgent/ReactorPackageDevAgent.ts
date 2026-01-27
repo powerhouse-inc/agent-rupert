@@ -70,9 +70,10 @@ export class ReactorPackageDevAgent extends AgentBase<IAgentBrain> {
      */
     static getDefaultSkillNames(): string[] {
         return [
-            'create-reactor-package',
+            'reactor-package-project-management',
             'document-modeling',
             'document-editor-creation',
+            'fusion-project-management',
             'handle-stakeholder-message'
         ];
     }

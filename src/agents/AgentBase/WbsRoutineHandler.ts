@@ -195,7 +195,7 @@ export class WbsRoutineHandler {
         let skillName: string | null = null;
         let skillSource: WorkItemResolution['source']['skill'] = 'wbs';
         
-        if (skillGoal?.instructions?.workId) {
+        if (skillGoal?.instructions?.workId && (!parsedTask.possibleSkill || parsedTask.possibleSkill == skillGoal?.instructions?.workId)) {
             // Explicit skill from WBS - need to resolve to actual skill name
             const workId = skillGoal.instructions.workId;
             skillName = this.resolveSkillName(workId, scenarioId, skillsRepository);
