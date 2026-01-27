@@ -7,6 +7,7 @@ import { FusionProjectsManager } from '../../src/agents/ReactorPackageDevAgent/F
 import { CLIExecutor } from '../../src/tasks/executors/cli-executor.js';
 
 const execAsync = promisify(exec);
+const PH_SWITCHBOARD_URL = 'http://localhost:4001/graphql'
 
 describe('FusionProjectsManager Integration Tests', () => {
     let testProjectsDir: string;
@@ -30,7 +31,7 @@ describe('FusionProjectsManager Integration Tests', () => {
             retryAttempts: 0 // No retries for integration tests
         });
         
-        manager = new FusionProjectsManager(testProjectsDir, undefined, cliExecutor);
+        manager = new FusionProjectsManager(testProjectsDir, cliExecutor);
     });
 
     afterAll(async () => {
@@ -102,13 +103,10 @@ describe('FusionProjectsManager Integration Tests', () => {
             // Use unique ports based on timestamp to avoid conflicts
             const timestamp = Date.now();
             const customFusionPort = 8000 + (timestamp % 1000);
-            const customConnectPort = 3000 + (timestamp % 1000);
-            const customSwitchboardPort = 4000 + (timestamp % 1000);
-            process.stderr.write(`  ℹ️ Using ports: fusion=${customFusionPort}, connect=${customConnectPort}, switchboard=${customSwitchboardPort}\n`);
+            process.stderr.write(`  ℹ️ Using port: fusion=${customFusionPort}\n`);
             const runResult = await manager.runProject(projectName, {
                 fusionPort: customFusionPort,
-                connectPort: customConnectPort,
-                switchboardPort: customSwitchboardPort,
+                switchboardUrl: PH_SWITCHBOARD_URL,
                 startupTimeout: 240000
             });
 
@@ -137,8 +135,7 @@ describe('FusionProjectsManager Integration Tests', () => {
                     process.stderr.write("📍 Step 8: Try to run another project (should fail)\n");
                     const secondRunResult = await manager.runProject(projectName, {
                         fusionPort: customFusionPort + 1,
-                        connectPort: customConnectPort + 1,
-                        switchboardPort: customSwitchboardPort + 1,
+                        switchboardUrl: PH_SWITCHBOARD_URL,
                         startupTimeout: 240000
                     });
                     expect(secondRunResult.success).toBe(false);
@@ -166,14 +163,14 @@ describe('FusionProjectsManager Integration Tests', () => {
                     
                     try {
                         const { stdout: netstatOutput } = await execAsync(
-                            `netstat -tuln | grep -E ':(${customFusionPort}|${customConnectPort}|${customSwitchboardPort})' || echo "Ports are free"`
+                            `netstat -tuln | grep -E '${customFusionPort}' || echo "Ports are free"`
                         );
                         const netstatResult = netstatOutput.trim();
                         
                         if (netstatResult === "Ports are free") {
-                            process.stderr.write(`  ✓ Ports ${customFusionPort}, ${customConnectPort} and ${customSwitchboardPort} are successfully released\n`);
+                            process.stderr.write(`  ✓ Port ${customFusionPort} is successfully released\n`);
                         } else {
-                            process.stderr.write(`  ⚠️ Ports still in use:\n${netstatResult}\n`);
+                            process.stderr.write(`  ⚠️ Port still in use:\n${netstatResult}\n`);
                         }
                     } catch (error) {
                         process.stderr.write(`  ⚠️ Could not check port status: ${error}\n`);
@@ -198,8 +195,7 @@ describe('FusionProjectsManager Integration Tests', () => {
             process.stderr.write("📍 Step 13: Test running a non-existent project\n");
             const nonExistentResult = await manager.runProject('non-existent-project', {
                 fusionPort: customFusionPort + 2,
-                connectPort: customConnectPort + 2,
-                switchboardPort: customSwitchboardPort + 2,
+                switchboardUrl: PH_SWITCHBOARD_URL,
                 startupTimeout: 240000
             });
             expect(nonExistentResult.success).toBe(false);

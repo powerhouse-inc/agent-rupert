@@ -1,5 +1,6 @@
 import { AgentBase, type ILogger, type BaseAgentConfig } from "../AgentBase/AgentBase.js";
 import { ReactorPackagesManager, type RunProjectOptions } from "./ReactorPackagesManager.js";
+import { FusionProjectsManager, type RunFusionProjectOptions } from "./FusionProjectsManager.js";
 import { CLIExecutor } from "../../tasks/executors/cli-executor.js";
 import { ServiceExecutor } from "../../tasks/executors/service-executor.js";
 import type { ReactorPackageDevAgentConfig } from "../../types.js";
@@ -7,6 +8,7 @@ import type { IAgentBrain } from "../IAgentBrain.js";
 import { BrainType, type BrainConfig } from "../BrainFactory.js";
 import type { AgentBrainPromptContext } from "../../types/prompt-context.js";
 import { createReactorProjectsManagerMcpServer, getReactorMcpToolNames } from "../../tools/reactorMcpServer.js";
+import { createFusionProjectsManagerMcpServer, getFusionMcpToolNames } from "../../tools/fusionMcpServer.js";
 import { getSelfReflectionMcpToolNames } from "../../tools/selfReflectionMcpServer.js";
 import { AgentClaudeBrain } from "../AgentClaudeBrain.js";
 
@@ -18,10 +20,12 @@ export class ReactorPackageDevAgent extends AgentBase<IAgentBrain> {
         return this.config as ReactorPackageDevAgentConfig;
     }
     
-    private packagesManager?: ReactorPackagesManager;
+    private reactorPackagesManager?: ReactorPackagesManager;
+    private fusionManager?: FusionProjectsManager;
     private cliExecutor: CLIExecutor;
     private serviceExecutor: ServiceExecutor;
-    private projectsDir: string;
+    private reactorPackagesDir: string;
+    private fusionProjectsDir: string;
     
     /**
      * Get the brain configuration for ReactorPackageDevAgent
@@ -39,6 +43,7 @@ export class ReactorPackageDevAgent extends AgentBase<IAgentBrain> {
                 'mcp__agent-manager-drive__*',  // Allow all MCP tools from agent-manager-drive
                 'mcp__active-project-vetra__*',
                 ...getReactorMcpToolNames(),  // Include all ReactorProjectsManager tools
+                ...getFusionMcpToolNames(),   // Include all FusionProjectsManager tools
                 ...getSelfReflectionMcpToolNames()  // Include self-reflection tools
             ],
             fileSystemPaths: {
@@ -93,7 +98,8 @@ export class ReactorPackageDevAgent extends AgentBase<IAgentBrain> {
     
     constructor(config: ReactorPackageDevAgentConfig, logger: ILogger, brain?: IAgentBrain) {
         super(config, logger, brain);
-        this.projectsDir = (config as ReactorPackageDevAgentConfig).reactorPackages.projectsDir;
+        this.reactorPackagesDir = (config as ReactorPackageDevAgentConfig).reactorPackages.projectsDir;
+        this.fusionProjectsDir = '../projects/fusion'; // Default fusion projects directory
         
         // Initialize executors
         this.cliExecutor = new CLIExecutor({
@@ -112,9 +118,9 @@ export class ReactorPackageDevAgent extends AgentBase<IAgentBrain> {
         await super.initialize();
         
         // Create packages manager
-        this.logger.info(`${this.config.name}: Creating ReactorPackagesManager for ${this.projectsDir}`);
-        this.packagesManager = new ReactorPackagesManager(
-            this.projectsDir,
+        this.logger.info(`${this.config.name}: Creating ReactorPackagesManager for ${this.reactorPackagesDir}`);
+        this.reactorPackagesManager = new ReactorPackagesManager(
+            this.reactorPackagesDir,
             this.cliExecutor,
             this.serviceExecutor,
             this.getConfig().vetraConfig
@@ -122,58 +128,58 @@ export class ReactorPackageDevAgent extends AgentBase<IAgentBrain> {
 
         this.logger.info(`${this.config.name}: ReactorPackagesManager created successfully`);
         
-        // Create and register MCP server if we have a Claude brain
+        // Create fusion manager
+        this.logger.info(`${this.config.name}: Creating FusionProjectsManager for ${this.fusionProjectsDir}`);
+        this.fusionManager = new FusionProjectsManager(
+            this.fusionProjectsDir,
+            this.cliExecutor,
+            this.serviceExecutor
+        );
+        
+        this.logger.info(`${this.config.name}: FusionProjectsManager created successfully`);
+        
+        // Create and register MCP servers if we have a Claude brain
         if (this.brain && this.brain instanceof AgentClaudeBrain) {
+            // Register ReactorProjectsManager MCP server
             this.logger.info(`${this.config.name}: Creating ReactorProjectsManager MCP server`);
-            const serverConfig = createReactorProjectsManagerMcpServer(this.packagesManager, this, this.logger);
-            (this.brain as AgentClaudeBrain).addMcpServer('reactor-prjmgr', serverConfig);
+            const reactorServerConfig = createReactorProjectsManagerMcpServer(this.reactorPackagesManager, this, this.logger);
+            (this.brain as AgentClaudeBrain).addMcpServer('reactor-prjmgr', reactorServerConfig);
             this.logger.info(`${this.config.name}: ReactorProjectsManager MCP server registered`);
+            
+            // Register FusionProjectsManager MCP server
+            this.logger.info(`${this.config.name}: Creating FusionProjectsManager MCP server`);
+            const fusionServerConfig = createFusionProjectsManagerMcpServer(this.fusionManager, this.logger);
+            (this.brain as AgentClaudeBrain).addMcpServer('fusion-prjmgr', fusionServerConfig);
+            this.logger.info(`${this.config.name}: FusionProjectsManager MCP server registered`);
         }
     }
     
     public async shutdown(): Promise<void> {
-        // Shutdown any running projects
-        if (this.packagesManager) {
-            const runningProject = this.packagesManager.getRunningProject();
-            if (runningProject) {
-                this.logger.info(`${this.config.name}: Shutting down running project: ${runningProject.name}`);
-                await this.packagesManager.shutdownProject();
+        // Shutdown any running Fusion projects
+        if (this.fusionManager) {
+            const runningFusionProject = this.fusionManager.getRunningProject();
+            if (runningFusionProject) {
+                this.logger.info(`${this.config.name}: Shutting down running Fusion project: ${runningFusionProject.name}`);
+                await this.fusionManager.shutdownProject();
+            }
+        }
+        
+        // Shutdown any running Reactor projects
+        if (this.reactorPackagesManager) {
+            const runningReactorPackage = this.reactorPackagesManager.getRunningProject();
+            if (runningReactorPackage) {
+                this.logger.info(`${this.config.name}: Shutting down running Reactor project: ${runningReactorPackage.name}`);
+                await this.reactorPackagesManager.shutdownProject();
             }
         }
     
         await super.shutdown();
     }
     
-    // Expose key ReactorPackagesManager methods
-    public async initProject(name: string) {
-        if (!this.packagesManager) throw new Error('Agent not initialized');
-        return this.packagesManager.init(name);
-    }
-    
-    public async runProject(name: string, options?: RunProjectOptions) {
-        if (!this.packagesManager) throw new Error('Agent not initialized');
-        return this.packagesManager.runProject(name, options);
-    }
-    
-    public async shutdownProject() {
-        if (!this.packagesManager) throw new Error('Agent not initialized');
-        return this.packagesManager.shutdownProject();
-    }
-    
-    public getRunningProject() {
-        if (!this.packagesManager) throw new Error('Agent not initialized');
-        return this.packagesManager.getRunningProject();
-    }
-    
-    public async listProjects() {
-        if (!this.packagesManager) throw new Error('Agent not initialized');
-        return this.packagesManager.listProjects();
-    }
-    
     // Additional methods for API access
     public getPackagesManager(): ReactorPackagesManager {
-        if (!this.packagesManager) throw new Error('Agent not initialized');
-        return this.packagesManager;
+        if (!this.reactorPackagesManager) throw new Error('Agent not initialized');
+        return this.reactorPackagesManager;
     }
     
     public getReactor() {

@@ -167,7 +167,7 @@ export class AgentsService {
                 return;
             }
 
-            const result = await agent.runProject(this.autoStartProject);
+            const result = await agent.getPackagesManager().runProject(this.autoStartProject);
 
             if (result.success) {
                 this.logger.info(`✅ Project ${this.autoStartProject} started successfully`);

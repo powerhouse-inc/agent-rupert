@@ -2,7 +2,6 @@ import path from "node:path";
 import fs from 'node:fs/promises';
 import { CLIExecutor } from "../../tasks/executors/cli-executor.js";
 import { ServiceExecutor } from "../../tasks/executors/service-executor.js";
-import { ReactorPackagesManager } from "./ReactorPackagesManager.js";
 import { type CLITask, type ServiceTask, createCLITask, createServiceTask } from '../../tasks/types.js';
 import type { ChildProcess } from 'node:child_process';
 import { AbstractProjectManager, type InitProjectResult, type BaseRunningProject } from './AbstractProjectManager.js';
@@ -15,12 +14,6 @@ interface FusionRuntimeParams {
 export interface FusionProjectConfig {
   name: string;
   path: string;
-  fusionPort?: number;          // Fusion front-end port (default: 8000)
-  reactorPackage?: {
-    name: string;
-    connectPort?: number;       // Connect Studio port (default: 3000)
-    switchboardPort?: number;   // Vetra Switchboard port (default: 4001)
-  }
 }
 
 /**
@@ -29,10 +22,8 @@ export interface FusionProjectConfig {
 export interface RunFusionProjectOptions {
   /** Fusion front-end port (default: 8000) */
   fusionPort: number;
-  /** Connect Studio port (default: 3000) */
-  connectPort: number;
-  /** Vetra Switchboard port (default: 4001) */
-  switchboardPort: number;
+  /** Switchboard URL to serve as back-end */
+  switchboardUrl: string;
   /** Timeout in milliseconds to wait for fusion to fully start (default: 60000) */
   startupTimeout: number;
 }
@@ -45,20 +36,14 @@ export interface RunFusionProjectResult {
   success: boolean;
   /** Name of the project */
   projectName: string;
-  /** Error message if the operation failed */
-  error?: string;
-  /** Fusion port the project is running on */
-  fusionPort?: number;
-  /** Connect Studio port the project is running on */
-  connectPort?: number;
-  /** Vetra Switchboard port the project is running on */
-  switchboardPort?: number;
-  /** The Drive URL if captured during startup (e.g., http://localhost:4001/drives/xyz) */
-  driveUrl?: string;
-  /** The MCP server once vetra has fully started (e.g., http://localhost:4001/mcp) */
-  mcpServer?: string;
   /** The folder of the project */
   projectPath?: string;
+  /** Fusion port the project is running on */
+  fusionPort?: number;
+  /** Switchboard URL to serve as backend */
+  switchboardUrl?: string;
+  /** Error message if the operation failed */
+  error?: string;
 }
 
 /**
@@ -68,7 +53,7 @@ export interface RunningFusionProject extends BaseRunningProject {
   /** Fusion port (Next.js) */
   fusionPort: number;
   /** The Switchboard URL */
-  switchboardUrl?: string;
+  switchboardUrl: string;
 }
 
 export class FusionProjectsManager extends AbstractProjectManager<
@@ -77,16 +62,12 @@ export class FusionProjectsManager extends AbstractProjectManager<
   RunFusionProjectOptions,
   RunFusionProjectResult
 > {
-  private readonly reactorPackagesManager?: ReactorPackagesManager;
-
   constructor(
     projectsDir: string = '../projects/fusion',
-    reactorPackagesManager?: ReactorPackagesManager,
     cliExecutor?: CLIExecutor,
     serviceExecutor?: ServiceExecutor
   ) {
     super(projectsDir, cliExecutor, serviceExecutor);
-    this.reactorPackagesManager = reactorPackagesManager;
   }
 
   /**
@@ -152,7 +133,8 @@ export class FusionProjectsManager extends AbstractProjectManager<
       args: ['dev', '-p', String(options.fusionPort)],
       workingDirectory: project.path,
       environment: {
-        NODE_ENV: 'development'
+        NODE_ENV: 'development',
+        PH_SWITCHBOARD_URL: options.switchboardUrl
       },
       gracefulShutdown: {
         signal: 'SIGTERM',
@@ -295,7 +277,7 @@ export class FusionProjectsManager extends AbstractProjectManager<
             await fs.access(configPath);
             projects.push({
               name: entry.name,
-              path: projectPath
+              path: projectPath,
             });
 
           } catch {
@@ -315,8 +297,7 @@ export class FusionProjectsManager extends AbstractProjectManager<
     // Set defaults for options
     const effectiveOptions: RunFusionProjectOptions = {
       fusionPort: options?.fusionPort || 8000,
-      connectPort: options?.connectPort || 3000,
-      switchboardPort: options?.switchboardPort || 4001,
+      switchboardUrl: options?.switchboardUrl || 'http://localhost:4001/graphql',
       startupTimeout: options?.startupTimeout || 60000
     };
 
@@ -354,6 +335,7 @@ export class FusionProjectsManager extends AbstractProjectManager<
 
     // Use provided ports from effectiveOptions
     const actualFusionPort = effectiveOptions.fusionPort;
+    const actualSwitchboardUrl = effectiveOptions.switchboardUrl;
 
     // Track the readiness timeout so we can clean it up
     let readinessTimeoutId: NodeJS.Timeout | null = null;
@@ -367,6 +349,7 @@ export class FusionProjectsManager extends AbstractProjectManager<
         name: project.name,
         path: project.path,
         fusionPort: actualFusionPort,
+        switchboardUrl: actualSwitchboardUrl,
         startedAt: new Date(),
         logs: [],
         isFullyStarted: false  // Will be set to true when ready
@@ -471,7 +454,8 @@ export class FusionProjectsManager extends AbstractProjectManager<
         success: true,
         projectName: project.name,
         projectPath: project.path,
-        fusionPort: fusionOutputParams.fusionPort || actualFusionPort
+        fusionPort: fusionOutputParams.fusionPort || actualFusionPort,
+        switchboardUrl: actualSwitchboardUrl,
       };
 
     } catch (error) {

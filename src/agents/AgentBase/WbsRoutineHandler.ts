@@ -181,7 +181,7 @@ export class WbsRoutineHandler {
         let scenarioId: string | null = null;
         let scenarioSource: WorkItemResolution['source']['scenario'] = 'wbs';
         
-        if (scenarioGoal?.instructions?.workId) {
+        if (scenarioGoal?.instructions?.workId && (!parsedTask.possibleScenario || parsedTask.possibleScenario == scenarioGoal?.instructions?.workId)) {
             // Explicit scenario from WBS
             scenarioId = scenarioGoal.instructions.workId;
             scenarioSource = 'wbs';
