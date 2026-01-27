@@ -26,7 +26,7 @@ export const config: ServerConfig = {
                 }
             },
             reactorPackages: {
-                projectsDir: "../projects",
+                projectsDir: "../projects/reactor-packages",
                 defaultProjectName: "agent-project",
                 autoStartDefaultProject: false,
             },

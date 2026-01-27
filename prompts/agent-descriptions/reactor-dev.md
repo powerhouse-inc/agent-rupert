@@ -2226,7 +2226,7 @@ can show the nested collections below that header.
 ```md
 Implement document editing features until all operations can be triggered
 
-### Implement
+### Implement UI elements that call `dispatch`
 
 - Start by making as much as the state values in the reading experience in-line editable.
 - Use buttons, icons, toggles or checkboxes for actions that don't need input entered by the user,
@@ -2238,6 +2238,7 @@ that the user needs to enter, etc.
 - For the creation of larger objects and situations where the UI does not have space for inline editing, use the sidebar pane
 and pop-over modals with a semi-transparent black overlay in the background. These can facilitate more extensive forms,
 and even multi-step input processes.
+- Make images editable by providing a pop-up with a URL field and preview.
 - Avoid "edit" or "edit mode" buttons where possible. Make fields and objects editable upon hover with inline forms as described.
 - Make sure to keep the  at the top and don't put anything next to it.
 

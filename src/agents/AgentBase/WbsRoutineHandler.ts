@@ -113,7 +113,7 @@ export class WbsRoutineHandler {
                         },
                         routineContext: routineContext,
                         options: {
-                            maxTurns: 50,
+                            maxTurns: 75,
                             captureSession: false
                         }
                     },

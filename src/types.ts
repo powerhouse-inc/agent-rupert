@@ -9,7 +9,7 @@ export type StorageOptions = {
 export type ReactorPackageConfig = {
   /** Name of the Powerhouse project to auto-start on server startup */
   project?: string;
-  /** Directory containing all Powerhouse projects (default: ../projects) */
+  /** Directory containing all Powerhouse projects (default: ../projects/reactor-packages) */
   projectsDir: string;
   /** Optional override for Connect Studio port */
   connectPort?: number;

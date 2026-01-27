@@ -74,7 +74,7 @@ describe('PromptDriver', () => {
       const flow = driver.createSequentialFlow('document-modeling/DM.00');
       expect(flow).toBeInstanceOf(SequentialScenarioFlow);
       expect(flow.getScenarioInfo().id).toBe('DM.00');
-      expect(flow.getScenarioInfo().totalTasks).toBe(6);
+      expect(flow.getScenarioInfo().totalTasks).toBe(5);
     });
 
     it('should throw error for non-existent scenario', () => {
@@ -104,8 +104,7 @@ describe('PromptDriver', () => {
         'Completed task DM.00.2',
         'Completed task DM.00.3',
         'Completed task DM.00.4',
-        'Completed task DM.00.5',
-        'Completed task DM.00.6'
+        'Completed task DM.00.5'
       ];
       mockAgent.setResponses(expectedResponses);
 
@@ -115,17 +114,17 @@ describe('PromptDriver', () => {
 
       expect(result).toBeDefined();
       expect(result.scenarioId).toBe('DM.00');
-      expect(result.totalTasks).toBe(6);
-      expect(result.completedTasks).toBe(6);
-      expect(result.responses).toHaveLength(6);
+      expect(result.totalTasks).toBe(5);
+      expect(result.completedTasks).toBe(5);
+      expect(result.responses).toHaveLength(5);
 
       // Verify each task response (briefing doesn't appear in responses)
       expect(result.responses[0].taskId).toBe('DM.00.1');
       expect(result.responses[0].response).toBe('Completed task DM.00.1');
       expect(result.responses[0].success).toBe(true);
-      expect(result.responses[5].taskId).toBe('DM.00.6');
-      expect(result.responses[5].response).toBe('Completed task DM.00.6');
-      expect(result.responses[5].success).toBe(true);
+      expect(result.responses[4].taskId).toBe('DM.00.5');
+      expect(result.responses[4].response).toBe('Completed task DM.00.5');
+      expect(result.responses[4].success).toBe(true);
     });
 
     it('should send briefing message with scenario context', async () => {
@@ -162,9 +161,9 @@ describe('PromptDriver', () => {
       const flow = driver.createSequentialFlow('document-modeling/DM.01');
       const result = await driver.executeScenarioFlow('document-modeling/DM.01', flow);
 
-      // DM.01 has 5 tasks + 1 briefing message = 6 total messages
-      expect(callCount).toBe(6);
-      expect(result.completedTasks).toBe(5);
+      // DM.01 has 4 tasks + 1 briefing message = 5 total messages
+      expect(callCount).toBe(5);
+      expect(result.completedTasks).toBe(4);
     });
 
     it('should handle task failures', async () => {

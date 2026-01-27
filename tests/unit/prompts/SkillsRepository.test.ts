@@ -53,7 +53,7 @@ describe('SkillsRepository', () => {
       expect(scenario).toBeDefined();
       expect(scenario?.id).toBe('DM.00');
       expect(scenario?.title).toBe('Check the prerequisites for creating a document model');
-      expect(scenario?.tasks).toHaveLength(6);
+      expect(scenario?.tasks).toHaveLength(5);
     });
 
     it('should get scenarios by skill', async () => {

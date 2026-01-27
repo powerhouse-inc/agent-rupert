@@ -376,7 +376,7 @@ describe('ReactorPackageDevAgent MCP Integration', () => {
         const expectedSkills = [
             'create-reactor-package',
             'document-modeling',
-            'document-editor-implementation',
+            'document-editor-creation',
             'handle-stakeholder-message'
         ];
         
