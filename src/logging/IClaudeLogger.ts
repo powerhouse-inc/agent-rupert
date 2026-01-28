@@ -128,6 +128,27 @@ export interface IClaudeLogger {
     logError(sessionId: string, error: Error): void;
 
     /**
+     * Log query result with metrics
+     * @param sessionId Session identifier
+     * @param result The complete result message from the query
+     */
+    logQueryResult(sessionId: string, result: {
+        num_turns?: number;
+        total_cost_usd?: number;
+        usage?: {
+            input_tokens?: number;
+            output_tokens?: number;
+        };
+        modelUsage?: Record<string, {
+            inputTokens?: number;
+            outputTokens?: number;
+            costUSD?: number;
+        }>;
+        duration_ms?: number;
+        result?: string;
+    }): void;
+
+    /**
      * Optional cleanup method
      */
     cleanup?(): Promise<void>;

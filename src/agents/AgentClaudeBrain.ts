@@ -481,10 +481,24 @@ export class AgentClaudeBrain implements IAgentBrain {
                         permission_denials?: unknown[];
                         content?: unknown;
                         tool_use_id?: string;
+                        num_turns?: number;
+                        total_cost_usd?: number;
+                        usage?: {
+                            input_tokens?: number;
+                            output_tokens?: number;
+                        };
+                        modelUsage?: Record<string, {
+                            inputTokens?: number;
+                            outputTokens?: number;
+                            costUSD?: number;
+                        }>;
+                        duration_ms?: number;
+                        result?: string;
                     };
                     
-                    // Log all tool results
+                    // Check if this is a tool result (has tool_use_id) or a query result
                     if (resultMsg.tool_use_id) {
+                        // This is an individual tool result
                         if (resultMsg.is_error) {
                             // Log error result
                             this.claudeLogger?.logToolResult(activeSessionId, {
@@ -501,6 +515,16 @@ export class AgentClaudeBrain implements IAgentBrain {
                                 timestamp: new Date()
                             });
                         }
+                    } else if (resultMsg.subtype === 'success' || resultMsg.num_turns) {
+                        // This is the final query result with metrics
+                        this.claudeLogger?.logQueryResult(activeSessionId, {
+                            num_turns: resultMsg.num_turns,
+                            total_cost_usd: resultMsg.total_cost_usd,
+                            usage: resultMsg.usage,
+                            modelUsage: resultMsg.modelUsage,
+                            duration_ms: resultMsg.duration_ms,
+                            result: resultMsg.result
+                        });
                     }
                     
                     // Also log as error if it's an error result

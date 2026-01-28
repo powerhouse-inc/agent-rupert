@@ -285,6 +285,65 @@ ${error.stack || 'No stack trace available'}
     }
 
     /**
+     * Log query result with metrics
+     */
+    public logQueryResult(sessionId: string, result: {
+        num_turns?: number;
+        total_cost_usd?: number;
+        usage?: {
+            input_tokens?: number;
+            output_tokens?: number;
+        };
+        modelUsage?: Record<string, {
+            inputTokens?: number;
+            outputTokens?: number;
+            costUSD?: number;
+        }>;
+        duration_ms?: number;
+        result?: string;
+    }): void {
+        const session = this.sessions.get(sessionId);
+        if (!session?.isActive) return;
+
+        const timestamp = new Date().toISOString();
+        
+        // Calculate total cost from modelUsage if available
+        let totalCost = result.total_cost_usd || 0;
+        if (!totalCost && result.modelUsage) {
+            totalCost = Object.values(result.modelUsage).reduce((sum, model) => 
+                sum + (model.costUSD || 0), 0
+            );
+        }
+
+        // Calculate total tokens from modelUsage if not in usage
+        let totalInputTokens = result.usage?.input_tokens || 0;
+        let totalOutputTokens = result.usage?.output_tokens || 0;
+        
+        if (!totalInputTokens && result.modelUsage) {
+            totalInputTokens = Object.values(result.modelUsage).reduce((sum, model) => 
+                sum + (model.inputTokens || 0), 0
+            );
+        }
+        
+        if (!totalOutputTokens && result.modelUsage) {
+            totalOutputTokens = Object.values(result.modelUsage).reduce((sum, model) => 
+                sum + (model.outputTokens || 0), 0
+            );
+        }
+
+        const content = `## Query Metrics
+**Time**: ${timestamp}
+**Turns Used**: ${result.num_turns || 'N/A'}
+**Duration**: ${result.duration_ms ? `${(result.duration_ms / 1000).toFixed(2)}s` : 'N/A'}
+**Input Tokens**: ${totalInputTokens}
+**Output Tokens**: ${totalOutputTokens}
+**Total Cost**: $${totalCost.toFixed(6)}
+
+`;
+        appendFileSync(session.filePath, content);
+    }
+
+    /**
      * Cleanup all active sessions
      */
     public async cleanup(): Promise<void> {
