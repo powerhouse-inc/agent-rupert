@@ -181,85 +181,6 @@ export class AgentClaudeBrain implements IAgentBrain {
         return this.mcpServers.get(name);
     }
 
-    /**
-     * Describe WBS operations in natural language using Agent SDK
-     */
-    async describeWbsOperations(operations: unknown[]): Promise<string> {
-        // AgentClaudeBrain: describeWbsOperations called with operations
-        try {
-            const prompt = `Analyze these Work Breakdown Structure (WBS) operations and describe what changes occurred in simple, clear English. Focus on the business meaning, not technical details.
-
-Operations data:
-${JSON.stringify(operations, null, 2)}
-
-Provide a concise summary of what happened.`;
-
-            let description = "";
-            
-            for await (const message of this.queryStream(prompt)) {
-                if (message.type === 'assistant' && message.message) {
-                    const textContent = message.message.content.find((c) => c.type === 'text');
-                    if (textContent && 'text' in textContent) {
-                        description += textContent.text;
-                    }
-                }
-            }
-
-            return description || "WBS document was updated";
-        } catch (error) {
-            console.error("ERROR in describeWbsOperations:", error);
-            if (this.logger) {
-                this.logger.error(`   AgentClaudeBrain: Failed to describe WBS operations: ${error instanceof Error ? error.message : String(error)}`, error);
-            }
-            return `WBS document was updated with ${operations.length} operation(s)`;
-        }
-    }
-
-    /**
-     * Describe inbox operations in natural language using Agent SDK
-     */
-    async describeInboxOperations(operations: unknown[]): Promise<string> {
-        // AgentClaudeBrain: describeInboxOperations called with operations
-        try {
-            const prompt = `
-A data update to your inbox document was synchronized:
-
----
-${JSON.stringify(operations, null, 2)}
----
-
-Fetch your inbox document in agent-manager-drive through the MCP to have the full picture.
-- Mark new stakeholder messages always as read immediately in your inbox document so that the stakeholder knows you're on it.
-- Reply to new stakeholder messages if needed. Consider submitting other operations through the MCP, other than just SEND_AGENT_MESSAGE. Esp. workflow changes.
-- Apply stakeholder requests to your WBS document where needed.
-- Consider updating your WBS document by breaking down goals.
-- Make sure your agent profile in the inbox doc is up-to-date.
-
-Reply to this prompt with a very short sentence summary of what you did.
-`;
-
-            let description = "";
-            
-            // Use full turns since we're asking the agent to perform actions
-            for await (const message of this.queryStream(prompt, true)) {
-                if (message.type === 'assistant' && message.message) {
-                    const textContent = message.message.content.find((c) => c.type === 'text');
-                    if (textContent && 'text' in textContent) {
-                        description += textContent.text;
-                    }
-                }
-            }
-
-            return description || "Inbox received new content";
-        } catch (error) {
-            console.error("ERROR in describeInboxOperations:", error);
-            if (this.logger) {
-                this.logger.error(`   AgentClaudeBrain: Failed to describe inbox operations: ${error instanceof Error ? error.message : String(error)}`, error);
-            }
-            return `Inbox received ${operations.length} operation(s)`;
-        }
-    }
-
     public setWorkDir(workPath: string) {
         console.log("Updating workdir / file system paths... BEFORE", this.config.workingDirectory, this.config.fileSystemPaths)
 
@@ -294,62 +215,6 @@ Reply to this prompt with a very short sentence summary of what you did.
         
         if (this.logger) {
             this.logger.info(`   AgentClaudeBrain: Working directory updated to: ${absolutePath}`);
-        }
-    }
-
-    /**
-     * Stream query results from Claude Agent SDK
-     */
-    private async *queryStream(prompt: string, useFullTurns: boolean = false): AsyncIterable<SDKMessage> {
-        // Build MCP servers configuration from the map
-        const mcpServers: Record<string, McpServerConfig> = {};
-        
-        // Add all configured MCP servers
-        for (const [name, config] of this.mcpServers) {
-            // Check if this is an SDK server with instance (McpSdkServerConfigWithInstance)
-            if ('type' in config && config.type === 'sdk' && 'instance' in config) {
-                // The SDK expects the full config with instance for SDK servers
-                mcpServers[name] = config;
-            } else {
-                // Regular config-based servers
-                mcpServers[name] = config;
-            }
-        }
-
-        // Ensure working directory exists
-        const workingDir = this.config.workingDirectory;
-        if (!existsSync(workingDir)) {
-            mkdirSync(workingDir, { recursive: true });
-        }
-        
-        const quargs: {prompt: string, options: Options} = {
-            prompt,
-            options: {
-                settingSources: [],  // No filesystem config lookups
-                maxTurns: useFullTurns ? (this.config.maxTurns || 100) : 1,  // Use full turns for action tasks
-                cwd: workingDir,
-                model: this.config.model || 'haiku',
-                allowedTools: useFullTurns ? this.config.allowedTools : [],  // Enable tools for action tasks
-                mcpServers,
-                hooks: this.createFileSystemHooks(),
-                systemPrompt: this.systemPrompt,  // Add system prompt if available
-                // Workaround for spawn node ENOENT issue
-                env: {
-                    PATH: process.env.PATH,
-                    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
-                    HOME: process.env.HOME,
-                    USER: process.env.USER
-                },
-                permissionMode: this.config.bypassPermissions ? 'bypassPermissions' : 'default'
-            }
-        };
-
-        //console.log("QUARGS (queryStream)", quargs.prompt.substring(0, 100) + "...", quargs.options);
-
-        const q = query(quargs);
-
-        for await (const message of q) {
-            yield message;
         }
     }
 
@@ -508,8 +373,6 @@ Reply to this prompt with a very short sentence summary of what you did.
             logContent += `- MaxTurns: ${options?.maxTurns || 5}\n`;
             logContent += `- Session: ${sessionId ? `Resuming ${sessionId}` : 'New session'}\n`;
             logContent += `- AllowedTools: none\n\n`;
-
-            
 
             // Build options with resume if sessionId provided
             const queryOptions: Options = {
