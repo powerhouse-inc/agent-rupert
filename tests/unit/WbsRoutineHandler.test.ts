@@ -40,7 +40,38 @@ describe('WbsRoutineHandler', () => {
                 getScenarioByKey: jest.fn(),
                 getScenarioIds: jest.fn(),
                 getTaskIds: jest.fn(),
-                initTaskData: jest.fn()
+                initTaskData: jest.fn(),
+                findTask: jest.fn((taskId: string) => {
+                    // Mock implementation that returns task info if found
+                    if (taskId === 'CRP.00.1') {
+                        return {
+                            skill: {
+                                name: 'create-reactor-package',
+                                scenarios: [{
+                                    id: 'CRP.00',
+                                    title: 'Initialize Reactor project',
+                                    tasks: [{
+                                        id: 'CRP.00.1',
+                                        title: 'List existing Reactor projects'
+                                    }]
+                                }]
+                            },
+                            scenario: {
+                                id: 'CRP.00',
+                                title: 'Initialize Reactor project',
+                                tasks: [{
+                                    id: 'CRP.00.1',
+                                    title: 'List existing Reactor projects'
+                                }]
+                            },
+                            task: {
+                                id: 'CRP.00.1',
+                                title: 'List existing Reactor projects'
+                            }
+                        };
+                    }
+                    return undefined;
+                })
             } as any;
         });
 
@@ -74,9 +105,9 @@ describe('WbsRoutineHandler', () => {
             expect(resolution?.skillName).toBe('create-reactor-package');
             expect(resolution?.scenarioId).toBe('CRP.00');
             expect(resolution?.taskId).toBe('CRP.00.1');
-            expect(resolution?.confidence).toBe('inferred');  
-            expect(resolution?.source.skill).toBe('scenario_prefix');  // Inferred from scenario prefix
-            expect(resolution?.source.scenario).toBe('task_prefix');  // Inferred from task ID
+            expect(resolution?.confidence).toBe('constructed');  // Always constructed now
+            expect(resolution?.source.skill).toBe('repository_scan');  // Always from repository scan
+            expect(resolution?.source.scenario).toBe('repository_scan');  // Always from repository scan
         });
 
         it('should use explicit IDs when available', () => {
@@ -140,9 +171,9 @@ describe('WbsRoutineHandler', () => {
             expect(resolution?.skillName).toBe('create-reactor-package');
             expect(resolution?.scenarioId).toBe('CRP.00');
             expect(resolution?.taskId).toBe('CRP.00.1');
-            expect(resolution?.confidence).toBe('explicit');
-            expect(resolution?.source.skill).toBe('wbs');
-            expect(resolution?.source.scenario).toBe('wbs');
+            expect(resolution?.confidence).toBe('constructed');  // Always constructed now
+            expect(resolution?.source.skill).toBe('repository_scan');  // Always from repository scan
+            expect(resolution?.source.scenario).toBe('repository_scan');  // Always from repository scan
         });
 
         it('should return null if no task ID is found', () => {

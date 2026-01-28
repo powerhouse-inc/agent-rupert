@@ -39,7 +39,7 @@ describe('SkillsRepository', () => {
       
       // Check that specific skills are loaded
       expect(skills).toContain('document-modeling');
-      expect(skills).toContain('create-reactor-package');
+      expect(skills).toContain('reactor-package-project-management');
     });
 
     it('should be marked as loaded after loading', async () => {
