@@ -95,9 +95,9 @@ export class MarkdownClaudeLogger implements IClaudeLogger {
 
         // Write system prompt
         content += `# System Prompt
-\`\`\`
+\`\`\`\`
 ${systemPrompt}
-\`\`\`
+\`\`\`\`
 
 `;
 
@@ -191,9 +191,9 @@ ${systemPrompt}
         }
 
         const content = `## User
-\`\`\`md
+\`\`\`\`md
 ${message}
-\`\`\`
+\`\`\`\`
 
 `;
         appendFileSync(session.filePath, content);
@@ -208,9 +208,9 @@ ${message}
         if (!session?.isActive) return;
 
         const content = `## Assistant
-\`\`\`md
+\`\`\`\`md
 ${message}
-\`\`\`
+\`\`\`\`
 
 `;
         appendFileSync(session.filePath, content);
@@ -227,9 +227,9 @@ ${message}
         const content = `## Tool Use: ${tool.name}
 **Tool ID**: ${tool.id}
 **Input**:
-\`\`\`json
+\`\`\`\`json
 ${JSON.stringify(tool.input, null, 2)}
-\`\`\`
+\`\`\`\`
 
 `;
         appendFileSync(session.filePath, content);
@@ -248,7 +248,7 @@ ${JSON.stringify(tool.input, null, 2)}
         if (result.error) {
             content += `**Error**: ${result.error}\n`;
         } else {
-            content += `**Output**:\n\`\`\`json\n${JSON.stringify(result.output, null, 2)}\n\`\`\`\n`;
+            content += `**Output**:\n\`\`\`\`json\n${JSON.stringify(result.output, null, 2)}\n\`\`\`\`\n`;
         }
         content += '\n';
         
@@ -265,9 +265,9 @@ ${JSON.stringify(tool.input, null, 2)}
         const content = `## Error
 **Message**: ${error.message}
 **Stack**:
-\`\`\`
+\`\`\`\`
 ${error.stack || 'No stack trace available'}
-\`\`\`
+\`\`\`\`
 
 `;
         appendFileSync(session.filePath, content);
