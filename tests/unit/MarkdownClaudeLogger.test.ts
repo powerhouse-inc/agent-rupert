@@ -136,7 +136,7 @@ describe('MarkdownClaudeLogger', () => {
             
             // Verify conversation flow
             expect(content).toContain('# Conversation Log');
-            expect(content).toContain('## User\nWhat is 2 + 2?');
+            expect(content).toContain('## User\n```md\nWhat is 2 + 2?\n```');
             expect(content).toContain('## Tool Use: calculator');
             expect(content).toContain('**Tool ID**: calc-123');
             expect(content).toContain('"operation": "add"');
@@ -144,7 +144,7 @@ describe('MarkdownClaudeLogger', () => {
             expect(content).toContain('"b": 2');
             expect(content).toContain('## Tool Result');
             expect(content).toContain('"result": 4');
-            expect(content).toContain('## Assistant\n2 + 2 equals 4.');
+            expect(content).toContain('## Assistant\n```md\n2 + 2 equals 4.\n```');
             
             // Verify session summary
             expect(content).toContain('# Session Summary');
@@ -193,7 +193,7 @@ describe('MarkdownClaudeLogger', () => {
             
             // Verify order - server changes should be interspersed with messages
             const mcpAddIndex = content.indexOf('## MCP Server Added');
-            const userMsgIndex = content.indexOf('## User\nTest message');
+            const userMsgIndex = content.indexOf('## User\n```md\nTest message\n```');
             const mcpRemoveIndex = content.indexOf('## MCP Server Removed');
             
             expect(mcpAddIndex).toBeLessThan(userMsgIndex);

@@ -191,7 +191,9 @@ ${systemPrompt}
         }
 
         const content = `## User
+\`\`\`md
 ${message}
+\`\`\`
 
 `;
         appendFileSync(session.filePath, content);
@@ -206,7 +208,9 @@ ${message}
         if (!session?.isActive) return;
 
         const content = `## Assistant
+\`\`\`md
 ${message}
+\`\`\`
 
 `;
         appendFileSync(session.filePath, content);
