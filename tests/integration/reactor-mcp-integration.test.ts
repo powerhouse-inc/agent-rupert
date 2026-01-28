@@ -373,12 +373,7 @@ describe('ReactorPackageDevAgent MCP Integration', () => {
         expect(Array.isArray(jsonResponse.skills)).toBe(true);
         
         // ReactorPackageDevAgent should have these specific skills
-        const expectedSkills = [
-            'create-reactor-package',
-            'document-modeling',
-            'document-editor-creation',
-            'handle-stakeholder-message'
-        ];
+        const expectedSkills = ReactorPackageDevAgent.getDefaultSkillNames();
         
         // Check that the agent reported the correct skills
         for (const expectedSkill of expectedSkills) {
@@ -389,7 +384,7 @@ describe('ReactorPackageDevAgent MCP Integration', () => {
         }
         
         // Should have exactly 4 skills
-        expect(jsonResponse.count).toBe(4);
+        expect(jsonResponse.count).toBe(expectedSkills.length);
     }, 30000);
     
     test('should get skill details using self-reflection MCP tools', async () => {
@@ -410,7 +405,7 @@ describe('ReactorPackageDevAgent MCP Integration', () => {
         
         // Send a message asking for details about a specific skill
         const result = await brain.sendMessage(
-            'Use the self_reflection get_skill_details MCP tool to get details about the "create-reactor-package" skill. Return response in this format:\n\n' +
+            'Use the self_reflection get_skill_details MCP tool to get details about the "reactor-package-project-management" skill. Return response in this format:\n\n' +
             '```json\n' +
             '{\n' +
             '  "skill_name": "<name>",\n' +
@@ -429,12 +424,12 @@ describe('ReactorPackageDevAgent MCP Integration', () => {
         expect(jsonResponse).toHaveProperty('scenarios');
         
         // Verify the skill details
-        expect(jsonResponse.skill_name).toBe('create-reactor-package');
+        expect(jsonResponse.skill_name).toBe('reactor-package-project-management');
         expect(jsonResponse.scenario_count).toBeGreaterThan(0);
         expect(Array.isArray(jsonResponse.scenarios)).toBe(true);
         
-        // Check for expected scenarios (should include CRP.01, CRP.02, CRP.03)
-        const expectedScenarios = ['CRP.01', 'CRP.02', 'CRP.03'];
+        // Check for expected scenarios
+        const expectedScenarios = ['RPPM.00', 'RPPM.01', 'RPPM.02'];
         for (const expectedScenario of expectedScenarios) {
             const hasScenario = jsonResponse.scenarios.some((scenario: any) => 
                 scenario === expectedScenario || scenario.includes(expectedScenario)
