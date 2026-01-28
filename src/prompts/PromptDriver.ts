@@ -1,11 +1,10 @@
 import { IAgentBrain } from '../agents/IAgentBrain.js';
-import { SkillsRepository } from './SkillsRepository.js';
 import type { ISkillsRepository } from './ISkillsRepository.js';
 import { RenderedScenario, RenderedScenarioTask } from './types.js';
 import type { IScenarioFlow } from './flows/IScenarioFlow.js';
 import type { ISkillFlow, ScenarioResult } from './flows/ISkillFlow.js';
 import { SequentialScenarioFlow } from './flows/SequentialScenarioFlow.js';
-import type { ILogger } from '../agents/AgentBase/AgentBase.js';
+import { ILogger } from '../logging/ILogger.js';
 import { Goal } from 'powerhouse-agent/document-models/work-breakdown-structure';
 
 type WbsTaskContext = { 
@@ -29,10 +28,10 @@ export interface ScenarioExecutionResult {
   scenarioId: string;
   totalTasks: number;
   completedTasks: number;
-  responses: TaskResponse[];
+  responses: TaskExecutionResult[];
 }
 
-export interface TaskResponse {
+export interface TaskExecutionResult {
   taskId: string;
   taskTitle: string;
   response: string;
@@ -45,21 +44,13 @@ export class PromptDriver {
   private repository: ISkillsRepository;
   private agent: IAgentBrain;
   private sessionId: string | null = null;
-  private maxTurns: number = 5;  // Default maxTurns for message sending
-  private logger: ILogger | null = null;
+  private defaultMaxTurns: number = 5;  // Default maxTurns for message sending
+  private logger: ILogger;
 
-  constructor(
-    agent: IAgentBrain,
-    repositoryOrPath: ISkillsRepository | string = './build/prompts',
-    logger?: ILogger
-  ) {
+  constructor(agent: IAgentBrain, repository: ISkillsRepository, logger: ILogger) {
     this.agent = agent;
-    if (typeof repositoryOrPath === 'string') {
-      this.repository = new SkillsRepository(repositoryOrPath);
-    } else {
-      this.repository = repositoryOrPath;
-    }
-    this.logger = logger || null;
+    this.repository = repository;
+    this.logger = logger;
   }
 
   /**
@@ -69,26 +60,10 @@ export class PromptDriver {
     await this.repository.loadSkills();
   }
 
-  /**
-   * Set the maximum number of turns for message exchanges
-   * @param maxTurns Maximum number of turns to allow
-   */
-  setMaxTurns(maxTurns: number): void {
-    this.maxTurns = maxTurns;
-  }
-
-  /**
-   * Get the maximum number of turns for message exchanges
-   * @returns Current maxTurns setting
-   */
-  getMaxTurns(): number {
-    return this.maxTurns;
-  }
-
   async sendSkillPreamble<TContext = any>(skill: string, context: TContext) {
     const skillPreamble = this.repository.getSkillPreamble(skill, context);
     if (skillPreamble && skillPreamble.trim().length > 0) {
-      await this.sendMessage(skillPreamble, this.maxTurns);
+      await this.sendMessage(skillPreamble, this.defaultMaxTurns);
     }
   }
 
@@ -111,7 +86,7 @@ export class PromptDriver {
     }
   ): Promise<SkillExecutionResult> {
     // Use provided maxTurns or fallback to instance default
-    const maxTurns = options?.maxTurns ?? this.maxTurns;
+    const maxTurns = options?.maxTurns ?? this.defaultMaxTurns;
     
     // Use provided sessionId if available
     if (options?.sessionId) {
@@ -247,14 +222,14 @@ export class PromptDriver {
     }
     
     // Use provided maxTurns or fallback to instance default
-    const maxTurns = options?.maxTurns ?? this.maxTurns;
+    const maxTurns = options?.maxTurns ?? this.defaultMaxTurns;
     
     // Use provided sessionId if available
     if (options?.sessionId) {
       this.sessionId = options.sessionId;
     }
 
-    const responses: TaskResponse[] = [];
+    const responses: TaskExecutionResult[] = [];
 
     // Reset flow for new scenario
     flow.reset();
@@ -334,9 +309,9 @@ export class PromptDriver {
       preamble?: string;
     },
     context: TTaskContext = {} as TTaskContext
-  ): Promise<TaskResponse> {
+  ): Promise<TaskExecutionResult> {
     // Use provided maxTurns or fallback to instance default
-    const maxTurns = options?.maxTurns ?? this.maxTurns;
+    const maxTurns = options?.maxTurns ?? this.defaultMaxTurns;
     
     // Use provided sessionId if available
     if (options?.sessionId) {
@@ -409,7 +384,7 @@ export class PromptDriver {
     
     if (scenario) {
       // Use the existing private method to send the rendered scenario briefing
-      await this.sendRenderedScenarioBriefing(scenario, undefined, this.maxTurns);
+      await this.sendRenderedScenarioBriefing(scenario, undefined, this.defaultMaxTurns);
     } else {
       throw new Error(`Cannot send scenario briefing. Scenario '${scenarioKey}' not found.`);
     }

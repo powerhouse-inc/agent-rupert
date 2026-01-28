@@ -436,6 +436,15 @@ export class AgentClaudeBrain implements IAgentBrain {
             let response = '';
             let capturedSessionId: string | undefined;
             let messageCount = 0;
+            let queryMetrics: {
+                num_turns?: number;
+                total_cost_usd?: number;
+                usage?: {
+                    input_tokens?: number;
+                    output_tokens?: number;
+                };
+                duration_ms?: number;
+            } | undefined;
             
             for await (const msg of q) {
                 messageCount++;
@@ -516,15 +525,17 @@ export class AgentClaudeBrain implements IAgentBrain {
                             });
                         }
                     } else if (resultMsg.subtype === 'success' || resultMsg.num_turns) {
-                        // This is the final query result with metrics
-                        this.claudeLogger?.logQueryResult(activeSessionId, {
+                        // Capture query metrics to include with final assistant message
+                        queryMetrics = {
                             num_turns: resultMsg.num_turns,
-                            total_cost_usd: resultMsg.total_cost_usd,
+                            total_cost_usd: resultMsg.total_cost_usd || 
+                                (resultMsg.modelUsage ? 
+                                    Object.values(resultMsg.modelUsage as Record<string, {costUSD?: number}>)
+                                        .reduce((sum, model) => sum + (model.costUSD || 0), 0) : 
+                                    undefined),
                             usage: resultMsg.usage,
-                            modelUsage: resultMsg.modelUsage,
-                            duration_ms: resultMsg.duration_ms,
-                            result: resultMsg.result
-                        });
+                            duration_ms: resultMsg.duration_ms
+                        };
                     }
                     
                     // Also log as error if it's an error result
@@ -544,8 +555,8 @@ export class AgentClaudeBrain implements IAgentBrain {
                 }
             }
             
-            // Log assistant response (this is the final response after all turns)
-            this.claudeLogger?.logAssistantMessage(activeSessionId, response || 'No response generated', true);
+            // Log assistant response with metrics (this is the final response after all turns)
+            this.claudeLogger?.logAssistantMessage(activeSessionId, response || 'No response generated', true, queryMetrics);
             
             if (this.logger) {
                 this.logger.debug(`   AgentClaudeBrain: Received ${messageCount} messages, response length: ${response.length}`);

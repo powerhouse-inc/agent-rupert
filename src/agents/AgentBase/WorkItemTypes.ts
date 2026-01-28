@@ -1,4 +1,4 @@
-import { TaskResponse, ScenarioExecutionResult, SkillExecutionResult } from "../../prompts/PromptDriver.js";
+import { TaskExecutionResult, ScenarioExecutionResult, SkillExecutionResult } from "../../prompts/PromptDriver.js";
 import { IScenarioFlow } from "../../prompts/flows/IScenarioFlow.js";
 import { ISkillFlow } from "../../prompts/flows/ISkillFlow.js";
 import { AgentRoutineContext } from "./AgentRoutineContext.js";
@@ -25,7 +25,7 @@ export type AgentRoutineWorkItem<TContext = any> = {
     type: WorkItemType,
     status: 'queued' | 'in-progress' | 'succeeded' | 'failed' | 'terminated',
     params: WorkItemParams<TContext>,
-    result: TaskResponse | ScenarioExecutionResult | SkillExecutionResult | null,
+    result: TaskExecutionResult | ScenarioExecutionResult | SkillExecutionResult | null,
     promise?: {
         resolve: (value: any) => void;
         reject: (reason?: any) => void;

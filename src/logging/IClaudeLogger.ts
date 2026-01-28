@@ -103,8 +103,17 @@ export interface IClaudeLogger {
      * @param sessionId Session identifier
      * @param message The assistant's response
      * @param isFinal Whether this is the final response
+     * @param metrics Optional metrics for this response
      */
-    logAssistantMessage(sessionId: string, message: string, isFinal?: boolean): void;
+    logAssistantMessage(sessionId: string, message: string, isFinal?: boolean, metrics?: {
+        num_turns?: number;
+        total_cost_usd?: number;
+        usage?: {
+            input_tokens?: number;
+            output_tokens?: number;
+        };
+        duration_ms?: number;
+    }): void;
 
     /**
      * Log tool use
@@ -127,26 +136,6 @@ export interface IClaudeLogger {
      */
     logError(sessionId: string, error: Error): void;
 
-    /**
-     * Log query result with metrics
-     * @param sessionId Session identifier
-     * @param result The complete result message from the query
-     */
-    logQueryResult(sessionId: string, result: {
-        num_turns?: number;
-        total_cost_usd?: number;
-        usage?: {
-            input_tokens?: number;
-            output_tokens?: number;
-        };
-        modelUsage?: Record<string, {
-            inputTokens?: number;
-            outputTokens?: number;
-            costUSD?: number;
-        }>;
-        duration_ms?: number;
-        result?: string;
-    }): void;
 
     /**
      * Optional cleanup method

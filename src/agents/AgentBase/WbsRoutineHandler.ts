@@ -7,6 +7,7 @@ import type { SkillTemplate, ScenarioTemplate, ScenarioTaskTemplate } from "../.
 import { MemorySkillsRepository } from "../../prompts/MemorySkillsRepository.js";
 import { PromptDriver } from "../../prompts/PromptDriver.js";
 import type { IAgentBrain } from "../IAgentBrain.js";
+import { DefaultConsoleLogger } from "../../logging/ILogger.js";
 
 interface WorkItemResolution {
     skillName: string;
@@ -494,7 +495,7 @@ export class WbsRoutineHandler {
             []
         );
         
-        return new PromptDriver(brain, memoryRepository);
+        return new PromptDriver(brain, memoryRepository, new DefaultConsoleLogger());
     }
 
     /**
@@ -560,7 +561,7 @@ export class WbsRoutineHandler {
 
         // Create and return the PromptDriver with the resolved skill name
         return {
-            driver: new PromptDriver(brain, memoryRepository),
+            driver: new PromptDriver(brain, memoryRepository, new DefaultConsoleLogger()),
             skillName: templates.skillName
         };
     }

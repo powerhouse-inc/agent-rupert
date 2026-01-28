@@ -1,6 +1,7 @@
 import { AgentsManager } from '../agents/AgentsManager.js';
 import type { ServerConfig } from '../types.js';
 import type { ILogger } from '../agents/AgentBase/AgentBase.js';
+import { DefaultConsoleLogger } from '../logging/ILogger.js';
 import { driveUrlToMcpUrl } from '../utils/url-utils.js';
 import fs from 'fs';
 import path from 'path';
@@ -82,22 +83,7 @@ export class AgentsService {
 
     constructor() {
         this.startTime = new Date();
-        this.logger = this.createDefaultLogger();
-    }
-
-    private createDefaultLogger(): ILogger {
-        return {
-            info: (message: string) => console.log(message),
-            error: (message: string, error?: any) => {
-                if (error) {
-                    console.error(message, error);
-                } else {
-                    console.error(message);
-                }
-            },
-            warn: (message: string) => console.warn(message),
-            debug: (message: string) => console.log(message)
-        };
+        this.logger = new DefaultConsoleLogger();
     }
 
     /**

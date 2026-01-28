@@ -229,6 +229,38 @@ describe('MarkdownClaudeLogger', () => {
             expect(content).toContain('Final response');
         });
 
+        it('should log assistant message with metrics', () => {
+            const sessionId = 'metrics-test';
+            logger.startSession(sessionId, 'Test', new Map(), 'MetricsAgent');
+            
+            logger.logUserMessage(sessionId, 'Calculate something complex');
+            
+            // Log assistant message with full metrics
+            logger.logAssistantMessage(sessionId, 'Here is the result of the calculation', true, {
+                num_turns: 3,
+                total_cost_usd: 0.002345,
+                usage: {
+                    input_tokens: 1250,
+                    output_tokens: 450
+                },
+                duration_ms: 3500
+            });
+            
+            logger.endSession(sessionId);
+            
+            const content = readSessionContent('MetricsAgent');
+            
+            // Check that metrics are included with the assistant message
+            expect(content).toContain('## Assistant Message');
+            expect(content).toContain('**Type**: final_response');
+            expect(content).toContain('**Turns Used**: 3');
+            expect(content).toContain('**Duration**: 3.50s');
+            expect(content).toContain('**Input Tokens**: 1250');
+            expect(content).toContain('**Output Tokens**: 450');
+            expect(content).toContain('**Cost**: $0.002345');
+            expect(content).toContain('Here is the result of the calculation');
+        });
+
         it('should handle different MCP server types', () => {
             const sessionId = 'mcp-types-test';
             const mixedServers = new Map<string, McpServerConfig>([

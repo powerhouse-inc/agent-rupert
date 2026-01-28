@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { PromptDriver, ExecutionResult } from '../../../src/prompts/PromptDriver.js';
 import { IAgentBrain } from '../../../src/agents/IAgentBrain.js';
 import { SequentialScenarioFlow } from '../../../src/prompts/flows/SequentialScenarioFlow.js';
+import { SkillsRepository } from '../../../src/prompts/SkillsRepository.js';
+import { DefaultConsoleLogger } from '../../../src/logging/ILogger.js';
 
 // Mock agent brain
 class MockAgentBrain implements Partial<IAgentBrain> {
@@ -55,11 +57,15 @@ class MockAgentBrain implements Partial<IAgentBrain> {
 describe('PromptDriver', () => {
   let driver: PromptDriver;
   let mockAgent: MockAgentBrain;
+  let repository: SkillsRepository;
+  let logger: DefaultConsoleLogger;
 
   beforeEach(async () => {
     mockAgent = new MockAgentBrain();
     // Use the actual build/prompts directory with real data
-    driver = new PromptDriver(mockAgent as IAgentBrain, './build/prompts');
+    repository = new SkillsRepository('./build/prompts');
+    logger = new DefaultConsoleLogger();
+    driver = new PromptDriver(mockAgent as IAgentBrain, repository, logger);
     await driver.initialize();
   });
 
@@ -330,20 +336,6 @@ describe('PromptDriver', () => {
 
       const flow = driver.createSequentialFlow('document-modeling/DM.00');
       await driver.executeScenarioFlow('document-modeling/DM.00', flow, {}, { maxTurns: 10 });
-      
-      expect(mockAgent.sendMessage).toHaveBeenCalled();
-    });
-
-    it('should update default maxTurns', async () => {
-      driver.setMaxTurns(15);
-      
-      mockAgent.sendMessage = jest.fn(async (message, sessionId, options) => {
-        expect(options?.maxTurns).toBe(15); // Updated default
-        return { response: 'test response', sessionId: 'test-session' };
-      });
-
-      const flow = driver.createSequentialFlow('document-modeling/DM.00');
-      await driver.executeScenarioFlow('document-modeling/DM.00', flow);
       
       expect(mockAgent.sendMessage).toHaveBeenCalled();
     });

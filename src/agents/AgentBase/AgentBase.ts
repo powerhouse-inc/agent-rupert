@@ -9,7 +9,7 @@ import type { IAgentBrain } from '../IAgentBrain.js';
 import type { BrainConfig } from '../BrainFactory.js';
 import type { AgentBrainPromptContext } from '../../types/prompt-context.js';
 import type { SkillInfo, ScenarioInfo } from '../../prompts/types.js';
-import { PromptDriver, type SkillExecutionResult, type ScenarioExecutionResult, type TaskResponse } from '../../prompts/PromptDriver.js';
+import { PromptDriver, type SkillExecutionResult, type ScenarioExecutionResult, type TaskExecutionResult } from '../../prompts/PromptDriver.js';
 import { SequentialSkillFlow } from '../../prompts/flows/SequentialSkillFlow.js';
 import type { ISkillFlow } from '../../prompts/flows/ISkillFlow.js';
 import type { IScenarioFlow } from '../../prompts/flows/IScenarioFlow.js';
@@ -19,17 +19,12 @@ import { createSelfReflectionMcpServer } from '../../tools/selfReflectionMcpServ
 import { PromptParser } from '../../utils/PromptParser.js';
 import type { TemplateWithVars } from '../../prompts/types.js';
 import { AgentRoutine } from './AgentRoutine.js';
+import { SkillsRepository } from '../../prompts/SkillsRepository.js';
+import { ILogger } from '../../logging/ILogger.js';
 
-// Logger interface for dependency injection
-export interface ILogger {
-    info(message: string): void;
-    error(message: string, error?: any): void;
-    warn(message: string): void;
-    debug(message: string): void;
-}
-
-// Re-export BaseAgentConfig type for convenience
+// Re-export BaseAgentConfig type and ILogger for convenience
 export type { BaseAgentConfig } from '../../types.js';
+export type { ILogger } from '../../logging/ILogger.js';
 
 export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
     protected reactor?: IDocumentDriveServer;
@@ -277,7 +272,7 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
         
         // Initialize PromptDriver if brain is available
         if (this.brain) {
-            this.defaultPromptDriver = new PromptDriver(this.brain, './build/prompts', this.logger);
+            this.defaultPromptDriver = new PromptDriver(this.brain, new SkillsRepository('./build/prompts'), this.logger);
             await this.defaultPromptDriver.initialize();
             
             const skillNames = (this.constructor as typeof AgentBase).getDefaultSkillNames();
@@ -499,7 +494,7 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
             sessionId?: string;
             captureSession?: boolean;
         }
-    ): Promise<TaskResponse> {
+    ): Promise<TaskExecutionResult> {
         if (!this.defaultPromptDriver) {
             throw new Error('PromptDriver not initialized - agent needs a brain to execute tasks');
         }
@@ -523,7 +518,7 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
         return this.defaultPromptDriver.executeTask(
             task,
             {
-                maxTurns: options?.maxTurns || this.defaultPromptDriver.getMaxTurns(),
+                maxTurns: options?.maxTurns || undefined,
                 sessionId: options?.sessionId || undefined,
                 captureSession: options?.captureSession || undefined,
             }

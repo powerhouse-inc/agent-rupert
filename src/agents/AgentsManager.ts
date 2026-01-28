@@ -6,6 +6,7 @@ import { BrainFactory } from './BrainFactory.js';
 import type { IAgentBrain } from './IAgentBrain.js';
 import type { CommonAgentInfo } from '../services/AgentsService.js';
 import { writeAgentSkillsInfo } from '../utils/agentSkillsFormatter.js';
+import { DefaultConsoleLogger } from '../logging/ILogger.js';
 
 export interface AgentsConfig {
     enableReactorPackageAgent?: boolean;
@@ -28,16 +29,7 @@ export class AgentsManager {
     private logger: ILogger;
     
     constructor(private config: AgentsConfig) {
-        this.logger = config.logger || this.createDefaultLogger();
-    }
-    
-    private createDefaultLogger(): ILogger {
-        return {
-            info: (message: string) => console.log(message),
-            error: (message: string, error?: any) => console.error(message, error),
-            warn: (message: string) => console.warn(message),
-            debug: (message: string) => console.log(message)
-        };
+        this.logger = config.logger || new DefaultConsoleLogger();
     }
     
     /**
