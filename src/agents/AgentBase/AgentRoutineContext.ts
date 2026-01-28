@@ -20,14 +20,14 @@ export class AgentRoutineContext {
         completed: boolean;
     }[];
 
-    constructor(goalChain: Goal[], priorTasks: string[], driver: PromptDriver, resolvedSkillName: string) {
+    constructor(goalChain: Goal[], priorTasks: string[], driver: PromptDriver, resolvedSkillName: string, resolvedScenarioId?: string) {
         this.skill = {
             name: resolvedSkillName,
             preambleSent: false,
         };
 
         this.scenario = {
-            id: goalChain.find(g => g.instructions?.workType === 'SCENARIO')?.instructions?.workId || 'UNKNOWN',
+            id: resolvedScenarioId || goalChain.find(g => g.instructions?.workType === 'SCENARIO')?.instructions?.workId || 'UNKNOWN',
             preambleSent: false,
         };
 

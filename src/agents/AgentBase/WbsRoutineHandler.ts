@@ -78,12 +78,13 @@ export class WbsRoutineHandler {
                 // Get prior completed tasks (TODO: implement actual tracking from WBS)
                 const priorCompletedTasks: string[] = [];
                 
-                // Create context for this goal chain with resolved skill name
+                // Create context for this goal chain with resolved skill name and scenario ID
                 const routineContext = new AgentRoutineContext(
                     goalChain,
                     priorCompletedTasks,
                     driver,
-                    resolution.skillName
+                    resolution.skillName,
+                    resolution.scenarioId
                 );
                 
                 // Return a task work item with the resolved skill name
@@ -160,19 +161,9 @@ export class WbsRoutineHandler {
             return null;
         }
         
-        // Get the skill name (it's stored in the skills map, so we need to find it)
-        let skillName: string | null = null;
-        for (const [name, template] of (skillsRepository as any).skills) {
-            if (template === result.skill) {
-                skillName = name;
-                break;
-            }
-        }
-        
-        // If we can't find the skill name, use a fallback
-        if (!skillName) {
-            skillName = result.skill.name || 'unknown';
-        }
+        // Get the skill name from the skill template
+        // The skill template should have a 'name' property
+        const skillName = result.skill.name || 'unknown';
         
         // Return the resolution based on repository lookup
         return {
