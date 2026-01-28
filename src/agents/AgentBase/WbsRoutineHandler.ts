@@ -20,13 +20,6 @@ interface WorkItemResolution {
     };
 }
 
-interface ParsedId {
-    full: string;
-    segments: string[];
-    possibleSkill: string | null;
-    possibleScenario: string | null;
-    task: string;
-}
 
 export class WbsRoutineHandler {
     
@@ -139,33 +132,16 @@ export class WbsRoutineHandler {
         };
     }
 
-    /**
-     * Parse a work ID into its component parts
-     * Handles both dot-notation (CRP.00.1) and hyphenated (create-reactor-package.00.1)
-     */
-    private static parseWorkId(id: string): ParsedId {
-        const segments = id.split('.');
-        return {
-            full: id,
-            segments,
-            possibleSkill: segments.length > 0 ? segments[0] : null,
-            possibleScenario: segments.length >= 2 ? 
-                segments.slice(0, -1).join('.') : null,
-            task: id
-        };
-    }
 
     /**
      * Resolve a complete work item from the goal chain
-     * Intelligently infers missing pieces from available information
+     * Always derives scenario and skill from the task ID, ignoring workIds on scenario/skill goals
      */
     private static resolveWorkItem(
         goalChain: Goal[],
         skillsRepository: ISkillsRepository
     ): WorkItemResolution | null {
-        // Step 1: Extract explicit IDs from goal chain
-        const skillGoal = goalChain.find(g => g.instructions?.workType === "SKILL");
-        const scenarioGoal = goalChain.find(g => g.instructions?.workType === "SCENARIO");
+        // Extract task goal from chain
         const taskGoal = goalChain.find(g => g.instructions?.workType === "TASK");
         
         // Task is required - without it we can't execute anything
@@ -175,126 +151,29 @@ export class WbsRoutineHandler {
         }
         
         const taskId = taskGoal.instructions.workId;
-        const parsedTask = this.parseWorkId(taskId);
         
-        // Step 2: Resolve scenario
-        let scenarioId: string | null = null;
-        let scenarioSource: WorkItemResolution['source']['scenario'] = 'wbs';
+        // Always derive everything from the task ID by scanning the repository
+        const scanResult = this.findWorkItemInRepository(taskId, skillsRepository);
         
-        if (scenarioGoal?.instructions?.workId && (!parsedTask.possibleScenario || parsedTask.possibleScenario == scenarioGoal?.instructions?.workId)) {
-            // Explicit scenario from WBS
-            scenarioId = scenarioGoal.instructions.workId;
-            scenarioSource = 'wbs';
-        } else if (parsedTask.possibleScenario) {
-            // Infer from task ID pattern (e.g., "CRP.00.1" -> "CRP.00")
-            scenarioId = parsedTask.possibleScenario;
-            scenarioSource = 'task_prefix';
-        }
-        
-        // Step 3: Resolve skill
-        let skillName: string | null = null;
-        let skillSource: WorkItemResolution['source']['skill'] = 'wbs';
-        
-        if (skillGoal?.instructions?.workId && (!parsedTask.possibleSkill || parsedTask.possibleSkill == skillGoal?.instructions?.workId)) {
-            // Explicit skill from WBS - need to resolve to actual skill name
-            const workId = skillGoal.instructions.workId;
-            skillName = this.resolveSkillName(workId, scenarioId, skillsRepository);
-            skillSource = 'wbs';
-        } else if (scenarioId) {
-            // Try to infer from scenario ID
-            const parsedScenario = this.parseWorkId(scenarioId);
-            if (parsedScenario.possibleSkill) {
-                skillName = this.resolveSkillName(parsedScenario.possibleSkill, scenarioId, skillsRepository);
-                skillSource = 'scenario_prefix';
-            }
-        } else if (parsedTask.possibleSkill) {
-            // Try to infer from task ID
-            skillName = this.resolveSkillName(parsedTask.possibleSkill, null, skillsRepository);
-            skillSource = 'task_prefix';
-        }
-        
-        // Step 4: If still missing pieces, scan repository
-        if (!skillName || !scenarioId) {
-            const scanResult = this.findWorkItemInRepository(taskId, skillsRepository);
-            if (scanResult) {
-                if (!skillName) {
-                    skillName = scanResult.skillName;
-                    skillSource = 'repository_scan';
-                }
-                if (!scenarioId) {
-                    scenarioId = scanResult.scenarioId;
-                    scenarioSource = 'repository_scan';
-                }
-            }
-        }
-        
-        // Step 5: Validate we have everything
-        if (!skillName || !scenarioId) {
-            console.warn(`Could not resolve complete work item: skill=${skillName}, scenario=${scenarioId}, task=${taskId}`);
+        if (!scanResult) {
+            console.warn(`Could not find task ${taskId} in any skill repository`);
             return null;
         }
         
-        // Determine overall confidence level
-        const confidence: WorkItemResolution['confidence'] = 
-            (skillSource === 'wbs' && scenarioSource === 'wbs') ? 'explicit' :
-            (skillSource === 'repository_scan' || scenarioSource === 'repository_scan') ? 'constructed' :
-            'inferred';
-        
+        // Return the resolution based entirely on repository scan
         return {
-            skillName,
-            scenarioId,
-            taskId,
-            confidence,
+            skillName: scanResult.skillName,
+            scenarioId: scanResult.scenarioId,
+            taskId: scanResult.taskId,
+            confidence: 'constructed',
             source: {
-                skill: skillSource,
-                scenario: scenarioSource,
+                skill: 'repository_scan',
+                scenario: 'repository_scan',
                 task: 'wbs'
             }
         };
     }
 
-    /**
-     * Resolve a skill name from a work ID
-     * Handles both direct names and prefix matching
-     */
-    private static resolveSkillName(
-        workId: string,
-        scenarioId: string | null,
-        skillsRepository: ISkillsRepository
-    ): string | null {
-        // Try direct lookup first
-        const directSkill = skillsRepository.getSkillTemplate(workId);
-        if (directSkill) {
-            return workId;
-        }
-        
-        // Try to find by prefix matching
-        const allSkills = skillsRepository.getSkills();
-        for (const skillName of allSkills) {
-            const skill = skillsRepository.getSkillTemplate(skillName);
-            if (skill) {
-                // Check if skill name matches the work ID
-                if (skillName === workId) {
-                    return skillName;
-                }
-                
-                // Check if any scenario ID starts with the workId prefix
-                const hasMatchingPrefix = skill.scenarios.some(s => 
-                    s.id && s.id.startsWith(workId + '.')
-                );
-                if (hasMatchingPrefix) {
-                    return skillName;
-                }
-                
-                // If we have a scenario ID, check if this skill contains it
-                if (scenarioId && skill.scenarios.some(s => s.id === scenarioId)) {
-                    return skillName;
-                }
-            }
-        }
-        
-        return null;
-    }
 
     /**
      * Scan the entire repository to find where a task belongs
@@ -773,7 +652,6 @@ export class WbsRoutineHandler {
         const currentGoal = currentWbs.state.global.goals.find(g => g.id === goal.id);
 
         if (currentGoal) {
-            const currentStatus = currentGoal.status;
             if (currentGoal.status !== "IN_PROGRESS") {
                 //console.log(" Processed goal status is no longer IN_PROGRESS. Skipping status update.", currentGoal);
                 skipUpdate = true;
