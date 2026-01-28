@@ -65,8 +65,9 @@ export interface IClaudeLogger {
      * @param systemPrompt The system prompt for this session
      * @param mcpServers Initial MCP servers configured (map of name to config)
      * @param agentName Optional name of the agent
+     * @param metadata Optional metadata including maxTurns
      */
-    startSession(sessionId: string, systemPrompt: string, mcpServers: Map<string, McpServerConfig>, agentName?: string): void;
+    startSession(sessionId: string, systemPrompt: string, mcpServers: Map<string, McpServerConfig>, agentName?: string, metadata?: { maxTurns?: number }): void;
 
     /**
      * End a logging session
@@ -100,8 +101,9 @@ export interface IClaudeLogger {
      * Log an assistant message
      * @param sessionId Session identifier
      * @param message The assistant's response
+     * @param isFinal Whether this is the final response
      */
-    logAssistantMessage(sessionId: string, message: string): void;
+    logAssistantMessage(sessionId: string, message: string, isFinal?: boolean): void;
 
     /**
      * Log tool use

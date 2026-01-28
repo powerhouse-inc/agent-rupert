@@ -366,11 +366,13 @@ export class AgentClaudeBrain implements IAgentBrain {
             this.activeSessions.add(activeSessionId);
             
             // Start session with system prompt and MCP servers
+            const maxTurns = options?.maxTurns || this.config.maxTurns || 5;
             this.claudeLogger?.startSession(
                 activeSessionId, 
                 this.systemPrompt || 'No system prompt set',
                 this.mcpServers,
-                this.agentName
+                this.agentName,
+                { maxTurns }
             );
         }
 
@@ -495,8 +497,8 @@ export class AgentClaudeBrain implements IAgentBrain {
                 }
             }
             
-            // Log assistant response
-            this.claudeLogger?.logAssistantMessage(activeSessionId, response || 'No response generated');
+            // Log assistant response (this is the final response after all turns)
+            this.claudeLogger?.logAssistantMessage(activeSessionId, response || 'No response generated', true);
             
             if (this.logger) {
                 this.logger.debug(`   AgentClaudeBrain: Received ${messageCount} messages, response length: ${response.length}`);

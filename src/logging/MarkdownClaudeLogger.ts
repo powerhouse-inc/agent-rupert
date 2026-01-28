@@ -39,7 +39,7 @@ export class MarkdownClaudeLogger implements IClaudeLogger {
     /**
      * Start a new logging session with initial configuration
      */
-    public startSession(sessionId: string, systemPrompt: string, mcpServers: Map<string, McpServerConfig>, agentName?: string): void {
+    public startSession(sessionId: string, systemPrompt: string, mcpServers: Map<string, McpServerConfig>, agentName?: string, metadata?: { maxTurns?: number }): void {
         if (this.sessions.has(sessionId)) {
             console.warn(`Session ${sessionId} already exists`);
             return;
@@ -90,12 +90,12 @@ export class MarkdownClaudeLogger implements IClaudeLogger {
         let content = `# Session: ${agentName || 'Agent'}
 **Session ID**: ${sessionId}
 **Started**: ${startTime.toISOString()}
-
+${metadata?.maxTurns ? `**Max Turns**: ${metadata.maxTurns}\n` : ''}
 `;
 
         // Write system prompt
         content += `# System Prompt
-\`\`\`\`
+\`\`\`\`md
 ${systemPrompt}
 \`\`\`\`
 
@@ -190,7 +190,10 @@ ${systemPrompt}
             appendFileSync(session.filePath, '# Conversation Log\n\n');
         }
 
-        const content = `## User
+        const timestamp = new Date().toISOString();
+        const content = `## User Message
+**Time**: ${timestamp}
+**Type**: user_request
 \`\`\`\`md
 ${message}
 \`\`\`\`
@@ -203,11 +206,15 @@ ${message}
     /**
      * Log an assistant message
      */
-    public logAssistantMessage(sessionId: string, message: string): void {
+    public logAssistantMessage(sessionId: string, message: string, isFinal: boolean = false): void {
         const session = this.sessions.get(sessionId);
         if (!session?.isActive) return;
 
-        const content = `## Assistant
+        const timestamp = new Date().toISOString();
+        const messageType = isFinal ? 'final_response' : 'assistant_response';
+        const content = `## Assistant Message
+**Time**: ${timestamp}
+**Type**: ${messageType}
 \`\`\`\`md
 ${message}
 \`\`\`\`
@@ -224,7 +231,9 @@ ${message}
         const session = this.sessions.get(sessionId);
         if (!session?.isActive) return;
 
+        const timestamp = new Date().toISOString();
         const content = `## Tool Use: ${tool.name}
+**Time**: ${timestamp}
 **Tool ID**: ${tool.id}
 **Input**:
 \`\`\`\`json
@@ -243,7 +252,9 @@ ${JSON.stringify(tool.input, null, 2)}
         const session = this.sessions.get(sessionId);
         if (!session?.isActive) return;
 
-        let content = `## Tool Result\n`;
+        const timestamp = new Date().toISOString();
+        let content = `## Tool Result
+**Time**: ${timestamp}\n`;
         
         if (result.error) {
             content += `**Error**: ${result.error}\n`;

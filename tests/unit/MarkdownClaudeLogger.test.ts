@@ -136,7 +136,8 @@ describe('MarkdownClaudeLogger', () => {
             
             // Verify conversation flow
             expect(content).toContain('# Conversation Log');
-            expect(content).toContain('## User\n````md\nWhat is 2 + 2?\n````');
+            expect(content).toContain('## User Message');
+            expect(content).toContain('What is 2 + 2?');
             expect(content).toContain('## Tool Use: calculator');
             expect(content).toContain('**Tool ID**: calc-123');
             expect(content).toContain('"operation": "add"');
@@ -144,7 +145,8 @@ describe('MarkdownClaudeLogger', () => {
             expect(content).toContain('"b": 2');
             expect(content).toContain('## Tool Result');
             expect(content).toContain('"result": 4');
-            expect(content).toContain('## Assistant\n````md\n2 + 2 equals 4.\n````');
+            expect(content).toContain('## Assistant Message');
+            expect(content).toContain('2 + 2 equals 4.');
             
             // Verify session summary
             expect(content).toContain('# Session Summary');
@@ -193,11 +195,37 @@ describe('MarkdownClaudeLogger', () => {
             
             // Verify order - server changes should be interspersed with messages
             const mcpAddIndex = content.indexOf('## MCP Server Added');
-            const userMsgIndex = content.indexOf('## User\n````md\nTest message\n````');
+            const userMsgIndex = content.indexOf('Test message');
             const mcpRemoveIndex = content.indexOf('## MCP Server Removed');
             
             expect(mcpAddIndex).toBeLessThan(userMsgIndex);
             expect(userMsgIndex).toBeLessThan(mcpRemoveIndex);
+        });
+
+        it('should log timestamps and message types', () => {
+            const sessionId = 'timestamp-test';
+            logger.startSession(sessionId, 'Test', new Map(), 'TimestampAgent', { maxTurns: 10 });
+            
+            logger.logUserMessage(sessionId, 'Test user message');
+            logger.logAssistantMessage(sessionId, 'Intermediate response');
+            logger.logAssistantMessage(sessionId, 'Final response', true);
+            
+            logger.endSession(sessionId);
+            
+            const content = readSessionContent('TimestampAgent');
+            
+            // Check for max turns
+            expect(content).toContain('**Max Turns**: 10');
+            
+            // Check user message format
+            expect(content).toContain('## User Message');
+            expect(content).toContain('**Time**:');
+            expect(content).toContain('**Type**: user_request');
+            
+            // Check assistant messages
+            expect(content).toContain('**Type**: assistant_response');
+            expect(content).toContain('**Type**: final_response');
+            expect(content).toContain('Final response');
         });
 
         it('should handle different MCP server types', () => {
