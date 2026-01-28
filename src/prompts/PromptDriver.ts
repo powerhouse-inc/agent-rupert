@@ -547,7 +547,7 @@ ${
   }
 
   public continueSession(sessionId: string) {
-    if (this.sessionId) {
+    if (this.sessionId && this.sessionId !== sessionId) {
       this.endSession();
     }
 
