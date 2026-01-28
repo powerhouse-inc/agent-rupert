@@ -43,6 +43,12 @@ export interface IAgentBrain {
     sendMessage(message: string, sessionId?: string, options?: { maxTurns?: number }): Promise<{response: string; sessionId?: string}>;
 
     /**
+     * End a conversation session and trigger cleanup
+     * @param sessionId The session to end
+     */
+    endSession?(sessionId: string): Promise<void>;
+
+    /**
      * Cleanup any resources used by the brain
      * Called when the brain is no longer needed
      */

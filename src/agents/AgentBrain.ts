@@ -93,4 +93,15 @@ export class AgentBrain implements IAgentBrain {
             throw error;
         }
     }
+
+    /**
+     * End a conversation session
+     * No-op in this implementation as it doesn't support sessions
+     */
+    public async endSession(sessionId: string): Promise<void> {
+        // This implementation doesn't support sessions, so this is a no-op
+        if (this.logger) {
+            this.logger.debug(`   AgentBrain: endSession called for ${sessionId} (no-op)`);
+        }
+    }
 }

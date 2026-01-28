@@ -1,6 +1,7 @@
 import { query } from '@anthropic-ai/claude-agent-sdk';
 import type { HookJSONOutput, SDKMessage, McpServerConfig, Options } from '@anthropic-ai/claude-agent-sdk';
 import { IAgentBrain, IBrainLogger } from './IAgentBrain.js';
+import { IClaudeLogger } from '../logging/IClaudeLogger.js';
 import * as path from 'path';
 import { writeFileSync, mkdirSync, existsSync } from 'fs';
 
@@ -30,11 +31,15 @@ export class AgentClaudeBrain implements IAgentBrain {
     private config: AgentClaudeBrainConfig;
     private mcpServers: Map<string, McpServerConfig> = new Map();
     private logger?: IBrainLogger;
+    private claudeLogger?: IClaudeLogger;
     private systemPrompt?: string;
+    private activeSessions: Set<string> = new Set();
+    private agentName?: string;
 
-    constructor(config: AgentClaudeBrainConfig, logger?: IBrainLogger) {
+    constructor(config: AgentClaudeBrainConfig, logger?: IBrainLogger, claudeLogger?: IClaudeLogger) {
         this.config = config;
         this.logger = logger;
+        this.claudeLogger = claudeLogger;
         
         // Set API key for the SDK
         process.env.ANTHROPIC_API_KEY = config.apiKey;
@@ -84,6 +89,7 @@ export class AgentClaudeBrain implements IAgentBrain {
      */
     public setSystemPrompt(prompt: string, agentName?: string): void {
         this.systemPrompt = prompt;
+        this.agentName = agentName;
         if (this.logger) {
             this.logger.debug(`   AgentClaudeBrain: System prompt set (${prompt.length} chars)`);
         }
@@ -127,6 +133,19 @@ export class AgentClaudeBrain implements IAgentBrain {
                 this.logger.info(`   AgentClaudeBrain: Added MCP server '${name}' - ${configDetails}`);
             }
         }
+        
+        // Log to claude logger for all active sessions
+        if (this.claudeLogger && !existingServer) {
+            for (const sessionId of this.activeSessions) {
+                const server = {
+                    name,
+                    command: (config as any).command || (config as any).type || 'unknown',
+                    args: (config as any).args,
+                    env: (config as any).env
+                };
+                this.claudeLogger.logMcpServerAdded(sessionId, server);
+            }
+        }
     }
 
     /**
@@ -158,6 +177,13 @@ export class AgentClaudeBrain implements IAgentBrain {
                 this.logger.info(`   AgentClaudeBrain: Removed MCP server '${name}'`);
             } else {
                 this.logger.warn(`   AgentClaudeBrain: Attempted to remove non-existent MCP server '${name}'`);
+            }
+        }
+        
+        // Log to claude logger for all active sessions
+        if (this.claudeLogger && removed) {
+            for (const sessionId of this.activeSessions) {
+                this.claudeLogger.logMcpServerRemoved(sessionId, name);
             }
         }
         
@@ -338,11 +364,32 @@ export class AgentClaudeBrain implements IAgentBrain {
             this.logger.debug(`   AgentClaudeBrain: Sending message (${message.length} chars)`);
         }
 
-        // Log conversation to tmp directory for debugging
-        const tmpDir = path.join(process.cwd(), 'tmp', 'conversations');
-        mkdirSync(tmpDir, { recursive: true });
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const logFile = path.join(tmpDir, `conversation_${timestamp}.md`);
+        // Generate session ID if not provided
+        const activeSessionId = sessionId || this.generateSessionId();
+        
+        // Start new session if needed
+        if (!this.activeSessions.has(activeSessionId)) {
+            this.activeSessions.add(activeSessionId);
+            
+            // Prepare MCP servers for logging
+            const servers = Array.from(this.mcpServers.entries()).map(([name, config]) => ({
+                name,
+                command: (config as any).command || (config as any).type || 'unknown',
+                args: (config as any).args,
+                env: (config as any).env
+            }));
+            
+            // Start session with system prompt and MCP servers
+            this.claudeLogger?.startSession(
+                activeSessionId, 
+                this.systemPrompt || 'No system prompt set',
+                servers,
+                this.agentName
+            );
+        }
+
+        // Log user message
+        this.claudeLogger?.logUserMessage(activeSessionId, message);
 
         try {
             // Build MCP servers configuration
@@ -364,15 +411,6 @@ export class AgentClaudeBrain implements IAgentBrain {
                 mkdirSync(workingDir, { recursive: true });
             }
             
-            // Log the request
-            let logContent = `# Conversation Log - ${new Date().toISOString()}\n\n`;
-            logContent += `## System Prompt\n\`\`\`\n${this.systemPrompt || 'No system prompt'}\n\`\`\`\n\n`;
-            logContent += `## User Message\n\`\`\`\n${message}\n\`\`\`\n\n`;
-            logContent += `## Configuration\n`;
-            logContent += `- Model: ${this.config.model || 'haiku'}\n`;
-            logContent += `- MaxTurns: ${options?.maxTurns || 5}\n`;
-            logContent += `- Session: ${sessionId ? `Resuming ${sessionId}` : 'New session'}\n`;
-            logContent += `- AllowedTools: none\n\n`;
 
             // Build options with resume if sessionId provided
             const queryOptions: Options = {
@@ -398,10 +436,6 @@ export class AgentClaudeBrain implements IAgentBrain {
             if (sessionId) {
                 queryOptions.resume = sessionId;
             }
-
-            //console.log("QUARGS (sendMessage)", message.substring(0, 100) + "...", queryOptions);
-            
-            // MCP servers being passed to query (debugging disabled)
             
             const q = query({
                 prompt: message,
@@ -412,61 +446,44 @@ export class AgentClaudeBrain implements IAgentBrain {
             let response = '';
             let capturedSessionId: string | undefined;
             let messageCount = 0;
-            logContent += `## Messages Stream\n`;
             
             for await (const msg of q) {
                 messageCount++;
-                logContent += `\n### Message ${messageCount} (type: ${msg.type})\n`;
                 
                 // Log error messages for debugging
                 if (msg.type === 'result' && 'subtype' in msg && msg.subtype !== 'success') {
                     console.error('Claude SDK Error Message:', msg);
-                    logContent += `#### ERROR:\n${JSON.stringify(msg, null, 2)}\n`;
                     if (this.logger) {
                         this.logger.error(`   AgentClaudeBrain: Claude SDK error:`, msg);
                     }
+                    const error = new Error(`Claude SDK error: ${JSON.stringify(msg)}`);
+                    this.claudeLogger?.logError(activeSessionId, error);
                 }
                 
-                // Log full message details
+                // Process message details
                 if (msg.type === 'assistant' && msg.message) {
-                    logContent += `Assistant message with ${msg.message.content.length} content blocks\n`;
                     for (const block of msg.message.content) {
                         if (block.type === 'text') {
                             response += block.text;
-                            logContent += `#### Text block:\n${block.text}\n`;
                         } else if (block.type === 'tool_use') {
-                            logContent += `#### Tool use block:\n`;
-                            logContent += `- Tool: ${block.name}\n`;
-                            logContent += `- Input: ${JSON.stringify(block.input, null, 2)}\n`;
-                        } else {
-                            logContent += `#### ${block.type} block:\n`;
-                            logContent += `${JSON.stringify(block, null, 2)}\n`;
+                            // Log tool use
+                            this.claudeLogger?.logToolUse(activeSessionId, {
+                                id: block.id || 'unknown',
+                                name: block.name,
+                                input: block.input,
+                                timestamp: new Date()
+                            });
                         }
                     }
-                } else if (msg.type === 'user' && 'message' in msg) {
-                    logContent += `User message:\n`;
-                    const userMsg = (msg as SDKMessage & { message: unknown }).message;
-                    if (typeof userMsg === 'string') {
-                        logContent += `${userMsg}\n`;
-                    } else {
-                        logContent += `${JSON.stringify(userMsg, null, 2)}\n`;
-                    }
                 } else if (msg.type === 'system') {
-                    logContent += `System message:\n`;
                     const systemMsg = msg as SDKMessage & { subtype?: string; session_id?: string; content?: unknown };
                     if (systemMsg.subtype) {
-                        logContent += `- Subtype: ${systemMsg.subtype}\n`;
                         // Capture session ID from init message
                         if (systemMsg.subtype === 'init' && systemMsg.session_id) {
                             capturedSessionId = systemMsg.session_id;
-                            logContent += `- Session ID: ${capturedSessionId}\n`;
                         }
                     }
-                    if (systemMsg.content) {
-                        logContent += `- Content: ${JSON.stringify(systemMsg.content, null, 2)}\n`;
-                    }
                 } else if (msg.type === 'result') {
-                    logContent += `Result message:\n`;
                     const resultMsg = msg as SDKMessage & { 
                         subtype?: string; 
                         is_error?: boolean;
@@ -474,9 +491,6 @@ export class AgentClaudeBrain implements IAgentBrain {
                         permission_denials?: unknown[];
                         content?: unknown;
                     };
-                    if (resultMsg.subtype) {
-                        logContent += `- Subtype: ${resultMsg.subtype}\n`;
-                    }
                     
                     // Check for errors in result message
                     if (resultMsg.is_error) {
@@ -489,25 +503,14 @@ export class AgentClaudeBrain implements IAgentBrain {
                         if (this.logger) {
                             this.logger.error(`   AgentClaudeBrain: Result error: ${resultMsg.errors?.join(', ')}`);
                         }
-                        logContent += `- ERRORS: ${resultMsg.errors?.join(', ')}\n`;
+                        const error = new Error(`Result error: ${resultMsg.errors?.join(', ')}`);
+                        this.claudeLogger?.logError(activeSessionId, error);
                     }
-                    
-                    if (resultMsg.content) {
-                        logContent += `- Content: ${JSON.stringify(resultMsg.content, null, 2).substring(0, 500)}...\n`;
-                    }
-                } else {
-                    // Log any other message type
-                    logContent += `Full message: ${JSON.stringify(msg, null, 2).substring(0, 1000)}...\n`;
                 }
             }
             
-            logContent += `\n## Final Response\n\`\`\`\n${response || 'No response generated'}\n\`\`\`\n`;
-            logContent += `\nTotal messages: ${messageCount}\n`;
-            logContent += `Response length: ${response.length} chars\n`;
-            
-            // Write log file
-            writeFileSync(logFile, logContent);
-            // Conversation logged to file
+            // Log assistant response
+            this.claudeLogger?.logAssistantMessage(activeSessionId, response || 'No response generated');
             
             if (this.logger) {
                 this.logger.debug(`   AgentClaudeBrain: Received ${messageCount} messages, response length: ${response.length}`);
@@ -515,7 +518,7 @@ export class AgentClaudeBrain implements IAgentBrain {
 
             return {
                 response: response || 'No response generated',
-                sessionId: capturedSessionId
+                sessionId: capturedSessionId || activeSessionId
             };
         } catch (error) {
             if (this.logger) {
@@ -526,9 +529,34 @@ export class AgentClaudeBrain implements IAgentBrain {
     }
 
     /**
+     * Generate a unique session ID
+     */
+    private generateSessionId(): string {
+        return `session_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    }
+
+    /**
+     * End a conversation session
+     */
+    public async endSession(sessionId: string): Promise<void> {
+        if (this.activeSessions.has(sessionId)) {
+            this.claudeLogger?.endSession(sessionId);
+            this.activeSessions.delete(sessionId);
+            if (this.logger) {
+                this.logger.debug(`   AgentClaudeBrain: Ended session ${sessionId}`);
+            }
+        }
+    }
+
+    /**
      * Cleanup resources
      */
     public async cleanup(): Promise<void> {
+        // End all active sessions
+        for (const sessionId of this.activeSessions) {
+            await this.endSession(sessionId);
+        }
+        
         // Clear any references that might prevent garbage collection
         this.mcpServers.clear();
         this.systemPrompt = undefined;

@@ -541,14 +541,18 @@ ${
    * End the current session
    */
   public async endSession(): Promise<void> {
-    this.sessionId = null;
-    // The agent brain maintains its own session lifecycle
-    // We just clear our reference to the session
+    if (this.sessionId) {
+      // Call the brain's endSession if available
+      if (this.agent.endSession) {
+        await this.agent.endSession(this.sessionId);
+      }
+      this.sessionId = null;
+    }
   }
 
-  public continueSession(sessionId: string) {
+  public async continueSession(sessionId: string): Promise<void> {
     if (this.sessionId && this.sessionId !== sessionId) {
-      this.endSession();
+      await this.endSession();
     }
 
     this.sessionId = sessionId;
