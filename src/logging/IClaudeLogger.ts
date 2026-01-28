@@ -1,11 +1,38 @@
 /**
- * Configuration for an MCP server
+ * Configuration for an MCP server (matches SDK types)
  */
-export interface McpServerConfig {
-    name: string;
+export type McpServerConfig = 
+    | McpStdioServerConfig 
+    | McpHttpServerConfig 
+    | McpSSEServerConfig
+    | { type?: string; [key: string]: any }; // Fallback for unknown types
+
+/**
+ * Standard I/O MCP server configuration
+ */
+export interface McpStdioServerConfig {
+    type?: 'stdio';
     command: string;
     args?: string[];
     env?: Record<string, string>;
+}
+
+/**
+ * HTTP MCP server configuration
+ */
+export interface McpHttpServerConfig {
+    type: 'http';
+    url: string;
+    headers?: Record<string, string>;
+}
+
+/**
+ * Server-Sent Events MCP server configuration
+ */
+export interface McpSSEServerConfig {
+    type: 'sse';
+    url: string;
+    headers?: Record<string, string>;
 }
 
 /**
@@ -36,10 +63,10 @@ export interface IClaudeLogger {
      * Start a new logging session with initial configuration
      * @param sessionId Unique identifier for the session
      * @param systemPrompt The system prompt for this session
-     * @param mcpServers Initial MCP servers configured
+     * @param mcpServers Initial MCP servers configured (map of name to config)
      * @param agentName Optional name of the agent
      */
-    startSession(sessionId: string, systemPrompt: string, mcpServers: McpServerConfig[], agentName?: string): void;
+    startSession(sessionId: string, systemPrompt: string, mcpServers: Map<string, McpServerConfig>, agentName?: string): void;
 
     /**
      * End a logging session
@@ -50,9 +77,10 @@ export interface IClaudeLogger {
     /**
      * Log when an MCP server is added
      * @param sessionId Session identifier
+     * @param name The server name
      * @param server The added server configuration
      */
-    logMcpServerAdded(sessionId: string, server: McpServerConfig): void;
+    logMcpServerAdded(sessionId: string, name: string, server: McpServerConfig): void;
 
     /**
      * Log when an MCP server is removed

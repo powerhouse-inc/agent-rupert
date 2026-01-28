@@ -1,4 +1,4 @@
-import { IClaudeLogger, McpServerConfig, ToolUseInfo, ToolResultInfo } from './IClaudeLogger.js';
+import { IClaudeLogger, McpServerConfig, McpStdioServerConfig, McpHttpServerConfig, McpSSEServerConfig, ToolUseInfo, ToolResultInfo } from './IClaudeLogger.js';
 import { mkdirSync, appendFileSync } from 'fs';
 import { join } from 'path';
 
@@ -39,7 +39,7 @@ export class MarkdownClaudeLogger implements IClaudeLogger {
     /**
      * Start a new logging session with initial configuration
      */
-    public startSession(sessionId: string, systemPrompt: string, mcpServers: McpServerConfig[], agentName?: string): void {
+    public startSession(sessionId: string, systemPrompt: string, mcpServers: Map<string, McpServerConfig>, agentName?: string): void {
         if (this.sessions.has(sessionId)) {
             console.warn(`Session ${sessionId} already exists`);
             return;
@@ -102,11 +102,10 @@ ${systemPrompt}
 `;
 
         // Write initial MCP servers if any
-        if (mcpServers.length > 0) {
+        if (mcpServers.size > 0) {
             content += '# Initial MCP Servers\n';
-            for (const server of mcpServers) {
-                const args = server.args?.join(' ') || '';
-                content += `- **${server.name}**: \`${server.command} ${args}\`\n`;
+            for (const [name, server] of mcpServers) {
+                content += `- **${name}**: ${this.formatMcpServer(server)}\n`;
             }
             content += '\n';
         }
@@ -152,13 +151,12 @@ ${systemPrompt}
     /**
      * Log when an MCP server is added
      */
-    public logMcpServerAdded(sessionId: string, server: McpServerConfig): void {
+    public logMcpServerAdded(sessionId: string, name: string, server: McpServerConfig): void {
         const session = this.sessions.get(sessionId);
         if (!session?.isActive) return;
 
-        const args = server.args?.join(' ') || '';
         const content = `## MCP Server Added
-**Server**: ${server.name} - \`${server.command} ${args}\`
+**Server**: ${name} - ${this.formatMcpServer(server)}
 **Time**: ${new Date().toISOString()}
 
 `;
@@ -303,5 +301,32 @@ ${error.stack || 'No stack trace available'}
         } else {
             return `${seconds}s`;
         }
+    }
+
+    /**
+     * Format MCP server configuration for logging
+     */
+    private formatMcpServer(server: McpServerConfig): string {
+        // Check if it's an HTTP server
+        if ('type' in server && server.type === 'http') {
+            const httpServer = server as McpHttpServerConfig;
+            return `Type: http, URL: ${httpServer.url}`;
+        }
+        
+        // Check if it's an SSE server
+        if ('type' in server && server.type === 'sse') {
+            const sseServer = server as McpSSEServerConfig;
+            return `Type: sse, URL: ${sseServer.url}`;
+        }
+        
+        // Check if it's a stdio server (or no type specified - default to stdio)
+        if (!('type' in server) || server.type === 'stdio') {
+            const stdioServer = server as McpStdioServerConfig;
+            const args = stdioServer.args?.join(' ') || '';
+            return `\`${stdioServer.command} ${args}\``.trim();
+        }
+        
+        // Unknown type
+        return `Type: ${(server as any).type || 'unknown'}`;
     }
 }

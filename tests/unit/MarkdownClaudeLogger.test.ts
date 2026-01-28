@@ -1,6 +1,6 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { MarkdownClaudeLogger } from '../../src/logging/MarkdownClaudeLogger.js';
-import { McpServerConfig, ToolUseInfo, ToolResultInfo } from '../../src/logging/IClaudeLogger.js';
+import { McpServerConfig, McpStdioServerConfig, McpHttpServerConfig, ToolUseInfo, ToolResultInfo } from '../../src/logging/IClaudeLogger.js';
 import { readFileSync, existsSync, rmSync, readdirSync } from 'fs';
 import { join } from 'path';
 
@@ -62,10 +62,10 @@ describe('MarkdownClaudeLogger', () => {
         it('should create a markdown file with system prompt and MCP servers', () => {
             const sessionId = 'test-session-123';
             const systemPrompt = 'You are a helpful assistant specialized in testing.';
-            const mcpServers: McpServerConfig[] = [
-                { name: 'server1', command: 'node', args: ['server1.js', '--port', '3000'] },
-                { name: 'server2', command: 'python', args: ['server2.py'] }
-            ];
+            const mcpServers = new Map<string, McpServerConfig>([
+                ['server1', { command: 'node', args: ['server1.js', '--port', '3000'] } as McpStdioServerConfig],
+                ['server2', { command: 'python', args: ['server2.py'] } as McpStdioServerConfig]
+            ]);
             const agentName = 'TestAgent';
 
             logger.startSession(sessionId, systemPrompt, mcpServers, agentName);
@@ -91,7 +91,7 @@ describe('MarkdownClaudeLogger', () => {
             const sessionId = 'test-empty-servers';
             const systemPrompt = 'Test prompt without servers';
             
-            logger.startSession(sessionId, systemPrompt, [], 'Agent');
+            logger.startSession(sessionId, systemPrompt, new Map(), 'Agent');
             
             const content = readSessionContent('Agent');
             
@@ -104,7 +104,7 @@ describe('MarkdownClaudeLogger', () => {
     describe('conversation logging', () => {
         it('should log a complete conversation flow', () => {
             const sessionId = 'conversation-test';
-            logger.startSession(sessionId, 'Be helpful', [], 'ConvoAgent');
+            logger.startSession(sessionId, 'Be helpful', new Map(), 'ConvoAgent');
             
             // Log user message
             logger.logUserMessage(sessionId, 'What is 2 + 2?');
@@ -156,19 +156,18 @@ describe('MarkdownClaudeLogger', () => {
     describe('MCP server management', () => {
         it('should log MCP server additions and removals', () => {
             const sessionId = 'mcp-test';
-            const initialServers: McpServerConfig[] = [
-                { name: 'initial', command: 'node', args: ['initial.js'] }
-            ];
+            const initialServers = new Map<string, McpServerConfig>([
+                ['initial', { command: 'node', args: ['initial.js'] } as McpStdioServerConfig]
+            ]);
             
             logger.startSession(sessionId, 'Test', initialServers, 'MCPAgent');
             
             // Add a server
-            const newServer: McpServerConfig = {
-                name: 'dynamic-server',
+            const newServer: McpStdioServerConfig = {
                 command: 'python',
                 args: ['dynamic.py', '--mode', 'test']
             };
-            logger.logMcpServerAdded(sessionId, newServer);
+            logger.logMcpServerAdded(sessionId, 'dynamic-server', newServer);
             
             // Log a message
             logger.logUserMessage(sessionId, 'Test message');
@@ -200,12 +199,30 @@ describe('MarkdownClaudeLogger', () => {
             expect(mcpAddIndex).toBeLessThan(userMsgIndex);
             expect(userMsgIndex).toBeLessThan(mcpRemoveIndex);
         });
+
+        it('should handle different MCP server types', () => {
+            const sessionId = 'mcp-types-test';
+            const mixedServers = new Map<string, McpServerConfig>([
+                ['stdio-server', { command: 'node', args: ['server.js'] } as McpStdioServerConfig],
+                ['http-server', { type: 'http', url: 'http://localhost:8080/mcp' } as McpHttpServerConfig]
+            ]);
+            
+            logger.startSession(sessionId, 'Test', mixedServers, 'MCPTypesAgent');
+            logger.endSession(sessionId);
+            
+            const content = readSessionContent('MCPTypesAgent');
+            
+            // Check different server formats
+            expect(content).toContain('# Initial MCP Servers');
+            expect(content).toContain('- **stdio-server**: `node server.js`');
+            expect(content).toContain('- **http-server**: Type: http, URL: http://localhost:8080/mcp');
+        });
     });
 
     describe('error logging', () => {
         it('should log errors with stack traces', () => {
             const sessionId = 'error-stack-test';
-            logger.startSession(sessionId, 'Test', [], 'ErrorAgent');
+            logger.startSession(sessionId, 'Test', new Map(), 'ErrorAgent');
             
             logger.logUserMessage(sessionId, 'Please divide by zero');
             
@@ -227,7 +244,7 @@ describe('MarkdownClaudeLogger', () => {
 
         it('should log tool errors', () => {
             const sessionId = 'tool-error-result-test';
-            logger.startSession(sessionId, 'Test', [], 'Agent');
+            logger.startSession(sessionId, 'Test', new Map(), 'Agent');
             
             const toolResult: ToolResultInfo = {
                 toolUseId: 'tool-456',
@@ -250,7 +267,7 @@ describe('MarkdownClaudeLogger', () => {
     describe('session lifecycle', () => {
         it('should track message and tool counts', () => {
             const sessionId = 'count-test';
-            logger.startSession(sessionId, 'Test', [], 'Agent');
+            logger.startSession(sessionId, 'Test', new Map(), 'Agent');
             
             // Add multiple messages
             logger.logUserMessage(sessionId, 'First question');
@@ -278,7 +295,7 @@ describe('MarkdownClaudeLogger', () => {
 
         it('should format duration correctly', (done) => {
             const sessionId = 'duration-test';
-            logger.startSession(sessionId, 'Test', [], 'Agent');
+            logger.startSession(sessionId, 'Test', new Map(), 'Agent');
             
             // Wait a bit to have measurable duration
             setTimeout(() => {
@@ -299,8 +316,8 @@ describe('MarkdownClaudeLogger', () => {
             const session2 = 'concurrent-2';
             
             // Start both sessions
-            logger.startSession(session1, 'Agent 1 prompt', [], 'Agent1');
-            logger.startSession(session2, 'Agent 2 prompt', [], 'Agent2');
+            logger.startSession(session1, 'Agent 1 prompt', new Map(), 'Agent1');
+            logger.startSession(session2, 'Agent 2 prompt', new Map(), 'Agent2');
             
             // Interleave messages
             logger.logUserMessage(session1, 'Hello from session 1');
@@ -340,8 +357,8 @@ describe('MarkdownClaudeLogger', () => {
             const consoleSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
             const sessionId = 'duplicate-session';
             
-            logger.startSession(sessionId, 'prompt', []);
-            logger.startSession(sessionId, 'prompt', []);
+            logger.startSession(sessionId, 'prompt', new Map());
+            logger.startSession(sessionId, 'prompt', new Map());
             
             expect(consoleSpy).toHaveBeenCalledWith(`Session ${sessionId} already exists`);
             
@@ -369,7 +386,7 @@ describe('MarkdownClaudeLogger', () => {
             const sessions = ['cleanup-test-1', 'cleanup-test-2', 'cleanup-test-3'];
             
             for (const sessionId of sessions) {
-                logger.startSession(sessionId, 'Test', [], 'Agent');
+                logger.startSession(sessionId, 'Test', new Map(), 'Agent');
                 logger.logUserMessage(sessionId, 'Test message');
             }
             

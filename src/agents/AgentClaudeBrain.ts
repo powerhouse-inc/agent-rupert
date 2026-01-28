@@ -137,13 +137,7 @@ export class AgentClaudeBrain implements IAgentBrain {
         // Log to claude logger for all active sessions
         if (this.claudeLogger && !existingServer) {
             for (const sessionId of this.activeSessions) {
-                const server = {
-                    name,
-                    command: (config as any).command || (config as any).type || 'unknown',
-                    args: (config as any).args,
-                    env: (config as any).env
-                };
-                this.claudeLogger.logMcpServerAdded(sessionId, server);
+                this.claudeLogger.logMcpServerAdded(sessionId, name, config);
             }
         }
     }
@@ -371,19 +365,11 @@ export class AgentClaudeBrain implements IAgentBrain {
         if (!this.activeSessions.has(activeSessionId)) {
             this.activeSessions.add(activeSessionId);
             
-            // Prepare MCP servers for logging
-            const servers = Array.from(this.mcpServers.entries()).map(([name, config]) => ({
-                name,
-                command: (config as any).command || (config as any).type || 'unknown',
-                args: (config as any).args,
-                env: (config as any).env
-            }));
-            
             // Start session with system prompt and MCP servers
             this.claudeLogger?.startSession(
                 activeSessionId, 
                 this.systemPrompt || 'No system prompt set',
-                servers,
+                this.mcpServers,
                 this.agentName
             );
         }

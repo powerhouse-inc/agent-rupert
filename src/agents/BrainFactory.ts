@@ -2,6 +2,7 @@ import { IAgentBrain, IBrainLogger } from './IAgentBrain.js';
 import { AgentBrain } from './AgentBrain.js';
 import { AgentClaudeBrain } from './AgentClaudeBrain.js';
 import { PromptParser } from '../utils/PromptParser.js';
+import { MarkdownClaudeLogger } from '../logging/MarkdownClaudeLogger.js';
 import Anthropic from '@anthropic-ai/sdk';
 
 /**
@@ -63,6 +64,9 @@ export class BrainFactory {
                 break;
             
             case BrainType.CLAUDE_SDK:
+                // Create Claude logger for session tracking
+                const claudeLogger = new MarkdownClaudeLogger();
+                
                 brain = new AgentClaudeBrain({
                     apiKey: config.apiKey,
                     agentManagerMcpUrl: config.agentManagerMcpUrl,
@@ -71,7 +75,7 @@ export class BrainFactory {
                     fileSystemPaths: config.fileSystemPaths,
                     model: config.model as any,
                     maxTurns: config.maxTurns
-                }, logger);
+                }, logger, claudeLogger);
                 break;
             
             default:
