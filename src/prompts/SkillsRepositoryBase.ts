@@ -1,6 +1,7 @@
 import type { ISkillsRepository } from './ISkillsRepository.js';
 import type {
   ScenarioTemplate,
+  ScenarioTaskTemplate,
   SkillTemplate,
   ScenarioMetadata,
   RenderedScenario,
@@ -280,5 +281,35 @@ export abstract class SkillsRepositoryBase implements ISkillsRepository {
     }
     
     console.log('\n=== End of Repository ===\n');
+  }
+
+  /**
+   * Find a task by its ID across all skills and scenarios
+   * @param taskId - The task ID to search for
+   * @returns Object containing skill template, scenario template, and task template, or undefined if not found
+   */
+  public findTask(taskId: string): {
+    skill: SkillTemplate;
+    scenario: ScenarioTemplate;
+    task: ScenarioTaskTemplate;
+  } | undefined {
+    // Search through all skills
+    for (const skillTemplate of this.skills.values()) {
+      // Search through all scenarios in this skill
+      for (const scenario of skillTemplate.scenarios) {
+        // Search through all tasks in this scenario
+        const task = scenario.tasks.find(t => t.id === taskId);
+        if (task) {
+          return {
+            skill: skillTemplate,
+            scenario,
+            task
+          };
+        }
+      }
+    }
+    
+    // Task not found
+    return undefined;
   }
 }

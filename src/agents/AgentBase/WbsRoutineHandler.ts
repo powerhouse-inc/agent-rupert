@@ -152,19 +152,33 @@ export class WbsRoutineHandler {
         
         const taskId = taskGoal.instructions.workId;
         
-        // Always derive everything from the task ID by scanning the repository
-        const scanResult = this.findWorkItemInRepository(taskId, skillsRepository);
+        // Use the new findTask method to locate the task
+        const result = skillsRepository.findTask(taskId);
         
-        if (!scanResult) {
+        if (!result) {
             console.warn(`Could not find task ${taskId} in any skill repository`);
             return null;
         }
         
-        // Return the resolution based entirely on repository scan
+        // Get the skill name (it's stored in the skills map, so we need to find it)
+        let skillName: string | null = null;
+        for (const [name, template] of (skillsRepository as any).skills) {
+            if (template === result.skill) {
+                skillName = name;
+                break;
+            }
+        }
+        
+        // If we can't find the skill name, use a fallback
+        if (!skillName) {
+            skillName = result.skill.name || 'unknown';
+        }
+        
+        // Return the resolution based on repository lookup
         return {
-            skillName: scanResult.skillName,
-            scenarioId: scanResult.scenarioId,
-            taskId: scanResult.taskId,
+            skillName,
+            scenarioId: result.scenario.id,
+            taskId: result.task.id,
             confidence: 'constructed',
             source: {
                 skill: 'repository_scan',
@@ -175,36 +189,6 @@ export class WbsRoutineHandler {
     }
 
 
-    /**
-     * Scan the entire repository to find where a task belongs
-     */
-    private static findWorkItemInRepository(
-        taskId: string,
-        skillsRepository: ISkillsRepository
-    ): WorkItemResolution | null {
-        for (const skillName of skillsRepository.getSkills()) {
-            const skill = skillsRepository.getSkillTemplate(skillName);
-            if (!skill) continue;
-            
-            for (const scenario of skill.scenarios) {
-                const task = scenario.tasks.find(t => t.id === taskId);
-                if (task) {
-                    return {
-                        skillName,
-                        scenarioId: scenario.id,
-                        taskId: task.id,
-                        confidence: 'constructed',
-                        source: {
-                            skill: 'repository_scan',
-                            scenario: 'repository_scan',
-                            task: 'wbs'
-                        }
-                    };
-                }
-            }
-        }
-        return null;
-    }
 
     /**
      * Find the next goal to work on by traversing the goal tree
@@ -477,26 +461,17 @@ export class WbsRoutineHandler {
         skillRepository: ISkillsRepository,
         brain: IAgentBrain
     ): PromptDriver | null {
-        // Get the skill template
-        const skillTemplate = skillRepository.getSkillTemplate(resolution.skillName);
-        if (!skillTemplate) {
-            console.warn(`Skill template not found for: ${resolution.skillName}`);
+        // Use findTask to get the templates directly
+        const result = skillRepository.findTask(resolution.taskId);
+        if (!result) {
+            console.warn(`Could not find templates for task: ${resolution.taskId}`);
             return null;
         }
         
-        // Find the scenario
-        const scenarioTemplate = skillTemplate.scenarios.find(s => s.id === resolution.scenarioId);
-        if (!scenarioTemplate) {
-            console.warn(`Scenario ${resolution.scenarioId} not found in skill ${resolution.skillName}`);
-            return null;
-        }
+        const { skill: skillTemplate, scenario: scenarioTemplate, task: currentTask } = result;
         
-        // Find the current task and categorize siblings
-        const currentTaskIndex = scenarioTemplate.tasks.findIndex(t => t.id === resolution.taskId);
-        if (currentTaskIndex === -1) {
-            console.warn(`Task ${resolution.taskId} not found in scenario ${resolution.scenarioId}`);
-            return null;
-        }
+        // Find the current task index
+        const currentTaskIndex = scenarioTemplate.tasks.findIndex(t => t.id === currentTask.id);
         
         // Get sibling task IDs from WBS goals
         const siblingTaskIds = new Set<string>();

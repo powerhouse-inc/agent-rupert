@@ -2,7 +2,9 @@ import type {
     RenderedScenario, 
     SkillInfo,
     ScenarioMetadata,
-    SkillTemplate
+    SkillTemplate,
+    ScenarioTemplate,
+    ScenarioTaskTemplate
 } from './types.js';
 
 /**
@@ -84,4 +86,15 @@ export interface ISkillsRepository {
      * Shows all skills, scenarios, and tasks in a hierarchical format
      */
     print(): void;
+
+    /**
+     * Find a task by its ID across all skills and scenarios
+     * @param taskId - The task ID to search for
+     * @returns Object containing skill template, scenario template, and task template, or undefined if not found
+     */
+    findTask(taskId: string): {
+        skill: SkillTemplate;
+        scenario: ScenarioTemplate;
+        task: ScenarioTaskTemplate;
+    } | undefined;
 }
