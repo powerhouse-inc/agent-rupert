@@ -154,6 +154,11 @@ export class ReactorPackagesManager extends AbstractProjectManager<
       ],
       workingDirectory: project.path,
       environment: {
+        
+        // Set PORT as a work-around for bug: 
+        // https://github.com/powerhouse-inc/powerhouse/commit/9830c16b26500b6dfe706d8a903ac693311179b7#diff-dbb1c0dff3668e70a2e234186d612eb607994f4f253e661cf3d6b0668258fd72L519
+        PORT: String(options.switchboardPort),
+
         NODE_ENV: 'development'
       },
       gracefulShutdown: {
