@@ -11,29 +11,29 @@
 
 ### Skills
 
-#### reactor-package-project-management (CRP)
+#### reactor-package-project-management (RPPM)
 
-**CRP.00: Initialize a new Reactor Package Project**
-
-| Task ID | Title | Expected Outcome |
-|---------|-------|------------------|
-| CRP.00.1 | Inspect existing projects | - |
-| CRP.00.2 | Generate unique project name | - |
-| CRP.00.3 | Initialize the project | - |
-
-**CRP.01: Run the Reactor Package project and capture Vetra MCP endpoint**
+**RPPM.00: Initialize a new Reactor Package Project**
 
 | Task ID | Title | Expected Outcome |
 |---------|-------|------------------|
-| CRP.01.1 | Start the Reactor Package project and wait until it's ready | - |
-| CRP.01.2 | Parse and verify the Vetra endpoints | - |
+| RPPM.00.1 | Inspect existing projects | - |
+| RPPM.00.2 | Generate unique project name | - |
+| RPPM.00.3 | Initialize the project | - |
 
-**CRP.02: Stop the project**
+**RPPM.01: Run the Reactor Package project and capture Vetra MCP endpoint**
 
 | Task ID | Title | Expected Outcome |
 |---------|-------|------------------|
-| CRP.02.1 | Verify project is running | - |
-| CRP.02.2 | Shutdown the project | - |
+| RPPM.01.1 | Start the Reactor Package project and wait until it's ready | - |
+| RPPM.01.2 | Parse and verify the Vetra endpoints | - |
+
+**RPPM.02: Stop the project**
+
+| Task ID | Title | Expected Outcome |
+|---------|-------|------------------|
+| RPPM.02.1 | Verify project is running | - |
+| RPPM.02.2 | Shutdown the project | - |
 
 #### document-modeling (DM)
 
@@ -95,37 +95,37 @@
 | ED.01.5 | Resolve outstanding issues | - |
 | ED.01.6 | Stakholder communication | - |
 
-#### fusion-project-management (CFP)
+#### fusion-project-management (FPM)
 
-**CFP.00: Initialize a new Fusion Project**
-
-| Task ID | Title | Expected Outcome |
-|---------|-------|------------------|
-| CFP.00.1 | Inspect existing projects | - |
-| CFP.00.2 | Generate unique project name | - |
-| CFP.00.3 | Initialize the project | - |
-
-**CFP.01: Obtain a Switchboard URL for Fusion**
+**FPM.00: Initialize a new Fusion Project**
 
 | Task ID | Title | Expected Outcome |
 |---------|-------|------------------|
-| CFP.01.1 | Consider which backend should be used | - |
-| CFP.01.2 | Start a Reactor Package project if needed | - |
-| CFP.01.3 | Identify and verify the Switchboard URL | - |
+| FPM.00.1 | Inspect existing projects | - |
+| FPM.00.2 | Generate unique project name | - |
+| FPM.00.3 | Initialize the project | - |
 
-**CFP.02: Run the project and capture Vetra MCP endpoint**
-
-| Task ID | Title | Expected Outcome |
-|---------|-------|------------------|
-| CFP.02.1 | Start the project and wait until it's ready | - |
-| CFP.02.2 | Parse and verify the Fusion endpoint | - |
-
-**CFP.03: Stop the project**
+**FPM.01: Obtain a Switchboard URL for Fusion**
 
 | Task ID | Title | Expected Outcome |
 |---------|-------|------------------|
-| CFP.03.1 | Verify project is running | - |
-| CFP.03.2 | Shutdown the project | - |
+| FPM.01.1 | Consider which backend should be used | - |
+| FPM.01.2 | Start a Reactor Package project if needed | - |
+| FPM.01.3 | Identify and verify the Switchboard URL | - |
+
+**FPM.02: Run the project and capture Vetra MCP endpoint**
+
+| Task ID | Title | Expected Outcome |
+|---------|-------|------------------|
+| FPM.02.1 | Start the project and wait until it's ready | - |
+| FPM.02.2 | Parse and verify the Fusion endpoint | - |
+
+**FPM.03: Stop the project**
+
+| Task ID | Title | Expected Outcome |
+|---------|-------|------------------|
+| FPM.03.1 | Verify project is running | - |
+| FPM.03.2 | Shutdown the project | - |
 
 #### handle-stakeholder-message (HSM)
 
@@ -525,15 +525,15 @@ Remember: You are the technical executor for Powerhouse project development, ens
 
 ## Skills
 
-### Skill: reactor-package-project-management (CRP)
+### Skill: reactor-package-project-management (RPPM)
 
 #### Scenarios
 
-##### CRP.00: Initialize a new Reactor Package Project
+##### RPPM.00: Initialize a new Reactor Package Project
 
 **Tasks:**
 
-###### CRP.00.1: Inspect existing projects
+###### RPPM.00.1: Inspect existing projects
 
 **Task Template:**
 
@@ -544,7 +544,7 @@ Remember: You are the technical executor for Powerhouse project development, ens
 - If a project is running, use `mcp__reactor-prjmgr__shutdown_project` to stop it first
 ```
 
-###### CRP.00.2: Generate unique project name
+###### RPPM.00.2: Generate unique project name
 
 **Task Template:**
 
@@ -554,7 +554,7 @@ Remember: You are the technical executor for Powerhouse project development, ens
 - The name must match pattern: `/^[a-zA-Z0-9-_]+$/`
 ```
 
-###### CRP.00.3: Initialize the project
+###### RPPM.00.3: Initialize the project
 
 **Task Template:**
 
@@ -565,11 +565,11 @@ Remember: You are the technical executor for Powerhouse project development, ens
 - Use `mcp__reactor-prjmgr__list_projects` to confirm the new project appears in the list and see its status
 ```
 
-##### CRP.01: Run the Reactor Package project and capture Vetra MCP endpoint
+##### RPPM.01: Run the Reactor Package project and capture Vetra MCP endpoint
 
 **Tasks:**
 
-###### CRP.01.1: Start the Reactor Package project and wait until it's ready
+###### RPPM.01.1: Start the Reactor Package project and wait until it's ready
 
 **Task Template:**
 
@@ -583,7 +583,7 @@ Remember: You are the technical executor for Powerhouse project development, ens
 - Use `mcp__reactor-prjmgr__get_project_logs` to capture the startup logs
 ```
 
-###### CRP.01.2: Parse and verify the Vetra endpoints
+###### RPPM.01.2: Parse and verify the Vetra endpoints
 
 **Task Template:**
 
@@ -603,11 +603,11 @@ Notice there is a vetra drive` for the specification documents and a preview dri
 models you will yourself create.
 ```
 
-##### CRP.02: Stop the project
+##### RPPM.02: Stop the project
 
 **Tasks:**
 
-###### CRP.02.1: Verify project is running
+###### RPPM.02.1: Verify project is running
 
 **Task Template:**
 
@@ -617,7 +617,7 @@ models you will yourself create.
 - If not running, skip to the final status step
 ```
 
-###### CRP.02.2: Shutdown the project
+###### RPPM.02.2: Shutdown the project
 
 **Task Template:**
 
@@ -2100,15 +2100,15 @@ Send the stakeholder a message to ask them to participate in the user acceptance
 
 ---
 
-### Skill: fusion-project-management (CFP)
+### Skill: fusion-project-management (FPM)
 
 #### Scenarios
 
-##### CFP.00: Initialize a new Fusion Project
+##### FPM.00: Initialize a new Fusion Project
 
 **Tasks:**
 
-###### CFP.00.1: Inspect existing projects
+###### FPM.00.1: Inspect existing projects
 
 **Task Template:**
 
@@ -2119,7 +2119,7 @@ Send the stakeholder a message to ask them to participate in the user acceptance
 - If a project is running, use `mcp__fusion-prjmgr__shutdown_project` to stop it first
 ```
 
-###### CFP.00.2: Generate unique project name
+###### FPM.00.2: Generate unique project name
 
 **Task Template:**
 
@@ -2129,7 +2129,7 @@ Send the stakeholder a message to ask them to participate in the user acceptance
 - The name must match pattern: `/^[a-zA-Z0-9-_]+$/`
 ```
 
-###### CFP.00.3: Initialize the project
+###### FPM.00.3: Initialize the project
 
 **Task Template:**
 
@@ -2140,7 +2140,7 @@ Send the stakeholder a message to ask them to participate in the user acceptance
 - Use `mcp__fusion-prjmgr__list_projects` to confirm the new project appears in the list and see its status
 ```
 
-##### CFP.01: Obtain a Switchboard URL for Fusion
+##### FPM.01: Obtain a Switchboard URL for Fusion
 
 **Scenario Preamble:**
 
@@ -2153,7 +2153,7 @@ fetch any data at all.
 
 **Tasks:**
 
-###### CFP.01.1: Consider which backend should be used
+###### FPM.01.1: Consider which backend should be used
 
 **Task Template:**
 
@@ -2177,7 +2177,7 @@ Based on these considerations, decide to use:
 - A local Reactor Package project's Switchboard instance that you may need to start yourself
 ```
 
-###### CFP.01.2: Start a Reactor Package project if needed
+###### FPM.01.2: Start a Reactor Package project if needed
 
 **Task Template:**
 
@@ -2192,7 +2192,7 @@ Use the `reactor-prjmgr` MCP tool to ensure that the correct Reactor Package pro
 Consult your capability scenario CRP.01 with the `self_reflection` MCP if needed for the details.
 ```
 
-###### CFP.01.3: Identify and verify the Switchboard URL
+###### FPM.01.3: Identify and verify the Switchboard URL
 
 **Task Template:**
 
@@ -2205,16 +2205,16 @@ Make sure to add the `/graphql` path if needed.
 Attach the Switchboard URL to the task outcome and/or instructions to the relevant goals in your WBS.
 ```
 
-##### CFP.02: Run the project and capture Vetra MCP endpoint
+##### FPM.02: Run the project and capture Vetra MCP endpoint
 
 **Tasks:**
 
-###### CFP.02.1: Start the project and wait until it's ready
+###### FPM.02.1: Start the project and wait until it's ready
 
 **Task Template:**
 
 ```md
-- Use `mcp__fusion-prjmgr__run_project` with the project name and switchboard URL from steps CFP.01 and CFP.02
+- Use `mcp__fusion-prjmgr__run_project` with the project name and switchboard URL from steps FPM.01 and FPM.02
 - The project will start running `pnpm dev` in the background
 - Wait for the command to be accepted
 - Use `mcp__fusion-prjmgr__is_project_ready` repeatedly to check if the project is ready
@@ -2223,7 +2223,7 @@ Attach the Switchboard URL to the task outcome and/or instructions to the releva
 - Use `mcp__fusion-prjmgr__get_project_logs` to capture the startup logs
 ```
 
-###### CFP.02.2: Parse and verify the Fusion endpoint
+###### FPM.02.2: Parse and verify the Fusion endpoint
 
 **Task Template:**
 
@@ -2233,11 +2233,11 @@ From the logs, identify the Fusion URL, including its port.
 Attach the fusion URL to the relevant task instructions or comments in your WBS.
 ```
 
-##### CFP.03: Stop the project
+##### FPM.03: Stop the project
 
 **Tasks:**
 
-###### CFP.03.1: Verify project is running
+###### FPM.03.1: Verify project is running
 
 **Task Template:**
 
@@ -2247,7 +2247,7 @@ Attach the fusion URL to the relevant task instructions or comments in your WBS.
 - If not running, skip to the final status step
 ```
 
-###### CFP.03.2: Shutdown the project
+###### FPM.03.2: Shutdown the project
 
 **Task Template:**
 
