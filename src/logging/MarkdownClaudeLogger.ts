@@ -181,7 +181,7 @@ ${systemPrompt}
     /**
      * Log a user message
      */
-    public logUserMessage(sessionId: string, message: string): void {
+    public logUserMessage(sessionId: string, message: string, maxTurns?: number): void {
         const session = this.sessions.get(sessionId);
         if (!session?.isActive) return;
 
@@ -193,7 +193,7 @@ ${systemPrompt}
         const timestamp = new Date().toISOString();
         const content = `## User Message
 **Time**: ${timestamp}
-**Type**: user_request
+**Type**: user_request${maxTurns ? `\n**Max Turns**: ${maxTurns}` : ''}
 \`\`\`\`md
 ${message}
 \`\`\`\`

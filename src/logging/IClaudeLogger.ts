@@ -94,8 +94,9 @@ export interface IClaudeLogger {
      * Log a user message
      * @param sessionId Session identifier
      * @param message The user's message
+     * @param maxTurns Optional max turns for this request
      */
-    logUserMessage(sessionId: string, message: string): void;
+    logUserMessage(sessionId: string, message: string, maxTurns?: number): void;
 
     /**
      * Log an assistant message

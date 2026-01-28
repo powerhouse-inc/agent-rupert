@@ -206,7 +206,7 @@ describe('MarkdownClaudeLogger', () => {
             const sessionId = 'timestamp-test';
             logger.startSession(sessionId, 'Test', new Map(), 'TimestampAgent', { maxTurns: 10 });
             
-            logger.logUserMessage(sessionId, 'Test user message');
+            logger.logUserMessage(sessionId, 'Test user message', 10);
             logger.logAssistantMessage(sessionId, 'Intermediate response');
             logger.logAssistantMessage(sessionId, 'Final response', true);
             
@@ -221,6 +221,7 @@ describe('MarkdownClaudeLogger', () => {
             expect(content).toContain('## User Message');
             expect(content).toContain('**Time**:');
             expect(content).toContain('**Type**: user_request');
+            expect(content).toContain('**Max Turns**: 10');
             
             // Check assistant messages
             expect(content).toContain('**Type**: assistant_response');

@@ -361,12 +361,14 @@ export class AgentClaudeBrain implements IAgentBrain {
         // Generate session ID if not provided
         const activeSessionId = sessionId || this.generateSessionId();
         
+        // Calculate max turns once
+        const maxTurns = options?.maxTurns || this.config.maxTurns || 5;
+        
         // Start new session if needed
         if (!this.activeSessions.has(activeSessionId)) {
             this.activeSessions.add(activeSessionId);
             
             // Start session with system prompt and MCP servers
-            const maxTurns = options?.maxTurns || this.config.maxTurns || 5;
             this.claudeLogger?.startSession(
                 activeSessionId, 
                 this.systemPrompt || 'No system prompt set',
@@ -376,8 +378,8 @@ export class AgentClaudeBrain implements IAgentBrain {
             );
         }
 
-        // Log user message
-        this.claudeLogger?.logUserMessage(activeSessionId, message);
+        // Log user message with max turns
+        this.claudeLogger?.logUserMessage(activeSessionId, message, maxTurns);
 
         try {
             // Build MCP servers configuration
@@ -403,7 +405,7 @@ export class AgentClaudeBrain implements IAgentBrain {
             // Build options with resume if sessionId provided
             const queryOptions: Options = {
                 settingSources: [],  // No filesystem config lookups
-                maxTurns: options?.maxTurns || 5,  // Use provided maxTurns or default to 5
+                maxTurns: maxTurns,  // Use the already calculated maxTurns
                 cwd: workingDir,
                 model: this.config.model || 'haiku',
                 allowedTools: this.config.allowedTools || [],  // Use configured allowed tools
@@ -478,9 +480,30 @@ export class AgentClaudeBrain implements IAgentBrain {
                         errors?: string[];
                         permission_denials?: unknown[];
                         content?: unknown;
+                        tool_use_id?: string;
                     };
                     
-                    // Check for errors in result message
+                    // Log all tool results
+                    if (resultMsg.tool_use_id) {
+                        if (resultMsg.is_error) {
+                            // Log error result
+                            this.claudeLogger?.logToolResult(activeSessionId, {
+                                toolUseId: resultMsg.tool_use_id,
+                                output: null,
+                                error: resultMsg.errors?.join(', ') || 'Tool execution error',
+                                timestamp: new Date()
+                            });
+                        } else {
+                            // Log successful result
+                            this.claudeLogger?.logToolResult(activeSessionId, {
+                                toolUseId: resultMsg.tool_use_id,
+                                output: resultMsg.content || 'Tool executed successfully',
+                                timestamp: new Date()
+                            });
+                        }
+                    }
+                    
+                    // Also log as error if it's an error result
                     if (resultMsg.is_error) {
                         console.error('Claude SDK Result Error:', {
                             subtype: resultMsg.subtype,
