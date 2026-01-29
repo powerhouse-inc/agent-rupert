@@ -103,10 +103,9 @@ describe('PromptDriver', () => {
 
   describe('executeScenarioFlow', () => {
     it('should execute a complete scenario', async () => {
-      // Set up mock responses for briefing + each task
+      // Set up mock responses for each task (briefing is now queued with first task)
       const expectedResponses = [
-        'Acknowledged briefing',  // Response to briefing
-        'Completed task DM.00.1',
+        'Completed task DM.00.1',  // First task response (includes briefing)
         'Completed task DM.00.2',
         'Completed task DM.00.3',
         'Completed task DM.00.4',
@@ -124,7 +123,7 @@ describe('PromptDriver', () => {
       expect(result.completedTasks).toBe(5);
       expect(result.responses).toHaveLength(5);
 
-      // Verify each task response (briefing doesn't appear in responses)
+      // Verify each task response
       expect(result.responses[0].taskId).toBe('DM.00.1');
       expect(result.responses[0].response).toBe('Completed task DM.00.1');
       expect(result.responses[0].success).toBe(true);
@@ -167,18 +166,18 @@ describe('PromptDriver', () => {
       const flow = driver.createSequentialFlow('document-modeling/DM.01');
       const result = await driver.executeScenarioFlow('document-modeling/DM.01', flow);
 
-      // DM.01 has 4 tasks + 1 briefing message = 5 total messages
-      expect(callCount).toBe(5);
+      // DM.01 has 4 tasks (briefing is now queued with first task)
+      expect(callCount).toBe(4);
       expect(result.completedTasks).toBe(4);
     });
 
     it('should handle task failures', async () => {
-      // Simulate failure on third task (fourth message including briefing)
+      // Simulate failure on fourth task (briefing is now queued with first task)
       let messageCount = 0;
       mockAgent.sendMessage = jest.fn(async () => {
         messageCount++;
-        if (messageCount === 4) {  // 1 briefing + 3rd task
-          throw new Error('Task 3 failed');
+        if (messageCount === 4) {  // 4th task
+          throw new Error('Task 4 failed');
         }
         return { response: `Success for message ${messageCount}`, sessionId: 'test-session' };
       });
@@ -186,13 +185,14 @@ describe('PromptDriver', () => {
       const flow = driver.createSequentialFlow('document-modeling/DM.00');
       const result = await driver.executeScenarioFlow('document-modeling/DM.00', flow);
 
-      // Should have 3 responses (2 success, 1 failure)
-      expect(result.responses).toHaveLength(3);
+      // Should have 4 responses (3 success, 1 failure)
+      expect(result.responses).toHaveLength(4);
       expect(result.responses[0].success).toBe(true);
       expect(result.responses[1].success).toBe(true);
-      expect(result.responses[2].success).toBe(false);
-      expect(result.responses[2].error?.message).toBe('Task 3 failed');
-      expect(result.completedTasks).toBe(2); // Only 2 successful
+      expect(result.responses[2].success).toBe(true);
+      expect(result.responses[3].success).toBe(false);
+      expect(result.responses[3].error?.message).toBe('Task 4 failed');
+      expect(result.completedTasks).toBe(3); // Only 3 successful
     });
 
     it('should reset flow before execution', async () => {

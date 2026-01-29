@@ -39,7 +39,7 @@ export class MarkdownClaudeLogger implements IClaudeLogger {
     /**
      * Start a new logging session with initial configuration
      */
-    public startSession(sessionId: string, systemPrompt: string, mcpServers: Map<string, McpServerConfig>, agentName?: string, metadata?: { maxTurns?: number }): void {
+    public startSession(sessionId: string, systemPrompt: string, mcpServers: Record<string, McpServerConfig>, agentName?: string, metadata?: { maxTurns?: number }): void {
         if (this.sessions.has(sessionId)) {
             console.warn(`Session ${sessionId} already exists`);
             return;
@@ -101,12 +101,12 @@ ${systemPrompt}
 
 `;
 
+        const mcpServerNames = Object.keys(mcpServers);
         // Write initial MCP servers if any
-        if (mcpServers.size > 0) {
+        if (mcpServerNames.length > 0) {
             content += '# Initial MCP Servers\n';
-            for (const [name, server] of mcpServers) {
-                content += `- **${name}**: ${this.formatMcpServer(server)}\n`;
-            }
+            mcpServerNames.forEach(name => content += `- **${name}**: ${this.formatMcpServer(mcpServers[name])}\n`);
+            
             content += '\n';
         }
 

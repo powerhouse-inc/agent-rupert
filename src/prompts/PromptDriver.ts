@@ -46,6 +46,7 @@ export class PromptDriver {
   private sessionId: string | null = null;
   private defaultMaxTurns: number = 5;  // Default maxTurns for message sending
   private logger: ILogger;
+  private messageQueue: string[] = [];  // Queue for messages to be grouped
 
   constructor(agent: IAgentBrain, repository: ISkillsRepository, logger: ILogger) {
     this.agent = agent;
@@ -60,10 +61,13 @@ export class PromptDriver {
     await this.repository.loadSkills();
   }
 
-  async sendSkillPreamble<TContext = any>(skill: string, context: TContext) {
+  /**
+   * Queue skill preamble to be sent with next message
+   */
+  queueSkillPreamble<TContext = any>(skill: string, context: TContext): void {
     const skillPreamble = this.repository.getSkillPreamble(skill, context);
     if (skillPreamble && skillPreamble.trim().length > 0) {
-      await this.sendMessage(skillPreamble, this.defaultMaxTurns);
+      this.queueMessage(skillPreamble);
     }
   }
 
@@ -93,10 +97,10 @@ export class PromptDriver {
       this.sessionId = options.sessionId;
     }
     
-    // Send skill preamble if requested (default: true)
+    // Queue skill preamble if requested (default: true)
     const sendPreamble = options?.sendSkillPreamble ?? true;
     if (sendPreamble) {
-      await this.sendSkillPreamble(skill, context);
+      this.queueSkillPreamble(skill, context);
     }
     
     const scenarioResults: ScenarioExecutionResult[] = [];
@@ -235,9 +239,9 @@ export class PromptDriver {
     flow.reset();
 
     try {
-      this.logger?.debug(`PromptDriver::executeScenarioFlow - Sending scenario briefing "${scenario.id} - ${scenario.title}"`);
-      // Always send the briefing (regardless of session state)
-      await this.sendRenderedScenarioBriefing(scenario, flow, maxTurns);
+      this.logger?.debug(`PromptDriver::executeScenarioFlow - Queueing scenario briefing "${scenario.id} - ${scenario.title}"`);
+      // Queue the briefing to be sent with first task
+      this.queueRenderedScenarioBriefing(scenario, flow);
 
       // Execute tasks using the flow
       let task = flow.nextTask();
@@ -378,26 +382,28 @@ export class PromptDriver {
     return result.response;
   }
 
-  public async sendScenarioBriefing<TContext = any>(skill: string, scenarioId: string, context: TContext = {} as TContext): Promise<void> {
+  /**
+   * Queue scenario briefing to be sent with next message
+   */
+  public queueScenarioBriefing<TContext = any>(skill: string, scenarioId: string, context: TContext = {} as TContext): void {
     const scenarioKey = this.repository.generateScenarioKey(skill, scenarioId);
     const scenario = this.repository.getScenarioByKey(scenarioKey, context);
     
     if (scenario) {
-      // Use the existing private method to send the rendered scenario briefing
-      await this.sendRenderedScenarioBriefing(scenario, undefined, this.defaultMaxTurns);
+      // Use the existing private method to queue the rendered scenario briefing
+      this.queueRenderedScenarioBriefing(scenario, undefined);
     } else {
-      throw new Error(`Cannot send scenario briefing. Scenario '${scenarioKey}' not found.`);
+      throw new Error(`Cannot queue scenario briefing. Scenario '${scenarioKey}' not found.`);
     }
   }
 
   /**
-   * Send briefing message (always sent, regardless of session state)
+   * Queue briefing message to be sent with next message
    */
-  private async sendRenderedScenarioBriefing(
+  private queueRenderedScenarioBriefing(
     scenario: RenderedScenario,
     flow?: IScenarioFlow,
-    maxTurns: number = 5,
-  ): Promise<void> {
+  ): void {
     // Start building the briefing message
     let briefingMessage = this.getBriefingIntroMessage(scenario, flow);
     
@@ -411,7 +417,7 @@ export class PromptDriver {
     briefingMessage += `\n\nYou will now receive tasks one by one. Complete each task thoroughly before moving to the next and don't jump ahead.`;
     briefingMessage += `\n\n=== END BRIEFING ===`;
     
-    await this.sendMessage(briefingMessage, maxTurns || 5);
+    this.queueMessage(briefingMessage);
   }
   
   /**
@@ -492,7 +498,32 @@ ${
   }
   
   /**
+   * Queue a message to be sent with the next sendMessage call
+   * @param message The message to queue
+   */
+  public queueMessage(message: string): void {
+    if (message && message.trim().length > 0) {
+      this.messageQueue.push(message);
+    }
+  }
+
+  /**
+   * Clear the message queue without sending
+   */
+  public clearMessageQueue(): void {
+    this.messageQueue = [];
+  }
+
+  /**
+   * Get the current queue size
+   */
+  public getQueueSize(): number {
+    return this.messageQueue.length;
+  }
+
+  /**
    * Send a message to the agent and capture the session ID if needed
+   * Automatically prepends any queued messages and clears the queue
    * @param message The message to send
    * @param maxTurns Maximum number of turns for the message exchange
    * @returns The response from the agent
@@ -502,10 +533,19 @@ ${
     maxTurns: number = 5,
     captureSession: boolean = true,
   ): Promise<{ response: string; sessionId?: string }> {
-    const result = await this.agent.sendMessage(message, this.sessionId || undefined, { maxTurns });
+
+    // Combine queued messages with the current message
+    let fullMessage = message;
+    if (this.messageQueue.length > 0) {
+      fullMessage = this.messageQueue.join('\n\n') + '\n\n' + message;
+      this.messageQueue = [];
+    }
+
+    const result = await this.agent.sendMessage(fullMessage, this.sessionId || undefined, { maxTurns });
     
     // Capture sessionId from the response if we don't have one yet
     if (captureSession && result.sessionId) {
+      //console.log("-- SETTING SESSION ID --", result);
       this.sessionId = result.sessionId;
     }
     
@@ -517,6 +557,7 @@ ${
    */
   public async endSession(): Promise<void> {
     if (this.sessionId) {
+      //console.log("-- ENDING SESSION ID --", this.sessionId);
       // Call the brain's endSession if available
       if (this.agent.endSession) {
         await this.agent.endSession(this.sessionId);

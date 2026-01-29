@@ -5,10 +5,9 @@ import { SkillsRepository } from '../../../src/prompts/SkillsRepository.js';
 import { CreativeWriterAgent, type CreativeWriterConfig } from '../../../src/agents/CreativeWriterAgent/CreativeWriterAgent.js';
 import { BrainFactory } from '../../../src/agents/BrainFactory.js';
 import type { IAgentBrain } from '../../../src/agents/IAgentBrain.js';
-import type { ILogger } from '../../../src/agents/AgentBase.js';
-import type { RenderedScenario } from '../../../src/prompts/types.js';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
+import { ILogger } from '../../../src/logging/ILogger.js';
 
 // Load environment variables from .env file
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
@@ -100,7 +99,7 @@ describe('CreativeWriterAgent with SequentialSkillFlow', () => {
         agent = new CreativeWriterAgent(config, logger, brain);
         
         // Create PromptDriver with the repository
-        promptDriver = new PromptDriver(brain, repository);
+        promptDriver = new PromptDriver(brain, repository, new TestLogger());
         await promptDriver.initialize();
 
         // Get all scenarios for the short-story-writing skill
@@ -109,10 +108,7 @@ describe('CreativeWriterAgent with SequentialSkillFlow', () => {
         
         // Get rendered scenarios for the skill
         const renderedScenarios = repository.getScenariosBySkill(skillName, context);
-        
-        // Sort scenarios by ID to ensure proper order (SS.00, SS.01, etc.)
-        renderedScenarios.sort((a, b) => a.id.localeCompare(b.id));
-        
+                
         // Create the skill flow with all scenarios
         skillFlow = new SequentialSkillFlow(skillName, renderedScenarios);
     });

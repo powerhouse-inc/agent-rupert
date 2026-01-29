@@ -67,7 +67,7 @@ export interface IClaudeLogger {
      * @param agentName Optional name of the agent
      * @param metadata Optional metadata including maxTurns
      */
-    startSession(sessionId: string, systemPrompt: string, mcpServers: Map<string, McpServerConfig>, agentName?: string, metadata?: { maxTurns?: number }): void;
+    startSession(sessionId: string, systemPrompt: string, mcpServers: Record<string, McpServerConfig>, agentName?: string, metadata?: { maxTurns?: number }): void;
 
     /**
      * End a logging session

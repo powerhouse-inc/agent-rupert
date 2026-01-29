@@ -77,15 +77,15 @@ export class AgentRoutineContext {
             this.driver.continueSession(sessionId);
         }
 
-        // Send skill preamble if not sent
+        // Queue skill preamble if not sent
         if (!this.skill.preambleSent) {
-            await this.driver.sendSkillPreamble(this.skill.name, variables);
+            this.driver.queueSkillPreamble(this.skill.name, variables);
             this.skill.preambleSent = true;
         }
         
-        // Send scenario preamble if not sent
+        // Queue scenario briefing if not sent
         if (!this.scenario.preambleSent) {
-            await this.driver.sendScenarioBriefing(this.skill.name, this.scenario.id, variables);
+            this.driver.queueScenarioBriefing(this.skill.name, this.scenario.id, variables);
             this.scenario.preambleSent = true;
         }
         
