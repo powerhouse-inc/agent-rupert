@@ -308,10 +308,9 @@ export class AgentRoutine {
       const reactor = this.agent.getReactor();
       const promptDriver = this.agent.getPromptDriver();
       const skillsRepository = promptDriver?.getRepository();
-      const brain = this.agent.getBrain();
 
-      if (reactor && skillsRepository && brain) {
-        const workItem = await WbsRoutineHandler.getNextWorkItem(this.wbs.document, reactor, skillsRepository, brain);
+      if (reactor && skillsRepository && promptDriver) {
+        const workItem = await WbsRoutineHandler.getNextWorkItem(this.wbs.document, reactor, skillsRepository, promptDriver);
 
         if (workItem !== null) {
           if (workItem.type !== 'idle') {
@@ -327,8 +326,7 @@ export class AgentRoutine {
       } else {
         const missingItems = [
           reactor ? false : 'Reactor',
-          skillsRepository ? false : 'SkillsRepository',
-          brain ? false : 'AgentBrain'
+          skillsRepository ? false : 'SkillsRepository'
         ].filter(m => !!m).join(' and ');
 
         this.logger.warn(`AgentRoutine for ${this.agent.getName()} is missing ${missingItems}. WBS will not be processed.`);
