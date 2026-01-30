@@ -321,6 +321,10 @@ function nodeToMarkdown(node: any): string {
     case 'thematicBreak':
       return '---\n';
     
+    case 'html':
+      // Preserve HTML tags as-is
+      return node.value;
+    
     default:
       // For unknown node types, try to extract children
       if (node.children) {
