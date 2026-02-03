@@ -74,6 +74,7 @@ export class ReactorPackageDevAgent extends AgentBase<IAgentBrain> {
             'document-modeling',
             'document-editor-creation',
             'fusion-project-management',
+            'fusion-development',
             'handle-stakeholder-message'
         ];
     }

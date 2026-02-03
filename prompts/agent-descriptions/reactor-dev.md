@@ -127,6 +127,17 @@
 | FPM.03.1 | Verify project is running | - |
 | FPM.03.2 | Shutdown the project | - |
 
+#### fusion-development (FD)
+
+**FD.00: Implement a Fusion page**
+
+| Task ID | Title | Expected Outcome |
+|---------|-------|------------------|
+| FD.00.1 | Ensure the correct route exists with the required base files | - |
+| FD.00.2 | Prepare the Graphql queries | - |
+| FD.00.3 | Implement the read-only page components. | - |
+| FD.00.4 | Stakeholder UAT communication | - |
+
 #### handle-stakeholder-message (HSM)
 
 **HSM.00: Categorize the stakeholder message**
@@ -1237,11 +1248,10 @@ local name, company ID, address and telephone number will be cached.
 
 ### Extract an initial state schema from the extended description
 
-**State Schema Root Type**
+**State Schema Root Type on line 1**
 
-- **CRITICAL** There is always a single root type called State which is required
-to be the PascalCase version of the document name. Failing to apply this pattern will break the
-code generator later on.
+- **CRITICAL** On the very first line of the state schema, there is always a single root type called <DocumentModelName>State.
+It is required to be the PascalCase version of the document name. Failing to apply this pattern will break the code generator later on.
 For example: if the document model name is `Pizza Plaza Order`, its root type name is `PizzaPlazaOrderState`
 - The root type must not have an ID field (OID or PHID), because the document header already contains an
 ID. However, it may contain a business logic code or reference that the user would use as document identifier.
@@ -1267,7 +1277,7 @@ This is the same principle as the title and snippet information in HTML links an
 </a>
 \`\`\`
 Only use PHID fields when it's needed for the use case. Linking multiple documents always increases complexity.
-- The `ID` type which is a wider common practice in GraphQL, is not used.
+- **NEVER** use the `ID` type, which is a wider common practice in GraphQL. Instead use `OID` and `PHID`.
 - Always use `enum` types for workflow statuses.
 
 **When to use mandatory and optional state fields**
@@ -1915,8 +1925,8 @@ want to create it for.
 **Task Template:**
 
 ```md
-- Verify the editor boilerplate was created in ./editors/
-- Explore the boilerplate code, which you can recognize by the usage of the  component
+- Verify the editor boilerplate was created in ./editors/<editor-name>
+- Explore the boilerplate code, which you can recognize by the usage of the <DocumentStateViewer> component
 ```
 
 ##### ED.01: Write the editor implementation
@@ -1949,12 +1959,12 @@ Code is regenerated automatically by Vetra.
 **Task Template:**
 
 ```md
-- Verify the editor was created in ./editors/
+- Verify the editor was created in ./editors/<editor-name>
 - Check if the boilerplate code is still present and remove it
-- You can recognize the boilerplate by the usage of the  component
+- You can recognize the boilerplate by the usage of the <DocumentStateViewer> component
 - If it's still in the main editor.tsx file, remove the code but leave the imports as hints, and also the document toolbar
 - If the boilerplate is no longer present, it may have been deleted previously
-- Verify that the editor has a  and if not, then add it
+- Verify that the editor has a <DocumentToolbar /> and if not, then add it
 - The document toolbar is imported from "@powerhousedao/design-system/connect/index"
 - It allows the user to export the document to a .phd file, view its operation history and get access to
 the corresponding switchboard API endpoint for data processing / integration.
@@ -2029,7 +2039,7 @@ only in the sidebar pane
 - For nested collections, consider creating an inbox-style UI where the top-level collection's item summaries are shown
 in the sidebar and are selectable. Once selected, the main area can show a header with the full item details, and it
 can show the nested collections below that header.
-- Use  tags for URL fields that refer to images. Make sure to set the appropriate dimensional constraints.
+- Use <img> tags for URL fields that refer to images. Make sure to set the appropriate dimensional constraints.
 - Use tabs only sparingly.
 
 **Generate the reading experience code**
@@ -2037,7 +2047,7 @@ can show the nested collections below that header.
 - Define components following the design choices and make sure to keep a clean file structure
 - Focus on one component at a time
 - Bring them all together in a lay-out that is fitting for the earlier design decisions
-- Make sure to keep the  at the top and don't put anything next to it.
+- Make sure to keep the <DocumentToolbar/> at the top and don't put anything next to it.
 ```
 
 ###### ED.01.4: Implement editing functionality
@@ -2061,7 +2071,7 @@ and pop-over modals with a semi-transparent black overlay in the background. The
 and even multi-step input processes.
 - Make images editable by providing a pop-up with a URL field and preview.
 - Avoid "edit" or "edit mode" buttons where possible. Make fields and objects editable upon hover with inline forms as described.
-- Make sure to keep the  at the top and don't put anything next to it.
+- Make sure to keep the <DocumentToolbar/> at the top and don't put anything next to it.
 
 ### Checklist
 
@@ -2257,6 +2267,108 @@ Attach the fusion URL to the relevant task instructions or comments in your WBS.
 - Wait for the shutdown command to complete
 - Use `mcp__fusion-prjmgr__get_project_status` to confirm the project is now "stopped"
 - Optionally get final logs with `mcp__fusion-prjmgr__get_project_logs`
+```
+
+---
+
+### Skill: fusion-development (FD)
+
+#### Scenarios
+
+##### FD.00: Implement a Fusion page
+
+**Scenario Preamble:**
+
+```md
+Ensure that the Fusion project and its backend are up and running before proceeding with this scenario.
+
+- Use `reactor-prjmgr` to ensure the right Reactor Package backend project is running. Spin it up if needed.
+- Use `fusion-prjmgr` to ensure the correct Fusion project is running. Spin it up if needed.
+
+Familiarize yourself with the existing code base of the Fusion project.
+```
+
+**Tasks:**
+
+###### FD.00.1: Ensure the correct route exists with the required base files
+
+**Task Template:**
+
+```md
+- Identify the route you want to use, e.g. '/category/[category-slug]/products/[product-id]/'
+- Create any missing `/app/...` folders and their `page.tsx`
+- Add the component function with a `<PageName>Props` interface to the page.tsx that captures the route parameters.
+For example:
+\`\`\`typescript
+interface DrivePageProps {
+  params: Promise<{ driveId: string, docId: string }>
+}
+
+export default async function DrivePage({ params }: DrivePageProps) {
+  return <div>{$`DrivePage(${params.driveId}, ${params.docId})`}</div>
+}
+\`\`\`
+- Consider which folders need a `layout.tsx` and create the missing ones
+```
+
+###### FD.00.2: Prepare the Graphql queries
+
+**Task Template:**
+
+```md
+**Identify the GraphQL queries you will use**
+
+- Inspect the GraphQL backend and make sure you understand its capabilities
+- Explore the existing `/modules/**/graphql/*.graphql` and identify any useful ones.
+- Consider which additional GraphQL queries are needed for the new page you are creating
+and put them in the appropriate `/modules/**/graphql/*.graphql` file(s).
+
+**Generate the client types**
+
+- After writing the .graphql files, run `pnpm codegen`
+- Verify that the `/modules/__generated__` contents are updated with the expected types and helper functions
+
+**Define the query helper functions in page.tsx**
+
+For every graphql query that you will use, add a function to the page.tsx file.
+
+1. Consider if the page is a client-side or a server-side component
+2. For server-side pages, create a helper function that utilizes the fetcher factory function, for example like this:
+\`\`\`typescript
+async function getDrive(slug: string) {
+  return (await useDriveQuery.fetcher({ idOrSlug: slug })()).driveDocument;
+}
+\`\`\`
+3. For client-side pages, consider using the `useYourQuery` hook directly.
+4. Verify that the data is correctly fetched and inspect its return value with placeholder code. For example:
+\`\`\`typescript
+const data = await getDrive(params.driveId);
+return <pre>{JSON.stringify(data, undefined, 2)}</pre>;
+\`\`\`
+
+This completes the GraphQL query preparation.
+```
+
+###### FD.00.3: Implement the read-only page components.
+
+**Task Template:**
+
+```md
+- Generate the React code to display the prepared data in a user-friendly way.
+- Run `pnpm build` and fix any issues
+- Fetch the page to verify that it renders as expected
+
+### Expected outcome
+
+The page is correctly implemented and it shows all the required data.
+```
+
+###### FD.00.4: Stakeholder UAT communication
+
+**Task Template:**
+
+```md
+Send a message to the stakeholder through your inbox and invite them to test the new page.
 ```
 
 ---
