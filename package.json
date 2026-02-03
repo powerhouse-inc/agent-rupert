@@ -9,7 +9,7 @@
     "build": "pnpm build:prompts && tsc && cp src/prompts/handlebars-helpers.js dist/prompts/",
     "build:prompts": "tsx scripts/build-prompts.ts",
     "start": "node dist/server.js",
-    "clean": "rm -rf dist .ph build tmp/conversations/* tmp/prompts/* tmp/*.txt ../test-projects/fusion/* ../test-projects/reactor/*",
+    "clean": "rm -rf dist .ph build tmp/conversations/* tmp/prompts/* tmp/sessions/* tmp/*.txt ../test-projects/fusion/* ../test-projects/reactor/*",
     "test": "NODE_OPTIONS=\"--experimental-vm-modules\" jest",
     "test:integration": "NODE_OPTIONS=\"--experimental-vm-modules\" jest tests/integration -i",
     "test:unit": "NODE_OPTIONS=\"--experimental-vm-modules\" jest tests/unit",
