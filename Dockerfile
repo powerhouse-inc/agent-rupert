@@ -34,8 +34,8 @@ WORKDIR /app
 # Copy package files first for better layer caching
 COPY package.json pnpm-lock.yaml ./
 
-# Install dependencies
-RUN pnpm install
+# Install dependencies (--ignore-scripts to skip broken postinstall in @powerhousedao/agent-manager)
+RUN pnpm install --ignore-scripts
 
 # Copy source code
 COPY . .
