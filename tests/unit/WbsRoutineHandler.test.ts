@@ -1,6 +1,6 @@
 import { jest, describe, it, beforeEach, expect } from '@jest/globals';
 import { WbsRoutineHandler } from '../../src/agents/AgentBase/WbsRoutineHandler';
-import { WorkBreakdownStructureDocument, Goal } from 'powerhouse-agent/document-models/work-breakdown-structure';
+import { WorkBreakdownStructureDocument, Goal } from '@powerhousedao/agent-manager/document-models/work-breakdown-structure';
 import { ISkillsRepository } from '../../src/prompts/ISkillsRepository';
 
 describe('WbsRoutineHandler', () => {

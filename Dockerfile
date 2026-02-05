@@ -1,11 +1,8 @@
 # =============================================================================
 # Multi-stage Dockerfile for Agent Rupert
 #
-# This requires agent-drive to be available in the build context.
-# The GitHub workflow will checkout both repos and build with proper context.
-#
-# Build command (from parent directory containing both repos):
-#   docker build -f agent-rupert/Dockerfile -t cr.vetra.io/rupert/agent-rupert:<tag> .
+# Build command:
+#   docker build -t cr.vetra.io/rupert/agent-rupert:<tag> .
 # =============================================================================
 
 # -----------------------------------------------------------------------------
@@ -34,16 +31,14 @@ FROM base AS builder
 
 WORKDIR /app
 
-# Copy agent-drive (the library dependency) first
-COPY agent-drive /app/library
+# Copy package files first for better layer caching
+COPY package.json pnpm-lock.yaml ./
 
-# Copy agent-rupert
-COPY agent-rupert /app/agent-rupert
-
-WORKDIR /app/agent-rupert
-
-# Install dependencies (this will resolve the file:../library reference)
+# Install dependencies
 RUN pnpm install
+
+# Copy source code
+COPY . .
 
 # Build the project
 RUN pnpm build
@@ -64,10 +59,7 @@ ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
 # Copy built application from builder
-COPY --from=builder /app/agent-rupert /app/agent-rupert
-COPY --from=builder /app/library /app/library
-
-WORKDIR /app/agent-rupert
+COPY --from=builder /app /app
 
 # Environment variables
 ENV NODE_ENV=production

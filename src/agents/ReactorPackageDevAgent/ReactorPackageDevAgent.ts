@@ -100,15 +100,15 @@ export class ReactorPackageDevAgent extends AgentBase<IAgentBrain> {
     
     constructor(config: ReactorPackageDevAgentConfig, logger: ILogger, brain?: IAgentBrain) {
         super(config, logger, brain);
-        this.reactorPackagesDir = (config as ReactorPackageDevAgentConfig).reactorPackages.projectsDir;
-        this.fusionProjectsDir = '../projects/fusion'; // Default fusion projects directory
-        
+        this.reactorPackagesDir = config.reactorPackages.projectsDir;
+        this.fusionProjectsDir = config.fusionProjects.projectsDir;
+
         // Initialize executors
         this.cliExecutor = new CLIExecutor({
             timeout: 60000,
             retryAttempts: 1
         });
-        
+
         this.serviceExecutor = new ServiceExecutor({
             maxLogSize: 500,
             defaultGracefulShutdownTimeout: 10000
@@ -135,7 +135,8 @@ export class ReactorPackageDevAgent extends AgentBase<IAgentBrain> {
         this.fusionManager = new FusionProjectsManager(
             this.fusionProjectsDir,
             this.cliExecutor,
-            this.serviceExecutor
+            this.serviceExecutor,
+            this.getConfig().fusionProjects.nextjsPort
         );
         
         this.logger.info(`${this.config.name}: FusionProjectsManager created successfully`);

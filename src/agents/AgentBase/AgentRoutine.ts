@@ -1,6 +1,6 @@
 import { PromptDriver, ScenarioExecutionResult, SkillExecutionResult, TaskExecutionResult } from "../../prompts/PromptDriver.js";
-import { AgentInboxDocument } from "powerhouse-agent/document-models/agent-inbox";
-import { WorkBreakdownStructureDocument } from "powerhouse-agent/document-models/work-breakdown-structure";
+import { AgentInboxDocument } from "@powerhousedao/agent-manager/document-models/agent-inbox";
+import { WorkBreakdownStructureDocument } from "@powerhousedao/agent-manager/document-models/work-breakdown-structure";
 import { InboxRoutineHandler } from "./InboxRoutineHandler.js";
 import { WbsRoutineHandler } from "./WbsRoutineHandler.js";
 import { AgentBase, ILogger } from "./AgentBase.js";

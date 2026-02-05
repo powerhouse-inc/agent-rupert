@@ -1,4 +1,4 @@
-import type { AgentInboxDocument } from 'powerhouse-agent/document-models/agent-inbox';
+import type { AgentInboxDocument } from '@powerhousedao/agent-manager/document-models/agent-inbox';
 import type { InboxHandlingFlowContext } from './InboxHandlingFlowContext.js';
 import { WorkItemParams, WorkItemType } from './WorkItemTypes.js';
 

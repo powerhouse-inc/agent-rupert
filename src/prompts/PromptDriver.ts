@@ -5,7 +5,7 @@ import type { IScenarioFlow } from './flows/IScenarioFlow.js';
 import type { ISkillFlow, ScenarioResult } from './flows/ISkillFlow.js';
 import { SequentialScenarioFlow } from './flows/SequentialScenarioFlow.js';
 import { ILogger } from '../logging/ILogger.js';
-import { Goal } from 'powerhouse-agent/document-models/work-breakdown-structure';
+import { Goal } from '@powerhousedao/agent-manager/document-models/work-breakdown-structure';
 
 type WbsTaskContext = { 
   skill: Goal | null, 

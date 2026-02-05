@@ -62,12 +62,23 @@ export class FusionProjectsManager extends AbstractProjectManager<
   RunFusionProjectOptions,
   RunFusionProjectResult
 > {
+  private defaultNextjsPort: number;
+
   constructor(
     projectsDir: string = '../projects/fusion',
     cliExecutor?: CLIExecutor,
-    serviceExecutor?: ServiceExecutor
+    serviceExecutor?: ServiceExecutor,
+    defaultNextjsPort: number = 8000
   ) {
     super(projectsDir, cliExecutor, serviceExecutor);
+    this.defaultNextjsPort = defaultNextjsPort;
+  }
+
+  /**
+   * Get the default Next.js port for Fusion projects
+   */
+  public getDefaultNextjsPort(): number {
+    return this.defaultNextjsPort;
   }
 
   /**
@@ -296,7 +307,7 @@ export class FusionProjectsManager extends AbstractProjectManager<
   async runProject(projectName: string, options?: RunFusionProjectOptions): Promise<RunFusionProjectResult> {
     // Set defaults for options
     const effectiveOptions: RunFusionProjectOptions = {
-      fusionPort: options?.fusionPort || 8000,
+      fusionPort: options?.fusionPort || this.defaultNextjsPort,
       switchboardUrl: options?.switchboardUrl || 'http://localhost:4001/graphql',
       startupTimeout: options?.startupTimeout || 60000
     };

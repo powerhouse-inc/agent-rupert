@@ -71,6 +71,10 @@ export type ReactorPackageDevAgentConfig = BaseAgentConfig & {
     defaultProjectName: string;
     autoStartDefaultProject: boolean;
   };
+  fusionProjects: {
+    projectsDir: string;
+    nextjsPort: number;
+  };
   vetraConfig: {
     connectPort: number;
     switchboardPort: number;

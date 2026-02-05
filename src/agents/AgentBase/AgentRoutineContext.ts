@@ -1,4 +1,4 @@
-import { Goal } from "powerhouse-agent/document-models/work-breakdown-structure";
+import { Goal } from "@powerhousedao/agent-manager/document-models/work-breakdown-structure";
 import { PromptDriver } from "../../prompts/PromptDriver.js";
 
 export class AgentRoutineContext {

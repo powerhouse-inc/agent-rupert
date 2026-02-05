@@ -13,10 +13,6 @@ on:
         description: 'Image tag override'
         required: false
         default: ''
-      agent_drive_ref:
-        description: 'agent-drive branch/tag to use'
-        required: false
-        default: 'main'
 
 env:
   VETRA_REGISTRY: cr.vetra.io
@@ -30,22 +26,13 @@ jobs:
       packages: write
 
     steps:
-      - name: Checkout agent-rupert
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          path: agent-rupert
-
-      - name: Checkout agent-drive (library dependency)
-        uses: actions/checkout@v4
-        with:
-          repository: powerhouse-inc/agent-drive
-          ref: ${{ github.event.inputs.agent_drive_ref || 'main' }}
-          path: agent-drive
 
       - name: Get version info
         id: version
-        working-directory: agent-rupert
         run: |
           # Get short SHA
           SHORT_SHA=$(git rev-parse --short HEAD)
@@ -76,7 +63,6 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: agent-rupert/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
           tags: |
             ${{ env.VETRA_IMAGE }}:${{ steps.version.outputs.tag }}

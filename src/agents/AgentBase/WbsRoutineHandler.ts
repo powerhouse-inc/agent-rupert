@@ -1,4 +1,4 @@
-import { WorkBreakdownStructureDocument, Goal, actions } from "powerhouse-agent/document-models/work-breakdown-structure";
+import { WorkBreakdownStructureDocument, Goal, actions } from "@powerhousedao/agent-manager/document-models/work-breakdown-structure";
 import { WorkItemParams, WorkItemType } from "./WorkItemTypes.js";
 import { AgentRoutineContext } from "./AgentRoutineContext.js";
 import type { IDocumentDriveServer } from "document-drive";

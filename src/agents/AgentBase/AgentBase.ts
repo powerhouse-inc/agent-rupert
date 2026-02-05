@@ -2,7 +2,7 @@
 import { IDocumentDriveServer, InMemoryCache, MemoryStorage, ReactorBuilder, driveDocumentModelModule } from 'document-drive';
 import type { IDriveOperationStorage } from 'document-drive/storage/types';
 import type { BaseAgentConfig } from '../../types.js';
-import { documentModels } from 'powerhouse-agent';
+import { documentModels } from '@powerhousedao/agent-manager';
 import { documentModelDocumentModelModule } from 'document-model';
 import { FilesystemStorage } from 'document-drive/storage/filesystem';
 import type { IAgentBrain } from '../IAgentBrain.js';

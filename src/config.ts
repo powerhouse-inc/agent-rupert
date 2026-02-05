@@ -3,6 +3,9 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+// Base path for all agent-created projects (useful for PVC mounts in Kubernetes)
+const PROJECTS_BASE_PATH = process.env.PROJECTS_BASE_PATH || '../projects';
+
 export const config: ServerConfig = {
     serverPort: Number(process.env.API_PORT) || 3100,
     anthropicApiKey: process.env.ANTHROPIC_API_KEY || null,
@@ -26,9 +29,13 @@ export const config: ServerConfig = {
                 }
             },
             reactorPackages: {
-                projectsDir: "../projects/reactor-packages",
+                projectsDir: process.env.REACTOR_PACKAGES_PATH || `${PROJECTS_BASE_PATH}/reactor-packages`,
                 defaultProjectName: "agent-project",
                 autoStartDefaultProject: false,
+            },
+            fusionProjects: {
+                projectsDir: process.env.FUSION_PROJECTS_PATH || `${PROJECTS_BASE_PATH}/fusion`,
+                nextjsPort: Number(process.env.FUSION_NEXTJS_PORT) || 8000,
             },
             vetraConfig: {
                 connectPort: Number(process.env.VETRA_CONNECT_PORT) || 5000,
