@@ -225,6 +225,12 @@ export class AgentClaudeBrain implements IAgentBrain {
       absoluteReadPaths.push(absolutePath);
     }
 
+    // Add Claude SDK's internal directory (stores MCP tool results, session data)
+    const claudeDir = path.join(process.env.HOME || '/root', '.claude');
+    if (!absoluteReadPaths.includes(claudeDir)) {
+      absoluteReadPaths.push(claudeDir);
+    }
+
     this.config.fileSystemPaths = {
       allowedReadPaths: absoluteReadPaths,
       allowedWritePaths: [absolutePath],
