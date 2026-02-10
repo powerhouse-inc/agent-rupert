@@ -36,6 +36,10 @@ describe('ReactorPackageDevAgent MCP Simple Test', () => {
                 defaultProjectName: 'test-project',
                 autoStartDefaultProject: false
             },
+            fusionProjects: {
+                projectsDir: path.join(testProjectsDir, 'fusion'),
+                nextjsPort: 8000
+            },
             vetraConfig: {
                 connectPort: 3000,
                 switchboardPort: 4001,
