@@ -233,13 +233,24 @@ export class ReactorPackagesManager extends AbstractProjectManager<
       // Ensure projects directory exists
       await this.ensureProjectsDirectory();
 
-      // Check if project already exists
+      // Check if project already exists — treat as success if it has valid config files
       if (await this.checkProjectExists(projectPath)) {
-        return {
-          success: false,
-          projectPath,
-          error: `Project '${projectName}' already exists at ${projectPath}`
-        };
+        try {
+          const packageJsonPath = path.join(projectPath, 'package.json');
+          const configPath = path.join(projectPath, 'powerhouse.config.json');
+          await fs.access(packageJsonPath);
+          await fs.access(configPath);
+          return {
+            success: true,
+            projectPath
+          };
+        } catch {
+          return {
+            success: false,
+            projectPath,
+            error: `Project '${projectName}' exists at ${projectPath} but is missing expected config files`
+          };
+        }
       }
 
       // Get initialization tasks

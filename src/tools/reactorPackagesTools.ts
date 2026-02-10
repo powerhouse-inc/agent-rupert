@@ -32,7 +32,9 @@ export function createInitProjectTool(manager: ReactorPackagesManager, logger?: 
                         text: JSON.stringify({
                             success: result.success,
                             projectPath: result.projectPath,
-                            message: `Project ${args.projectName} initialized successfully`
+                            message: result.success
+                                ? `Project ${args.projectName} initialized successfully`
+                                : result.error || `Failed to initialize project ${args.projectName}`,
                         }, null, 2)
                     }]
                 };
@@ -142,7 +144,10 @@ export function createRunProjectTool(manager: ReactorPackagesManager, agent: Rea
                             switchboardPort: result.switchboardPort,
                             driveUrl: result.driveUrl,
                             mcpServer: result.mcpServer,
-                            message: `Project ${args.projectName} started successfully`
+                            projectPath: result.projectPath,
+                            message: result.success
+                                ? `Project ${args.projectName} started successfully`
+                                : result.error || `Failed to start project ${args.projectName}`,
                         }, null, 2)
                     }]
                 };
