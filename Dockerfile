@@ -50,8 +50,8 @@ FROM node:24-alpine AS production
 
 WORKDIR /app
 
-# Install runtime dependencies
-RUN apk add --no-cache curl
+# Install runtime dependencies (git needed by ph init, lsof for port checks)
+RUN apk add --no-cache curl git lsof
 
 # Setup pnpm
 ENV PNPM_HOME="/pnpm"
