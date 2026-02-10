@@ -4,6 +4,7 @@ import { writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
 
 const WRITE_PROMPT_TO_FILE = true;
+const PROMPTS_DIR = process.env.PROMPTS_LOG_DIR || 'tmp/prompts';
 
 export class AgentBrain implements IAgentBrain {
     private api: Anthropic;
@@ -26,7 +27,7 @@ export class AgentBrain implements IAgentBrain {
         
         if (WRITE_PROMPT_TO_FILE) {
             try {
-                const promptsDir = join(process.cwd(), 'tmp', 'prompts');
+                const promptsDir = join(process.cwd(), PROMPTS_DIR);
                 mkdirSync(promptsDir, { recursive: true });
                 const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
                 const agentPart = agentName ? `_${agentName.replace(/\s+/g, '')}` : '';
