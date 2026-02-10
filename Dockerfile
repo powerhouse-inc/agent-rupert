@@ -59,7 +59,7 @@ ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
 # Install ph-cmd globally for ph init / ph dev commands
-RUN pnpm add -g ph-cmd@5.1.0
+RUN pnpm add -g ph-cmd@5.3.0
 
 # Copy built application from builder
 COPY --from=builder /app /app
