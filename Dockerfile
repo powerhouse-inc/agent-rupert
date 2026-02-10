@@ -50,8 +50,11 @@ FROM node:24-alpine AS production
 
 WORKDIR /app
 
-# Install runtime dependencies (git needed by ph init, lsof for port checks)
-RUN apk add --no-cache curl git lsof
+# Install runtime dependencies
+# - git: needed by ph init
+# - lsof: for port availability checks
+# - bash: needed by Claude Agent SDK's Bash tool
+RUN apk add --no-cache curl git lsof bash
 
 # Setup pnpm
 ENV PNPM_HOME="/pnpm"
@@ -67,6 +70,7 @@ COPY --from=builder /app /app
 # Environment variables
 ENV NODE_ENV=production
 ENV PORT=3100
+ENV SHELL=/bin/bash
 
 EXPOSE ${PORT}
 
