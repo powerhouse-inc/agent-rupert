@@ -19,6 +19,7 @@ RUN apk add --no-cache python3 make g++ git bash \
 # Setup pnpm
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
 # Configure JSR registry
@@ -56,9 +57,10 @@ WORKDIR /app
 # - bash: needed by Claude Agent SDK's Bash tool
 RUN apk add --no-cache curl git lsof bash
 
-# Setup pnpm
+# Setup pnpm (COREPACK_ENABLE_DOWNLOAD_PROMPT=0 to skip interactive confirmation)
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
 # Install ph-cmd globally for ph init / ph dev commands
