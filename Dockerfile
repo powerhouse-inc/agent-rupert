@@ -66,6 +66,9 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 # Install ph-cmd globally for ph init / ph dev commands
 RUN pnpm add -g ph-cmd@latest
 
+# Install @prisma/client globally (peer dep of document-drive, not auto-installed by ph init)
+RUN pnpm add -g @prisma/client
+
 # Copy built application from builder
 COPY --from=builder /app /app
 
