@@ -162,7 +162,10 @@ export class ReactorPackagesManager extends AbstractProjectManager<
         // Bind to all interfaces so services are reachable via K8s ingress
         HOST: '0.0.0.0',
 
-        NODE_ENV: 'development'
+        NODE_ENV: 'development',
+
+        // Allow child process to use more memory (default ~2GB)
+        NODE_OPTIONS: '--max-old-space-size=4096'
       },
       gracefulShutdown: {
         signal: 'SIGTERM',
