@@ -1,6 +1,7 @@
 
-import { IDocumentDriveServer, InMemoryCache, MemoryStorage, ReactorBuilder, driveDocumentModelModule } from 'document-drive';
-import type { IDriveOperationStorage } from 'document-drive/storage/types';
+import { ChannelScheme, driveCollectionId, ReactorBuilder, ReactorClientBuilder } from '@powerhousedao/reactor';
+import type { ISyncManager, IOperationStore, IReactor } from '@powerhousedao/reactor';
+import {driveDocumentModelModule} from "document-drive";
 import type { BaseAgentConfig } from '../../types.js';
 import { documentModels } from '@powerhousedao/agent-manager';
 import { documentModelDocumentModelModule } from 'document-model';
@@ -21,13 +22,18 @@ import type { TemplateWithVars } from '../../prompts/types.js';
 import { AgentRoutine } from './AgentRoutine.js';
 import { SkillsRepository } from '../../prompts/SkillsRepository.js';
 import { ILogger } from '../../logging/ILogger.js';
+import { IReactorClient } from '@powerhousedao/reactor';
+import { AgentInboxDocument, AgentInboxGlobalState } from '@powerhousedao/agent-manager/document-models/agent-inbox';
+import { WorkBreakdownStructureDocument, WorkBreakdownStructureGlobalState } from '@powerhousedao/agent-manager/document-models/work-breakdown-structure';
 
 // Re-export BaseAgentConfig type and ILogger for convenience
 export type { BaseAgentConfig } from '../../types.js';
 export type { ILogger } from '../../logging/ILogger.js';
 
 export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
-    protected reactor?: IDocumentDriveServer;
+    protected reactor?: IReactor;
+    protected reactorClient?: IReactorClient;
+    protected syncManager?: ISyncManager;
     protected config: BaseAgentConfig;
     protected logger: ILogger;
     protected brain?: TBrain;
@@ -126,17 +132,19 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
         this.logger.debug(`${this.config.name}: Loaded ${models.length} document models`);
         
         // Create ReactorBuilder with document models
-        const builder = new ReactorBuilder(models as any)
-            .withCache(await this.createCache())
-            .withStorage(await this.createStorage());
-        
+        const builder = new ReactorBuilder().withDocumentModels(models).withChannelScheme(ChannelScheme.CONNECT);
+
         // Build reactor
-        const driveServer = builder.build();
-        await driveServer.initialize();
+        const reactorClientBuilder = new ReactorClientBuilder().withReactorBuilder(builder);
+        const {client: reactorClient, reactorModule, reactor} = await reactorClientBuilder.buildModule();
         this.logger.info(`${this.config.name}: Reactor built and initialized`);
         
         // Store reactor instance
-        this.reactor = driveServer;
+        this.reactor = reactor;
+        this.reactorClient = reactorClient;
+
+        // Store reactor sync manager 
+        this.syncManager = reactorModule?.syncModule?.syncManager;
         
         // Connect to remote drives if configured
         if (this.config.workDrive.driveUrl) {
@@ -171,8 +179,8 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
      * Connect to a remote drive
      */
     private async connectRemoteDrive(remoteDriveUrl: string): Promise<void> {
-        if (!this.reactor) {
-            throw new Error('Reactor not initialized');
+        if (!this.syncManager) {
+            throw new Error('Reactor Sync Manager not initialized');
         }
         
         // Temporarily suppress console errors from the document-drive library
@@ -185,30 +193,35 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
             // Suppress error logging during addRemoteDrive
             console.error = () => {};
             process.stderr.write = () => true;
-            
-            await this.reactor.addRemoteDrive(remoteDriveUrl, {
-                sharingType: "public",
-                availableOffline: true,
-                listeners: [
-                    {
-                        block: true,
-                        callInfo: {
-                            data: remoteDriveUrl,
-                            name: "switchboard-push",
-                            transmitterType: "SwitchboardPush",
-                        },
-                        filter: {
-                            branch: ["main"],
-                            documentId: ["*"],
-                            documentType: ["*"],
-                            scope: ["global"],
-                        },
-                        label: "Switchboard Sync",
-                        listenerId: crypto.randomUUID(),
-                        system: true,
-                    },
-                ],
-                triggers: [],
+
+            // Fetch drive info from the REST endpoint to get both id and graphqlEndpoint
+            const response = await fetch(remoteDriveUrl);
+            if (!response.ok) {
+                throw new Error(`Failed to resolve drive info from ${remoteDriveUrl}`);
+            }
+            const driveInfo = (await response.json()) as {
+                id: string;
+                graphqlEndpoint: string;
+            };
+
+            const resolvedDriveId = driveInfo.id;
+            const collectionId = driveCollectionId("main", resolvedDriveId);
+
+            const existingRemote = this.syncManager
+                .list()
+                .find((remote) => remote.collectionId === collectionId);
+            if (existingRemote) {
+                this.logger.info(`${this.config.name}: Remote drive already connected`);
+                return;
+            }
+
+            const remoteName = crypto.randomUUID();
+
+            await this.syncManager.add(remoteName, collectionId, {
+                type: "gql",
+                parameters: {
+                url: driveInfo.graphqlEndpoint,
+                },
             });
             this.logger.info(`${this.config.name}: ✅ Successfully connected to remote drive`);
         } catch (error) {
@@ -239,28 +252,6 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
                 driveDocumentModelModule,
                 documentModelDocumentModelModule
             ];
-    }
-    
-    /**
-     * Override in subclasses to provide custom cache (optional)
-     * Defaults to InMemoryCache
-     */
-    protected async createCache(): Promise<any> {
-        return new InMemoryCache();
-    }
-    
-    /**
-     * Override in subclasses to customize storage
-     */
-    protected async createStorage(): Promise<IDriveOperationStorage> {
-        const storage = this.config.workDrive.reactorStorage;
-        if (storage?.type === 'filesystem' && storage.filesystemPath) {
-            this.logger.info(`${this.config.name}: Using filesystem storage at ${storage.filesystemPath}`);
-            return new FilesystemStorage(storage.filesystemPath);
-        } else {
-            this.logger.info(`${this.config.name}: Using in-memory storage`);
-            return new MemoryStorage();
-        }
     }
     
     /**
@@ -542,8 +533,8 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
     /**
      * Get the reactor instance
      */
-    public getReactor(): IDocumentDriveServer | undefined {
-        return this.reactor;
+    public getReactor(): IReactorClient | undefined {
+        return this.reactorClient;
     }
     
     //
@@ -635,7 +626,7 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
      * Get the complete inbox document state as JSON
      * Note: This method will retrieve the document state from the reactor
      */
-    public async getInboxState(): Promise<any> {
+    public async getInboxState(): Promise<AgentInboxGlobalState | null> {
         const reactor = this.getReactor();
         if (!reactor) return null;
         
@@ -643,8 +634,8 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
         if (!inboxId) return null;
         
         try {
-            const doc = await reactor.getDocument(inboxId);
-            return doc?.state || null;
+            const result = await reactor.get<AgentInboxDocument>(inboxId);
+            return result.state.global || null;
         } catch (error) {
             this.logger.error(`${this.config.name}: Failed to get inbox state`, error);
             return null;
@@ -655,7 +646,7 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
      * Get the complete WBS document state as JSON  
      * Note: This method will retrieve the document state from the reactor
      */
-    public async getWbsState(): Promise<any> {
+    public async getWbsState(): Promise<WorkBreakdownStructureGlobalState | null> {
         const reactor = this.getReactor();
         if (!reactor) return null;
         
@@ -663,8 +654,8 @@ export class AgentBase<TBrain extends IAgentBrain = IAgentBrain> {
         if (!wbsId) return null;
         
         try {
-            const doc = await reactor.getDocument(wbsId);
-            return doc?.state || null;
+            const result = await reactor.get<WorkBreakdownStructureDocument>(wbsId);
+            return result.state.global || null;
         } catch (error) {
             this.logger.error(`${this.config.name}: Failed to get WBS state`, error);
             return null;

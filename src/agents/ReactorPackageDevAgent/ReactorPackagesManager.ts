@@ -91,7 +91,7 @@ export class ReactorPackagesManager extends AbstractProjectManager<
     
     // Store vetraConfig with defaults if not provided
     this.vetraConfig = vetraConfig || {
-      connectPort: 3000,
+      connectPort: 3001,
       switchboardPort: 4001,
       startupTimeout: 240000
     };

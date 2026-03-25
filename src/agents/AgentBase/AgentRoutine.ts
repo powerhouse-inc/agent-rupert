@@ -1,6 +1,6 @@
 import { PromptDriver, ScenarioExecutionResult, SkillExecutionResult, TaskExecutionResult } from "../../prompts/PromptDriver.js";
-import { AgentInboxDocument } from "@powerhousedao/agent-manager/document-models/agent-inbox";
-import { WorkBreakdownStructureDocument } from "@powerhousedao/agent-manager/document-models/work-breakdown-structure";
+import { type AgentInboxDocument, utils as inboxUtils } from "@powerhousedao/agent-manager/document-models/agent-inbox";
+import { type WorkBreakdownStructureDocument, utils as wbsUtils } from "@powerhousedao/agent-manager/document-models/work-breakdown-structure";
 import { InboxRoutineHandler } from "./InboxRoutineHandler.js";
 import { WbsRoutineHandler } from "./WbsRoutineHandler.js";
 import { AgentBase, ILogger } from "./AgentBase.js";
@@ -197,41 +197,42 @@ export class AgentRoutine {
     this.logger.info(`${agentName}: Setting up document event listeners in AgentRoutine`);
 
     // Listen for operations on documents
-    this.unsubscribeFromEvents = reactor.on(
-      'operationsAdded',
-      async (documentId: string, operations: any[]) => {
-        // Check if this is our inbox document
-        if (inboxId && documentId === inboxId) {
-          this.logger.info(`${agentName}: Inbox document updated - ${operations.length} operations`);
-          const currentReactor = this.agent.getReactor();
-          if (currentReactor) {
-            const doc = await currentReactor.getDocument(inboxId);
-            if (doc && doc.header.documentType === 'powerhouse/agent-inbox') {
-              this.updateInbox(doc as AgentInboxDocument);
-            }
-          }
-        }
-        // Check if this is our WBS document
-        else if (wbsId && documentId === wbsId) {
-          this.logger.info(`${agentName}: WBS document updated - ${operations.length} operations`);
-          const currentReactor = this.agent.getReactor();
-          if (currentReactor) {
-            const doc = await currentReactor.getDocument(wbsId);
-            if (doc && doc.header.documentType === 'powerhouse/work-breakdown-structure') {
-              this.updateWbs(doc as WorkBreakdownStructureDocument);
-            }
-          }
-        }
+    this.unsubscribeFromEvents = reactor.subscribe({ids: [inboxId, wbsId]},
+      async ({documents}) => {
+        for (const document of documents) {
+          const {id: documentId, documentType, revision} = document.header;
+          this.logger.info("document updated: " + documentId);
 
-        // Check if we've transitioned from init to ready
-        if (this.inbox.document && this.wbs.document && this.status === 'init') {
-          this.status = 'ready';
-          this.logger.info(`${agentName}: AgentRoutine is ready - both documents loaded`);
-          if (onReady) {
-            onReady();
+          // Check if this is our inbox document
+          if (inboxId && documentId === inboxId ) {
+            if (inboxUtils.isDocumentOfType(document)) {
+              console.log(document.header.revision);
+              this.logger.info(`${agentName}: Inbox document updated - Revision ${revision.global}`);
+              this.updateInbox(document as AgentInboxDocument);
+            } else {
+              this.logger.error(`${agentName}: Invalid inbox document type: ${documentType}`);
+            }
           }
-        }
+          // Check if this is our WBS document
+          else if (wbsId && documentId === wbsId) {
+            if (wbsUtils.isDocumentOfType(document)) {
+              this.logger.info(`${agentName}: WBS document updated - Revision ${revision.global}`);
+              this.updateWbs(document as WorkBreakdownStructureDocument);
+            } else {
+              this.logger.error(`${agentName}: Invalid WBS document type: ${documentType}`);
+            }
+          }
+
+          // Check if we've transitioned from init to ready
+          if (this.inbox.document && this.wbs.document && this.status === 'init') {
+            this.status = 'ready';
+            this.logger.info(`${agentName}: AgentRoutine is ready - both documents loaded`);
+            if (onReady) {
+              onReady();
+            }
+          }
       }
+    }
     );
   }
 

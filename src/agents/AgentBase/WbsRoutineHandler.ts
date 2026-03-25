@@ -1,10 +1,10 @@
 import { WorkBreakdownStructureDocument, Goal, actions } from "@powerhousedao/agent-manager/document-models/work-breakdown-structure";
 import { WorkItemParams, WorkItemType } from "./WorkItemTypes.js";
 import { AgentRoutineContext } from "./AgentRoutineContext.js";
-import type { IDocumentDriveServer } from "document-drive";
 import type { ISkillsRepository } from "../../prompts/ISkillsRepository.js";
 import type { SkillTemplate, ScenarioTemplate, ScenarioTaskTemplate } from "../../prompts/types.js";
 import { PromptDriver } from "../../prompts/PromptDriver.js";
+import { IReactorClient } from "@powerhousedao/reactor";
 
 interface WorkItemResolution {
   skillName: string;
@@ -26,7 +26,7 @@ export class WbsRoutineHandler {
    */
   public static async getNextWorkItem(
     wbs: WorkBreakdownStructureDocument,
-    reactor: IDocumentDriveServer,
+    reactor: IReactorClient,
     skillsRepository: ISkillsRepository,
     promptDriver: PromptDriver
   ): Promise<{
@@ -427,7 +427,7 @@ export class WbsRoutineHandler {
   public static async markInProgress(
     goal: Goal,
     wbsDocumentId: string,
-    reactor: IDocumentDriveServer
+    reactor: IReactorClient
   ): Promise<void> {
     // Create the markInProgress action
     const action = actions.markInProgress({
@@ -435,12 +435,11 @@ export class WbsRoutineHandler {
     });
 
     // Submit the action to the reactor
-    const result = await reactor.addAction(wbsDocumentId, action);
-
-    // Check if the operation was successful
-    if (!result || result.error) {
+    try {
+      await reactor.execute(wbsDocumentId, "main", [action]);
+    } catch (error) {
       throw new Error(
-        `Failed to mark goal ${goal.id} as IN_PROGRESS: ${result?.error?.message || 'Unknown error'
+        `Failed to mark goal ${goal.id} as IN_PROGRESS: ${error instanceof Error ? error.message : error || 'Unknown error'
         }`
       );
     }
@@ -458,12 +457,12 @@ export class WbsRoutineHandler {
   public static async markCompleted(
     goal: Goal,
     wbsDocumentId: string,
-    reactor: IDocumentDriveServer
+    reactor: IReactorClient
   ): Promise<void> {
     //console.log(`Marking goal ${goal.id} as DONE: ${goal.description}`);
 
     let skipUpdate = false;
-    const currentWbs = await reactor.getDocument(wbsDocumentId) as WorkBreakdownStructureDocument;
+    const currentWbs = await reactor.get<WorkBreakdownStructureDocument>(wbsDocumentId);
     const currentGoal = currentWbs.state.global.goals.find(g => g.id === goal.id);
 
     if (currentGoal) {
@@ -479,12 +478,11 @@ export class WbsRoutineHandler {
       });
 
       // Submit the action to the reactor
-      const result = await reactor.addAction(wbsDocumentId, action);
-
-      // Check if the operation was successful
-      if (!result || result.error) {
+      try {
+        await reactor.execute(wbsDocumentId, "main", [action]);
+      } catch (error) {
         throw new Error(
-          `Failed to mark goal ${goal.id} as COMPLETED: ${result?.error?.message || 'Unknown error'
+          `Failed to mark goal ${goal.id} as COMPLETED: ${error instanceof Error ? error.message : error || 'Unknown error'
           }`
         );
       }
@@ -503,7 +501,7 @@ export class WbsRoutineHandler {
   public static async markBlocked(
     goal: Goal,
     wbsDocumentId: string,
-    reactor: IDocumentDriveServer
+    reactor: IReactorClient
   ): Promise<void> {
     console.log(`Marking goal ${goal.id} as BLOCKED: ${goal.description}`);
 
@@ -515,12 +513,11 @@ export class WbsRoutineHandler {
     });
 
     // Submit the action to the reactor
-    const result = await reactor.addAction(wbsDocumentId, action);
-
-    // Check if the operation was successful
-    if (!result || result.error) {
+    try {
+      await reactor.execute(wbsDocumentId, "main", [action]);
+    } catch (error) {
       throw new Error(
-        `Failed to mark goal ${goal.id} as BLOCKED: ${result?.error?.message || 'Unknown error'
+        `Failed to mark goal ${goal.id} as BLOCKED: ${error instanceof Error ? error.message : error || 'Unknown error'
         }`
       );
     }
