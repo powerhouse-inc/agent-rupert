@@ -73,6 +73,8 @@ export interface VetraConfig {
   startupTimeout: number;
 }
 
+const DEFAULT_PH_VERSION = process.env.PROJECTS_PH_VERSION !== undefined ? process.env.PROJECTS_PH_VERSION : 'staging';
+
 export class ReactorPackagesManager extends AbstractProjectManager<
   ReactorPackageConfig,
   RunningReactorPackageProject,
@@ -115,22 +117,10 @@ export class ReactorPackagesManager extends AbstractProjectManager<
       title: `Initialize Powerhouse project: ${projectName}`,
       instructions: `Create a new Powerhouse project using ph init`,
       command: 'ph',
-      args: ['init', projectName],
+      args: ['init', projectName, `--${DEFAULT_PH_VERSION}`],
       workingDirectory: this.projectsDir,
       environment: {
         // Ensure non-interactive mode if available
-        CI: 'true'
-      }
-    }));
-
-    // Document engineering upgrade task (workaround for zod issues)
-    tasks.push(createCLITask({
-      title: `Install document-engineering package v1.40.0 for project: ${projectName}`,
-      instructions: `Upgrade document-engineering to avoid zod issues`,
-      command: 'pnpm',
-      args: ['install', '@powerhousedao/document-engineering@1.40.0'],
-      workingDirectory: projectPath,
-      environment: {
         CI: 'true'
       }
     }));

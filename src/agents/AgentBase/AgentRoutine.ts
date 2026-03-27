@@ -206,8 +206,7 @@ export class AgentRoutine {
           // Check if this is our inbox document
           if (inboxId && documentId === inboxId ) {
             if (inboxUtils.isDocumentOfType(document)) {
-              console.log(document.header.revision);
-              this.logger.info(`${agentName}: Inbox document updated - Revision ${revision.global}`);
+              this.logger.info(`${agentName}: Inbox document updated - Revision ${revision.global || 0}`);
               this.updateInbox(document as AgentInboxDocument);
             } else {
               this.logger.error(`${agentName}: Invalid inbox document type: ${documentType}`);
@@ -216,7 +215,7 @@ export class AgentRoutine {
           // Check if this is our WBS document
           else if (wbsId && documentId === wbsId) {
             if (wbsUtils.isDocumentOfType(document)) {
-              this.logger.info(`${agentName}: WBS document updated - Revision ${revision.global}`);
+              this.logger.info(`${agentName}: WBS document updated - Revision ${revision.global || 0}`);
               this.updateWbs(document as WorkBreakdownStructureDocument);
             } else {
               this.logger.error(`${agentName}: Invalid WBS document type: ${documentType}`);
